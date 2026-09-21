@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Map, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -93,44 +93,35 @@ export function openShapeAssemblyPrintWindow(
 
 export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResult }) {
   const [open, setOpen] = useState(false);
-  const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
-  const printFrameRef = useRef<HTMLIFrameElement>(null);
-  const autoPrintPendingRef = useRef(false);
   const edges = result.assemblyEdges ?? [];
-
-  useEffect(() => {
-    if (!printPreviewOpen) return;
-    autoPrintPendingRef.current = true;
-    const timer = window.setTimeout(() => {
-      const frame = printFrameRef.current;
-      if (frame) frame.srcdoc = buildShapeAssemblyPrintDocument(result);
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [printPreviewOpen, result]);
 
   if (edges.length === 0) return null;
 
-  const handlePrint = () => {
-    // Não manter dois Dialogs Radix ativos: a sobreposição do primeiro pode
-    // capturar o ponteiro e tornar o comando de impressão aparentemente inerte.
-    setOpen(false);
-    setPrintPreviewOpen(true);
-  };
-  const handleFramePrint = () => {
-    const printWindow = printFrameRef.current?.contentWindow;
-    if (!printWindow) return;
-    printWindow.focus();
-    printWindow.print();
-  };
-  const handlePrintFrameLoad = () => {
-    if (!autoPrintPendingRef.current) return;
-    autoPrintPendingRef.current = false;
-    // Tenta abrir a impressão assim que a folha A4 termina de montar.
-    // O comando manual continua disponível caso o navegador bloqueie o diálogo automático.
-    window.setTimeout(handleFramePrint, 0);
-  };
+  const handlePrint = () => window.print();
 
   return <>
+    <style>{`
+      @media print {
+        body * { visibility: hidden !important; }
+        .shape-assembly-printable,
+        .shape-assembly-printable * { visibility: visible !important; }
+        .shape-assembly-printable {
+          position: fixed !important;
+          inset: 0 !important;
+          width: 100% !important;
+          height: auto !important;
+          max-width: none !important;
+          max-height: none !important;
+          overflow: visible !important;
+          border: 0 !important;
+          box-shadow: none !important;
+          transform: none !important;
+        }
+        .shape-assembly-print-controls { display: none !important; }
+        .shape-assembly-printable .space-y-4 { gap: 10px !important; }
+        .shape-assembly-printable .rounded-xl { border-radius: 0 !important; }
+      }
+    `}</style>
     <Button
       type="button"
       size="sm"
@@ -147,7 +138,7 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
       Guia de Montagem
     </Button>
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="h-[94vh] w-[min(96vw,1120px)] max-w-[1120px] overflow-x-hidden overflow-y-auto p-0 sm:rounded-xl">
+      <DialogContent className="shape-assembly-printable h-[94vh] w-[min(96vw,1120px)] max-w-[1120px] overflow-x-hidden overflow-y-auto p-0 sm:rounded-xl">
         <DialogHeader className="border-b bg-background px-5 py-3 shadow-sm sm:px-6 sm:py-4">
           <div className="flex flex-wrap items-center justify-between gap-3 pr-8">
             <div>
@@ -158,7 +149,7 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
               type="button"
               size="sm"
               variant="outline"
-              className="gap-1.5"
+              className="shape-assembly-print-controls gap-1.5"
               onPointerDown={(event) => event.stopPropagation()}
               onClick={(event) => {
                 event.preventDefault();
@@ -199,28 +190,6 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
               </ol>
             </section>)}
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-    <Dialog open={printPreviewOpen} onOpenChange={setPrintPreviewOpen}>
-      <DialogContent className="flex h-[94vh] w-[min(98vw,1100px)] max-w-[1100px] flex-col gap-0 overflow-hidden p-0 sm:rounded-xl">
-        <DialogHeader className="flex-row items-center justify-between gap-4 border-b bg-background px-5 py-3 pr-14 shadow-sm">
-          <div>
-            <DialogTitle className="text-base">Pré-visualização — Guia de montagem</DialogTitle>
-            <p className="mt-0.5 text-xs text-muted-foreground">Confira a folha A4 e clique em imprimir para abrir a impressão do navegador.</p>
-          </div>
-          <Button type="button" size="sm" className="shrink-0 gap-1.5" onClick={handleFramePrint}>
-            <Printer className="h-3.5 w-3.5" /> Imprimir agora
-          </Button>
-        </DialogHeader>
-        <div className="min-h-0 flex-1 bg-muted/40 p-3 sm:p-4">
-          <iframe
-            ref={printFrameRef}
-            title="Pré-visualização imprimível do guia de montagem"
-            className="h-full w-full rounded-md border bg-white shadow-sm"
-            sandbox="allow-same-origin allow-scripts allow-modals allow-popups"
-            onLoad={handlePrintFrameLoad}
-          />
         </div>
       </DialogContent>
     </Dialog>

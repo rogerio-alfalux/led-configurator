@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ShapeAssemblyGuide } from "./ShapeAssemblyGuide";
 
 describe("ShapeAssemblyGuide", () => {
@@ -21,15 +21,16 @@ describe("ShapeAssemblyGuide", () => {
     }],
   };
 
-  it("troca o guia por uma única pré-visualização imprimível ao clicar em imprimir", () => {
+  it("chama a impressão nativa diretamente ao clicar em Imprimir guia", () => {
+    const print = vi.spyOn(window, "print").mockImplementation(() => undefined);
     render(<ShapeAssemblyGuide result={result} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Guia de Montagem" }));
     expect(screen.getByText("Guia de montagem — BLAZE H")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Imprimir guia" }));
-    expect(screen.queryByText("Guia de montagem — BLAZE H")).toBeNull();
-    expect(screen.getByText("Pré-visualização — Guia de montagem")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Imprimir agora" })).toBeTruthy();
+    expect(print).toHaveBeenCalledOnce();
+    expect(screen.getByText("Guia de montagem — BLAZE H")).toBeTruthy();
+    print.mockRestore();
   });
 });
