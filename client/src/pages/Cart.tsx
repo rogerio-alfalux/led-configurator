@@ -3764,6 +3764,29 @@ function StandardCart() {
 }
 
 /** Carrinho exclusivo do LD Convidado: mantém toda a configuração, mas nunca renderiza valores. */
+type LdRevisionContext = {
+  requestId: number;
+  requestNumber?: string | null;
+  officeName: string;
+  finalClientName: string;
+  constructorName?: string | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  workState?: string | null;
+  workCity?: string | null;
+  generalObservation?: string | null;
+};
+
+function readLdRevisionContext(): LdRevisionContext | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const parsed = JSON.parse(sessionStorage.getItem("alfalux_ld_revision_context") ?? "null");
+    return parsed && Number.isInteger(parsed.requestId) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 function GuestCart() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -3780,6 +3803,7 @@ function GuestCart() {
   const [desiredQuoteDate, setDesiredQuoteDate] = useState("");
   const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState("");
   const [attachments, setAttachments] = useState<Array<{ fileName: string; mimeType: string; size: number; base64: string }>>([]);
+  const [revisionContext] = useState<LdRevisionContext | null>(() => readLdRevisionContext());
   const ldDeadlineLimits = getLdRequestDeadlineLimits();
   const utils = trpc.useUtils();
   const contactDefaults = trpc.ldRequests.contactDefaults.useQuery(undefined, { enabled: (user as any)?.role === "convidado" });
@@ -3788,12 +3812,24 @@ function GuestCart() {
     setContactName(current => current || contactDefaults.data?.contactName || "");
     setContactPhone(current => current || contactDefaults.data?.contactPhone || "");
   }, [contactDefaults.data]);
+  useEffect(() => {
+    if (!revisionContext) return;
+    setOfficeName(revisionContext.officeName || "");
+    setFinalClientName(revisionContext.finalClientName || "");
+    setConstructorName(revisionContext.constructorName || "");
+    setContactName(revisionContext.contactName || "");
+    setContactPhone(revisionContext.contactPhone || "");
+    setWorkState(revisionContext.workState || "SP");
+    setWorkCity(revisionContext.workCity || "");
+    setGeneralObservation(revisionContext.generalObservation || "");
+  }, [revisionContext]);
   const submitRequest = trpc.ldRequests.submit.useMutation({
     onSuccess: async () => {
       await clearCart();
       await utils.ldRequests.mine.invalidate();
       await utils.ldRequests.notifications.invalidate();
-      toast.success("Solicitação enviada para análise da equipe Alfalux.");
+      if (revisionContext) sessionStorage.removeItem("alfalux_ld_revision_context");
+      toast.success(revisionContext ? "Revisão enviada para análise da equipe Alfalux." : "Solicitação enviada para análise da equipe Alfalux.");
       setDialogOpen(false);
       navigate("/minhas-solicitacoes-ld");
     },
@@ -3830,7 +3866,10 @@ function GuestCart() {
       toast.error(deadlineError);
       return;
     }
-    submitRequest.mutate(buildLdRequestPayload({ officeName, finalClientName, constructorName, contactName, contactPhone, workState, workCity, generalObservation, desiredQuoteDate, estimatedDeliveryDate, attachments }));
+    submitRequest.mutate({
+      ...buildLdRequestPayload({ officeName, finalClientName, constructorName, contactName, contactPhone, workState, workCity, generalObservation, desiredQuoteDate, estimatedDeliveryDate, attachments }),
+      parentRequestId: revisionContext?.requestId,
+    });
   };
 
   return (
@@ -3848,8 +3887,8 @@ function GuestCart() {
 
       <main className="max-w-4xl mx-auto px-4 py-7 space-y-5">
         <div>
-          <h1 className="text-2xl font-bold">Produtos configurados</h1>
-          <p className="text-sm text-muted-foreground mt-1">Revise as configurações e envie sua solicitação de orçamento para a equipe Alfalux.</p>
+          <h1 className="text-2xl font-bold">{revisionContext ? "Revisar produtos" : "Produtos configurados"}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{revisionContext ? `Revisão da resposta ${revisionContext.requestNumber ?? "anterior"}: troque, inclua ou exclua produtos antes de enviar.` : "Revise as configurações e envie sua solicitação de orçamento para a equipe Alfalux."}</p>
         </div>
 
         {isLoading ? <div className="py-16 text-center text-muted-foreground">Carregando itens...</div> : entries.length === 0 ? (
@@ -3864,14 +3903,14 @@ function GuestCart() {
           </div>
           <div className="flex flex-col sm:flex-row gap-3 justify-between items-stretch sm:items-center rounded-lg border bg-card p-4">
             <p className="text-sm text-muted-foreground">{entries.length} {entries.length === 1 ? "produto configurado" : "produtos configurados"}</p>
-            <Button className="gap-2" onClick={() => setDialogOpen(true)}><ClipboardList className="w-4 h-4" /> Enviar para o orçamento</Button>
+            <Button className="gap-2" onClick={() => setDialogOpen(true)}><ClipboardList className="w-4 h-4" /> {revisionContext ? "Enviar revisão" : "Enviar para o orçamento"}</Button>
           </div>
         </>}
       </main>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto pb-6">
-          <DialogHeader><DialogTitle>Enviar solicitação de orçamento</DialogTitle><DialogDescription>Informe o contato e a localidade da obra para que a equipe prepare o orçamento com os tributos corretos.</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>{revisionContext ? "Enviar revisão da solicitação" : "Enviar solicitação de orçamento"}</DialogTitle><DialogDescription>{revisionContext ? "Os dados originais foram preenchidos para facilitar a revisão. O envio criará uma nova solicitação vinculada, preservando a resposta e o PDF anteriores." : "Informe o contato e a localidade da obra para que a equipe prepare o orçamento com os tributos corretos."}</DialogDescription></DialogHeader>
           <div className="space-y-5 py-2">
             <section className="rounded-lg border bg-muted/20 p-4 space-y-3">
               <div className="flex items-center gap-2"><Building2 className="w-4 h-4 text-primary" /><h3 className="font-semibold text-sm">Dados da solicitação</h3></div>

@@ -189,6 +189,42 @@ export async function clearCart(userId: number) {
   await db.delete(cartItems).where(eq(cartItems.userId, userId));
 }
 
+/**
+ * Copia o snapshot técnico de uma resposta já entregue para o carrinho do mesmo LD.
+ * A solicitação e seu PDF original permanecem intactos; somente o carrinho atual
+ * do solicitante é preparado para que ele troque, inclua ou remova produtos.
+ */
+export async function loadGuestQuoteRequestRevisionIntoCart(guestUserId: number, requestId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.transaction(async (tx) => {
+    const request = (await tx.select().from(guestQuoteRequests)
+      .where(and(
+        eq(guestQuoteRequests.id, requestId),
+        eq(guestQuoteRequests.guestUserId, guestUserId),
+        eq(guestQuoteRequests.status, "quote_ready"),
+      ))
+      .limit(1))[0];
+    if (!request) return null;
+
+    let snapshot: Array<{ itemData: string; sortOrder?: number }>;
+    try {
+      const parsed = JSON.parse(request.itemsData);
+      if (!Array.isArray(parsed) || !parsed.every(item => item && typeof item.itemData === "string")) throw new Error("snapshot inválido");
+      snapshot = parsed;
+    } catch {
+      throw new Error("Os itens técnicos desta solicitação não puderam ser preparados para revisão.");
+    }
+
+    await tx.delete(cartItems).where(eq(cartItems.userId, guestUserId));
+    if (snapshot.length > 0) {
+      await tx.insert(cartItems).values(snapshot
+        .sort((left, right) => (left.sortOrder ?? 0) - (right.sortOrder ?? 0))
+        .map((item, index) => ({ userId: guestUserId, itemData: item.itemData, sortOrder: item.sortOrder ?? index })));
+    }
+    return request;
+  });
+}
 // ─── Solicitações de orçamento LD Convidado ──────────────────────────────────
 
 export type CreateGuestQuoteRequestInput = {
@@ -206,6 +242,8 @@ export type CreateGuestQuoteRequestInput = {
   desiredQuoteDate?: string | null;
   estimatedDeliveryDate?: string | null;
   itemsData: string;
+  /** Solicitação respondida que o LD está revisando; a resposta original não é alterada. */
+  parentRequestId?: number | null;
 };
 
 export async function createGuestQuoteRequest(input: CreateGuestQuoteRequestInput): Promise<number> {

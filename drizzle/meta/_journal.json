@@ -337,6 +337,13 @@
       "when": 1788882441705,
       "tag": "0047_skinny_wilson_fisk",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "5",
+      "when": 1790018127077,
+      "tag": "0048_lowly_pyro",
+      "breakpoints": true
     }
   ]
 }

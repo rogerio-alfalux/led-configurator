@@ -80,4 +80,11 @@ describe("FloorGroupBar", () => {
     expect(source).toContain("!item?.data.driverLines?.length && canEditPriceSave");
     expect(source).toContain("className=\"text-right\"");
   });
+
+  it("preserva o vínculo com a resposta LD original ao reenviar uma revisão", () => {
+    const source = readFileSync(resolve(process.cwd(), "client/src/pages/Cart.tsx"), "utf8");
+    expect(source).toContain("alfalux_ld_revision_context");
+    expect(source).toContain("parentRequestId: revisionContext?.requestId");
+    expect(source).toContain("Revisão enviada para análise da equipe Alfalux.");
+  });
 });

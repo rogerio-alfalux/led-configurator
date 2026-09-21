@@ -10,6 +10,7 @@ const invalidateMine = vi.fn().mockResolvedValue(undefined);
 const deleteRequest = vi.fn().mockResolvedValue({ success: true, requestId: 1 });
 const markResponseViewed = vi.fn().mockResolvedValue({ success: true });
 const getResponsePdf = vi.fn().mockResolvedValue({ url: "/api/assets/ld-quotes/7/1/orcamento.pdf" });
+const startRevision = vi.fn().mockResolvedValue({ requestId: 1, requestNumber: "LD-0001-26", officeName: "Escritório", finalClientName: "Cliente", workState: "SP", workCity: "São Paulo" });
 
 vi.mock("@/_core/hooks/useAuth", () => ({ useAuth: () => ({ user: { role: "convidado" } }) }));
 vi.mock("@/lib/trpc", () => ({
@@ -20,6 +21,7 @@ vi.mock("@/lib/trpc", () => ({
       myPdf: { useMutation: () => ({ mutateAsync: getResponsePdf, isPending: false }) },
       markResponseViewed: { useMutation: () => ({ mutateAsync: markResponseViewed, isPending: false }) },
       deleteMine: { useMutation: () => ({ mutateAsync: deleteRequest, isPending: false }) },
+      startRevision: { useMutation: () => ({ mutateAsync: startRevision, isPending: false }) },
     },
   },
 }));
@@ -51,6 +53,15 @@ describe("LDGuestRequests", () => {
     await waitFor(() => expect(deleteRequest).toHaveBeenCalledWith({ requestId: 1 }));
   });
 
+  it("pede confirmação antes de preparar o carrinho para uma revisão", async () => {
+    render(React.createElement(LDGuestRequests));
+    const reviewButtons = screen.getAllByRole("button", { name: /solicitar revisão/i });
+    fireEvent.click(reviewButtons[reviewButtons.length - 1]!);
+    expect(screen.getByRole("heading", { name: /solicitar revisão desta resposta/i })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /continuar para revisão/i }));
+    await waitFor(() => expect(startRevision).toHaveBeenCalledWith({ requestId: 1 }));
+  });
+
   it("não carrega dados comerciais brutos; usa exclusivamente o PDF validado para a solicitação do LD", () => {
     const source = readFileSync(resolve(process.cwd(), "client/src/pages/LDRequests.tsx"), "utf8");
     expect(source).toContain("ldRequests.myPdf.useMutation");
@@ -58,6 +69,7 @@ describe("LDGuestRequests", () => {
     expect(source).not.toContain("currentPdfData");
     expect(source).not.toContain("ExcelPreviewModal");
     expect(source).toContain("onPreview={() => openOfficialPreview(request.id)}");
+    expect(source).toContain("ldRequests.startRevision.useMutation");
     expect(source).not.toContain("downloadPdfBlob(blob, currentPdfJob.fileName)");
     expect(source).not.toContain("openLdValidatedPdf");
   });

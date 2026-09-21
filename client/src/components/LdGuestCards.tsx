@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Eye, MessageSquareText, Minus, Package, Plus, Tag, Trash2 } from "lucide-react";
+import { Eye, MessageSquareText, Minus, Package, Plus, RefreshCw, Tag, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { CartItemData } from "@/lib/cartTypes";
@@ -81,8 +81,10 @@ export function LdGuestRequestHistoryCard({
   statusClassName,
   pdfAvailable,
   onPreview,
+  onRequestRevision,
   onDelete,
   isDownloading = false,
+  isRequestingRevision = false,
   isDeleting = false,
 }: {
   finalClientName: string;
@@ -93,8 +95,10 @@ export function LdGuestRequestHistoryCard({
   statusClassName: string;
   pdfAvailable: boolean;
   onPreview: () => void;
+  onRequestRevision?: () => void;
   onDelete: () => void;
   isDownloading?: boolean;
+  isRequestingRevision?: boolean;
   isDeleting?: boolean;
 }) {
   return <Card><CardContent className="p-4 flex flex-col sm:flex-row justify-between gap-3">
@@ -106,6 +110,7 @@ export function LdGuestRequestHistoryCard({
     <div className="flex items-center gap-2 flex-wrap justify-end">
       <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusClassName}`}>{statusLabel}</span>
       {pdfAvailable && <Button size="sm" disabled={isDownloading || isDeleting} onClick={onPreview}><Eye className="w-4 h-4 mr-1" /> Ver resposta</Button>}
+      {pdfAvailable && onRequestRevision && <Button size="sm" variant="outline" disabled={isDownloading || isDeleting || isRequestingRevision} onClick={onRequestRevision}><RefreshCw className="w-4 h-4 mr-1" /> {isRequestingRevision ? "Preparando..." : "Solicitar revisão"}</Button>}
       <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" disabled={isDownloading || isDeleting} onClick={onDelete}><Trash2 className="w-4 h-4 mr-1" /> {isDeleting ? "Excluindo..." : "Excluir"}</Button>
     </div>
   </CardContent></Card>;

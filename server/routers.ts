@@ -76,6 +76,7 @@ import {
   attachGuestQuoteRequestPdf,
   deleteGuestQuoteRequestForGuest,
   deleteGuestQuoteRequestForAdmin,
+  loadGuestQuoteRequestRevisionIntoCart,
 } from "./db";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
@@ -381,6 +382,7 @@ export const appRouter = router({
         generalObservation: z.string().trim().max(4_000).optional(),
         desiredQuoteDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
         estimatedDeliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        parentRequestId: z.number().int().positive().optional(),
         attachments: z.array(z.object({
           fileName: z.string().trim().min(1).max(256),
           mimeType: z.string().trim().min(1).max(128),
@@ -391,6 +393,17 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "convidado") {
           throw new TRPCError({ code: "FORBIDDEN", message: "Este envio é exclusivo para LD Convidado." });
+        }
+        let parentRequest: Awaited<ReturnType<typeof getGuestQuoteRequestById>> | undefined;
+        if (input.parentRequestId) {
+          parentRequest = await getGuestQuoteRequestById(input.parentRequestId);
+          if (
+            !parentRequest
+            || parentRequest.guestUserId !== ctx.user.id
+            || parentRequest.status !== "quote_ready"
+          ) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "A resposta original não está disponível para revisão." });
+          }
         }
         const deadlineError = getLdRequestDeadlineValidationError(input);
         if (deadlineError) {
@@ -420,6 +433,7 @@ export const appRouter = router({
           desiredQuoteDate: input.desiredQuoteDate ?? null,
           estimatedDeliveryDate: input.estimatedDeliveryDate ?? null,
           itemsData: JSON.stringify(cart.map(item => ({ itemData: item.itemData, sortOrder: item.sortOrder }))),
+          parentRequestId: parentRequest?.id ?? null,
         });
         await upsertLdGuestContactProfile({
           guestUserId: ctx.user.id,
@@ -438,12 +452,12 @@ export const appRouter = router({
           userId: ctx.user.id,
           userEmail: ctx.user.email ?? null,
           userName: ctx.user.name ?? null,
-          action: "ld_quote_request_submitted",
+          action: parentRequest ? "ld_quote_revision_submitted" : "ld_quote_request_submitted",
           entityType: "guest_quote_request",
           entityId: id,
-          details: JSON.stringify({ officeName: input.officeName, finalClientName: input.finalClientName, workState: input.workState, workCity: input.workCity, desiredQuoteDate: input.desiredQuoteDate ?? null, estimatedDeliveryDate: input.estimatedDeliveryDate ?? null, hasGeneralObservation: Boolean(input.generalObservation), attachmentCount: uploaded.length }),
+          details: JSON.stringify({ officeName: input.officeName, finalClientName: input.finalClientName, workState: input.workState, workCity: input.workCity, desiredQuoteDate: input.desiredQuoteDate ?? null, estimatedDeliveryDate: input.estimatedDeliveryDate ?? null, hasGeneralObservation: Boolean(input.generalObservation), attachmentCount: uploaded.length, parentRequestId: parentRequest?.id ?? null }),
         });
-        return { id };
+        return { id, parentRequestId: parentRequest?.id ?? null };
       }),
 
     contactDefaults: protectedProcedure.query(async ({ ctx }) => {
@@ -479,6 +493,48 @@ export const appRouter = router({
       return { success: true, requestId: input.requestId };
     }),
 
+    /**
+     * Carrega a fotografia técnica de uma resposta no carrinho do próprio LD.
+     * O navegador pede confirmação antes desta ação porque o carrinho atual será
+     * substituído; a solicitação respondida e o PDF oficialmente entregue nunca
+     * são sobrescritos. O envio posterior cria uma nova solicitação vinculada.
+     */
+    startRevision: protectedProcedure
+      .input(z.object({ requestId: z.number().int().positive() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "convidado") throw new TRPCError({ code: "FORBIDDEN" });
+        let request;
+        try {
+          request = await loadGuestQuoteRequestRevisionIntoCart(ctx.user.id, input.requestId);
+        } catch (error) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Não foi possível preparar a revisão." });
+        }
+        if (!request) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Esta resposta não está disponível para revisão." });
+        }
+        await insertAuditLog({
+          userId: ctx.user.id,
+          userEmail: ctx.user.email ?? null,
+          userName: ctx.user.name ?? null,
+          action: "ld_quote_revision_started",
+          entityType: "guest_quote_request",
+          entityId: request.id,
+          details: JSON.stringify({ requestNumber: request.requestNumber, adminQuoteId: request.adminQuoteId }),
+        });
+        return {
+          requestId: request.id,
+          requestNumber: request.requestNumber,
+          officeName: request.officeName,
+          finalClientName: request.finalClientName,
+          constructorName: request.constructorName,
+          contactName: request.contactName,
+          contactPhone: request.contactPhone,
+          workState: request.workState,
+          workCity: request.workCity,
+          generalObservation: request.generalObservation,
+        };
+      }),
+
     mine: protectedProcedure.query(async ({ ctx }) => {
       if (ctx.user.role !== "convidado") return [];
       const requests = await listGuestQuoteRequestsForGuest(ctx.user.id);
@@ -492,6 +548,8 @@ export const appRouter = router({
         workState: request.workState,
         workCity: request.workCity,
         status: request.status,
+        requestNumber: request.requestNumber,
+        parentRequestId: request.parentRequestId,
         adminQuoteId: request.adminQuoteId,
         submittedAt: request.submittedAt,
         pdfAvailable: request.status === "quote_ready" && Boolean(request.validatedPdfUrl),
@@ -526,10 +584,14 @@ export const appRouter = router({
 
     adminList: adminProcedure
       .input(z.object({ status: z.enum(["pending", "in_review", "quote_ready", "cancelled"]).optional() }).optional())
-      .query(async ({ input }) => Promise.all((await listGuestQuoteRequests(input?.status)).map(async request => ({
-        ...request,
-        attachments: await listGuestQuoteRequestAttachments(request.id),
-      })))),
+      .query(async ({ input }) => Promise.all((await listGuestQuoteRequests(input?.status)).map(async request => {
+        const parent = request.parentRequestId ? await getGuestQuoteRequestById(request.parentRequestId) : undefined;
+        return {
+          ...request,
+          parentRequestNumber: parent?.requestNumber ?? null,
+          attachments: await listGuestQuoteRequestAttachments(request.id),
+        };
+      }))),
 
     adminStartReview: adminProcedure
       .input(z.object({ requestId: z.number().int().positive() }))

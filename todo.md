@@ -2646,7 +2646,7 @@
 - [x] Auto-preenchimento: frete "A Calcular" quando localidade fora de SP
 - [x] Auto-preenchimento: número do orçamento sugerido ao selecionar vendedor
 - [x] Primeira edição do orçamento criado via solicitação LD não conta como revisão (fica RV0 até enviar ao LD)
-- [ ] Feature: LD pode solicitar revisão do orçamento após receber o PDF (trocar/inserir/excluir produtos)
+- [x] Feature: LD pode solicitar revisão do orçamento após receber o PDF (trocar/inserir/excluir produtos)
 
 ## Correção: Ficha de produção usa drivers do orçamento aprovado
 - [x] Remover migrateItemDrivers do export da ficha de produção para usar drivers exatamente como salvos no orçamento

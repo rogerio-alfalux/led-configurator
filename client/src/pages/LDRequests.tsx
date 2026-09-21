@@ -136,7 +136,7 @@ export function LDRequestsAdmin() {
       {requests.isLoading ? <p className="py-12 text-center text-muted-foreground">Carregando solicitações...</p> : orderedRequests.length === 0 ? <Card className="py-12 text-center"><ClipboardList className="w-9 h-9 mx-auto text-muted-foreground mb-3" /><p className="font-medium">Nenhuma solicitação recebida</p></Card> : <div className="space-y-4">{orderedRequests.map(request => {
         const items = requestItems(request.itemsData);
         const status = STATUS[request.status] ?? STATUS.pending;
-        return <Card key={request.id}><CardHeader className="pb-3"><div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3"><div><CardTitle className="text-base flex items-center gap-2"><ClipboardList className="w-4 h-4 text-primary" /> Solicitação {request.requestNumber ?? `#${request.id}`}</CardTitle><p className="text-sm text-muted-foreground mt-1">Enviada em {toBrasiliaDateTime(request.submittedAt)}</p></div><div className="flex flex-wrap items-center gap-2"><Badge className={status.className}>{status.label}</Badge>{request.guestDeletedAt && <Badge variant="outline" className="border-slate-300 bg-slate-100 text-slate-700">Excluída pelo LD</Badge>}</div></div></CardHeader><CardContent className="space-y-4">
+        return <Card key={request.id}><CardHeader className="pb-3"><div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3"><div><CardTitle className="text-base flex items-center gap-2"><ClipboardList className="w-4 h-4 text-primary" /> Solicitação {request.requestNumber ?? `#${request.id}`}</CardTitle><p className="text-sm text-muted-foreground mt-1">Enviada em {toBrasiliaDateTime(request.submittedAt)}</p>{request.parentRequestId && <p className="mt-1 text-xs font-medium text-primary">Revisão da resposta {request.parentRequestNumber ?? `#${request.parentRequestId}`} — a resposta original foi preservada.</p>}</div><div className="flex flex-wrap items-center gap-2"><Badge className={status.className}>{request.parentRequestId ? "Revisão solicitada" : status.label}</Badge>{request.guestDeletedAt && <Badge variant="outline" className="border-slate-300 bg-slate-100 text-slate-700">Excluída pelo LD</Badge>}</div></div></CardHeader><CardContent className="space-y-4">
           <div className="grid sm:grid-cols-3 gap-3 text-sm"><div><p className="text-muted-foreground">Escritório</p><p className="font-medium">{request.officeName}</p></div><div><p className="text-muted-foreground">Cliente final</p><p className="font-medium">{request.finalClientName}</p></div><div><p className="text-muted-foreground">Construtora</p><p className="font-medium">{request.constructorName || "—"}</p></div></div>
           <div className="grid md:grid-cols-3 gap-3"><div className="rounded-md border bg-muted/30 p-3"><p className="text-xs font-semibold text-muted-foreground mb-2">CONTATO SOLICITANTE</p><p className="text-sm"><UserRound className="inline w-3.5 h-3.5 mr-1" />{request.contactName || request.guestName}</p><p className="text-sm text-muted-foreground mt-1"><Phone className="inline w-3.5 h-3.5 mr-1" />{request.contactPhone || "Telefone não informado"}</p><p className="text-sm text-muted-foreground mt-1"><Mail className="inline w-3.5 h-3.5 mr-1" />{request.guestEmail || "E-mail não informado"}</p></div><div className="rounded-md border bg-muted/30 p-3"><p className="text-xs font-semibold text-muted-foreground mb-2">LOCALIDADE DA OBRA</p><p className="text-sm"><MapPin className="inline w-3.5 h-3.5 mr-1 text-primary" />{request.workCity || "Cidade não informada"}{request.workState ? ` · ${request.workState}` : ""}</p><p className="text-xs text-muted-foreground mt-2">Aplicada ao orçamento para frete, DIFAL e FCP.</p></div><div className="rounded-md border border-primary/20 bg-primary/5 p-3"><p className="text-xs font-semibold text-muted-foreground mb-2">PRAZOS INFORMADOS</p><p className="text-sm"><CalendarClock className="inline w-3.5 h-3.5 mr-1 text-primary" />Orçamento: <span className="font-medium">{formatRequestedDate(request.desiredQuoteDate)}</span></p><p className="text-sm text-muted-foreground mt-1">Entrega luminárias: <span className="text-foreground font-medium">{formatRequestedDate(request.estimatedDeliveryDate)}</span></p></div></div>
           {(request.attachments ?? []).length > 0 && <div className="rounded-md border p-3 space-y-2"><p className="text-xs font-semibold text-muted-foreground">ANEXOS TÉCNICOS ({request.attachments.length})</p><div className="flex flex-wrap gap-2">{request.attachments.map((attachment: any) => <a key={attachment.id} href={attachment.fileUrl} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1.5 rounded-md border bg-muted/30 px-2.5 py-1.5 text-xs font-medium hover:bg-muted"><Paperclip className="w-3.5 h-3.5 text-primary shrink-0" /><span className="truncate max-w-52">{attachment.fileName}</span></a>)}</div></div>}
@@ -163,14 +163,25 @@ export function LDRequestsAdmin() {
 
 export function LDGuestRequests() {
   const { user } = useAuth();
+  const [, navigate] = useLocation();
   const utils = trpc.useUtils();
   const [filters, setFilters] = useState<LdRequestFilter>({ search: "", status: "all", dateFrom: "", dateTo: "" });
   const [downloadingRequestId, setDownloadingRequestId] = useState<number | null>(null);
   const [requestIdToDelete, setRequestIdToDelete] = useState<number | null>(null);
+  const [requestIdToRevise, setRequestIdToRevise] = useState<number | null>(null);
   const mine = trpc.ldRequests.mine.useQuery(undefined, { staleTime: 0, enabled: (user as any)?.role === "convidado" });
   const markResponseViewed = trpc.ldRequests.markResponseViewed.useMutation();
   const getResponsePdf = trpc.ldRequests.myPdf.useMutation();
   const deleteRequest = trpc.ldRequests.deleteMine.useMutation();
+  const startRevision = trpc.ldRequests.startRevision.useMutation({
+    onSuccess: (request) => {
+      sessionStorage.setItem("alfalux_ld_revision_context", JSON.stringify(request));
+      toast.success("Itens carregados. Ajuste produtos e envie a revisão quando terminar.");
+      setRequestIdToRevise(null);
+      navigate("/carrinho");
+    },
+    onError: (error) => toast.error(error.message),
+  });
   const visibleRequests = useMemo(() => filterLdRequests(mine.data ?? [], filters), [mine.data, filters]);
   const openOfficialPreview = async (requestId: number) => {
     if (downloadingRequestId !== null) return;
@@ -203,6 +214,10 @@ export function LDGuestRequests() {
       toast.error(error?.message ?? "Não foi possível excluir a solicitação.");
     }
   };
+  const confirmRevision = async () => {
+    if (requestIdToRevise === null) return;
+    await startRevision.mutateAsync({ requestId: requestIdToRevise });
+  };
   if ((user as any)?.role !== "convidado") return <div className="p-8 text-center text-muted-foreground">Esta área é exclusiva para LD Convidado.</div>;
   return <div className="min-h-screen bg-background">
     <header className="border-b bg-card"><div className="max-w-4xl mx-auto px-4 h-14 flex items-center gap-3"><Link href="/" className="inline-flex items-center gap-2 text-sm font-medium hover:text-primary"><ArrowLeft className="w-4 h-4" /> Configurador</Link><span className="text-muted-foreground">/</span><span className="font-semibold">Minhas solicitações</span></div></header>
@@ -210,7 +225,7 @@ export function LDGuestRequests() {
       <div><h1 className="text-2xl font-bold">Minhas solicitações de orçamento</h1><p className="text-sm text-muted-foreground mt-1">A equipe Alfalux analisará suas configurações e sinalizará a resposta da solicitação aqui. Valores comerciais são tratados exclusivamente pela equipe Alfalux.</p></div>
       {mine.isLoading ? <p className="py-12 text-center text-muted-foreground">Carregando...</p> : (mine.data ?? []).length === 0 ? <Card className="py-12 text-center"><Package className="w-9 h-9 mx-auto text-muted-foreground mb-3" /><p className="font-medium">Nenhuma solicitação enviada</p></Card> : <>
         <LdGuestFilters filters={filters} onChange={setFilters} resultCount={visibleRequests.length} />
-        {visibleRequests.length === 0 ? <Card className="py-10 text-center"><Filter className="w-8 h-8 mx-auto text-muted-foreground mb-2" /><p className="font-medium">Nenhuma solicitação encontrada</p><p className="text-sm text-muted-foreground mt-1">Ajuste ou limpe os filtros para ver outras solicitações.</p></Card> : <div className="space-y-3">{visibleRequests.map(request => { const status = STATUS[request.status] ?? STATUS.pending; return <LdGuestRequestHistoryCard key={request.id} finalClientName={request.finalClientName} officeName={request.officeName} constructorName={request.constructorName} submittedAtLabel={toBrasiliaDateTime(request.submittedAt)} statusLabel={status.label} statusClassName={status.className} pdfAvailable={isValidatedLdPdfAvailable(request.status, request.pdfAvailable ? "available" : null)} onPreview={() => openOfficialPreview(request.id)} onDelete={() => setRequestIdToDelete(request.id)} isDownloading={downloadingRequestId === request.id} isDeleting={deleteRequest.isPending && requestIdToDelete === request.id} />; })}</div>}
+        {visibleRequests.length === 0 ? <Card className="py-10 text-center"><Filter className="w-8 h-8 mx-auto text-muted-foreground mb-2" /><p className="font-medium">Nenhuma solicitação encontrada</p><p className="text-sm text-muted-foreground mt-1">Ajuste ou limpe os filtros para ver outras solicitações.</p></Card> : <div className="space-y-3">{visibleRequests.map(request => { const status = STATUS[request.status] ?? STATUS.pending; const pdfAvailable = isValidatedLdPdfAvailable(request.status, request.pdfAvailable ? "available" : null); return <LdGuestRequestHistoryCard key={request.id} finalClientName={request.finalClientName} officeName={request.officeName} constructorName={request.constructorName} submittedAtLabel={toBrasiliaDateTime(request.submittedAt)} statusLabel={request.parentRequestId ? "Revisão solicitada" : status.label} statusClassName={status.className} pdfAvailable={pdfAvailable} onPreview={() => openOfficialPreview(request.id)} onRequestRevision={pdfAvailable ? () => setRequestIdToRevise(request.id) : undefined} onDelete={() => setRequestIdToDelete(request.id)} isDownloading={downloadingRequestId === request.id} isRequestingRevision={startRevision.isPending && requestIdToRevise === request.id} isDeleting={deleteRequest.isPending && requestIdToDelete === request.id} />; })}</div>}
       </>}
     </main>
     <AlertDialog open={requestIdToDelete !== null} onOpenChange={(open) => { if (!open && !deleteRequest.isPending) setRequestIdToDelete(null); }}>
@@ -222,6 +237,18 @@ export function LDGuestRequests() {
         <AlertDialogFooter>
           <AlertDialogCancel disabled={deleteRequest.isPending}>Cancelar</AlertDialogCancel>
           <AlertDialogAction onClick={(event) => { event.preventDefault(); void confirmDelete(); }} disabled={deleteRequest.isPending} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir solicitação</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    <AlertDialog open={requestIdToRevise !== null} onOpenChange={(open) => { if (!open && !startRevision.isPending) setRequestIdToRevise(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Solicitar revisão desta resposta?</AlertDialogTitle>
+          <AlertDialogDescription>Os itens técnicos da resposta serão carregados no seu carrinho para que você possa trocar, incluir ou excluir produtos. Os itens que já estão no carrinho serão substituídos. A solicitação original e o PDF recebido permanecerão preservados.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={startRevision.isPending}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={(event) => { event.preventDefault(); void confirmRevision(); }} disabled={startRevision.isPending}>Continuar para revisão</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

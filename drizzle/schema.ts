@@ -56,6 +56,8 @@ export const guestQuoteRequests = mysqlTable("guest_quote_requests", {
   estimatedDeliveryDate: varchar({ length: 10 }),
   itemsData: text().notNull(),
   status: mysqlEnum(['pending', 'in_review', 'quote_ready', 'cancelled']).default('pending').notNull(),
+  /** Solicitação anterior respondida que originou esta revisão do LD. */
+  parentRequestId: int(),
   adminQuoteId: int(),
   reviewedByUserId: int(),
   validatedPdfUrl: text(),
@@ -73,6 +75,7 @@ export const guestQuoteRequests = mysqlTable("guest_quote_requests", {
     index("guest_quote_requests_guest_idx").on(table.guestUserId),
     index("guest_quote_requests_status_idx").on(table.status),
     index("guest_quote_requests_quote_idx").on(table.adminQuoteId),
+    index("guest_quote_requests_parent_idx").on(table.parentRequestId),
     index("guest_quote_requests_desired_quote_date_idx").on(table.desiredQuoteDate),
   ],
 );
