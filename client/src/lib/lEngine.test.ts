@@ -138,6 +138,7 @@ describe("calculateUShape — cantos e extremidades do U", () => {
     expect(result!.pieces.filter((piece) => piece.type !== "CORNER" && piece.type !== "STRAIGHT_IF").every((piece) => piece.type === "STRAIGHT_ML")).toBe(true);
     const base = result!.assemblyEdges!.find((edge) => edge.id === "base")!;
     expect(base.modules.some((module) => module.type === "IF")).toBe(false);
+    expect(base.modules.some((module) => module.type === "ML" && module.bars === 1)).toBe(true);
   });
 
   it("usa o canto compartilhado confirmado pela API para MINI BLAZE sobrepor", () => {

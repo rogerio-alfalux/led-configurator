@@ -124,13 +124,14 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
   const guideProductLabel = `${productDescription} — ${dimensionsLabel}${itemMeta ? ` — ${itemMeta}` : ""}`;
   printItem.description = guideProductLabel;
   printItem.itemEmPlanta = result.itemEmPlanta?.trim() || "Guia de montagem";
+  const guideHtml = buildShapeAssemblyGuideHtml([printItem]);
 
   const printGuide = () => {
     const host = document.createElement("div");
     host.setAttribute("data-print-modal", "true");
     host.setAttribute("data-inline-print-modal", "true");
     host.style.cssText = "position:fixed;inset:0;background:#fff;z-index:2147483647;overflow:visible;";
-    host.innerHTML = `<style>${inlinePrintStyles}</style><div data-print-content data-inline-print-content class="inline-assembly-print">${buildShapeAssemblyGuideHtml([printItem])}</div>`;
+    host.innerHTML = `<style>${inlinePrintStyles}</style><div data-print-content data-inline-print-content class="inline-assembly-print">${guideHtml}</div>`;
     document.body.appendChild(host);
 
     let cleaned = false;
@@ -162,28 +163,21 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
       Guia de Montagem
     </Button>
     <Dialog open={open} onOpenChange={(nextOpen) => { setOpen(nextOpen); if (!nextOpen) setPrintOpen(false); }}>
-      <DialogContent data-inline-print-modal className="h-[94vh] w-[min(96vw,1120px)] max-w-[1120px] overflow-x-hidden overflow-y-auto p-0 sm:rounded-xl">
+      <DialogContent data-inline-print-modal showCloseButton={!printOpen} className="h-[94vh] w-[min(96vw,1120px)] max-w-[1120px] overflow-x-hidden overflow-y-auto p-0 sm:rounded-xl">
         {printOpen ? <>
           <style>{inlinePrintStyles}</style>
-          <DialogHeader className="border-b bg-background px-5 py-3 shadow-sm sm:px-6">
-            <div className="min-w-0 pr-8">
-              <div className="min-w-0">
-                <DialogTitle className="break-words text-lg leading-6">Prévia de impressão</DialogTitle>
-              </div>
-            </div>
-          </DialogHeader>
-          <div data-print-control className="flex items-center justify-between gap-3 border-b bg-muted/30 px-5 py-2.5 sm:px-6">
-            <p className="text-xs text-muted-foreground">Confira a folha antes de imprimir.</p>
-            <div className="flex shrink-0 items-center gap-2">
-              <Button type="button" size="sm" variant="outline" className="gap-1.5" onClick={() => setPrintOpen(false)}>
-                <ArrowLeft className="h-4 w-4" /> Voltar
-              </Button>
-              <Button type="button" size="sm" className="gap-1.5" onClick={printGuide}>
-                <Printer className="h-4 w-4" /> Imprimir guia
-              </Button>
-            </div>
+          <DialogTitle className="sr-only">Prévia de impressão do guia de montagem</DialogTitle>
+          <div data-print-control className="flex items-center justify-end gap-2 border-b bg-background px-5 py-3 shadow-sm sm:px-6">
+            <Button type="button" size="sm" variant="outline" className="gap-1.5" onClick={() => setPrintOpen(false)}>
+              <ArrowLeft className="h-4 w-4" /> Voltar
+            </Button>
+            <Button type="button" size="sm" className="gap-1.5" onClick={printGuide}>
+              <Printer className="h-4 w-4" /> Imprimir guia
+            </Button>
           </div>
-          <div data-inline-print-content className="inline-assembly-print bg-white p-3 sm:p-5" dangerouslySetInnerHTML={{ __html: buildShapeAssemblyGuideHtml([printItem]) }} />
+          <div className="bg-muted/30 p-3 sm:p-5">
+            <div data-inline-print-content className="inline-assembly-print mx-auto min-h-[297mm] w-full max-w-[210mm] bg-white shadow-sm" dangerouslySetInnerHTML={{ __html: guideHtml }} />
+          </div>
         </> : <>
         <DialogHeader className="border-b bg-background px-5 py-2.5 shadow-sm sm:px-6">
           <div className="pr-8">

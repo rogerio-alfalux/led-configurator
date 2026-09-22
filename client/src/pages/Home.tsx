@@ -3131,6 +3131,9 @@ export default function Home() {
     const apiCatalog = adaptProfileProducts(alfaluxApiProducts);
     return apiCatalog !== null && Object.keys(apiCatalog).length > 0;
   }, [alfaluxApiProducts]);
+  const profileCatalogStatusLabel = alfaluxLoading && !profileCatalogIsFromApi
+    ? "carregando catálogo"
+    : `${Object.keys(activeProfileCatalog).length} variantes${profileCatalogIsFromApi ? " (API)" : " (API indisponível)"}`;
 
   // Injetar catálogo dinâmico no motor de cálculo (ledEngine) assim que disponível.
   // Isso garante que módulos adicionados na API (ex: BLAZE H IN 1B) sejam reconhecidos
@@ -5000,7 +5003,7 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden sm:block text-xs text-sidebar-foreground/50 font-mono">
-              v{__APP_VERSION__} · {Object.keys(activeProfileCatalog).length} variantes
+              v{__APP_VERSION__} · {profileCatalogStatusLabel}
               {profileCatalogIsFromApi && (
                 <span className="ml-1.5 inline-flex items-center gap-0.5 text-emerald-400">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>
@@ -9584,6 +9587,18 @@ export default function Home() {
             {selectedVariant && productCategory === "Perfis" && profileShape !== "STRAIGHT" && (
               <Button
                 onClick={() => {
+                  // O motor de formatos lê o catálogo ativo globalmente. A atualização
+                  // por efeito ocorre após a pintura; sincronizar também no clique evita
+                  // que um cálculo recém-configurado use o catálogo anterior ou vazio.
+                  if (!profileCatalogIsFromApi || Object.keys(activeProfileCatalog).length === 0) {
+                    setError(
+                      alfaluxLoading
+                        ? "Aguarde o carregamento do catálogo técnico da API antes de calcular o formato."
+                        : "O catálogo técnico da API não está disponível para calcular este formato.",
+                    );
+                    return;
+                  }
+                  setActiveCatalog(activeProfileCatalog);
                   const code = profileCode;
                   let sr: ShapeResult | null = null;
                   const effectiveStripMethod = powerD1 === 36 ? stripMethod : "STRIPFLEX";
@@ -9638,6 +9653,7 @@ export default function Home() {
                 }}
                 className="w-full h-12 text-base font-semibold font-display"
                 size="lg"
+                disabled={!profileCatalogIsFromApi || Object.keys(activeProfileCatalog).length === 0}
               >
                 <Zap className="w-5 h-5 mr-2" />
                 {profileShape === "U_SHAPE" ? "Calcular Formato EM U" : "Calcular Formato EM L"}
@@ -14169,7 +14185,7 @@ export default function Home() {
         <div className="container flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
           <span>© 2026 Alfalux Iluminação · Configurador Alfalux</span>
           <span className="font-mono">
-            {Object.keys(activeProfileCatalog).length} variantes{profileCatalogIsFromApi ? " (API)" : " (API indisponível)"} · Regra de Ouro aplicada
+            {profileCatalogStatusLabel} · Regra de Ouro aplicada
           </span>
         </div>
       </footer>

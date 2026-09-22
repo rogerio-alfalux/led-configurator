@@ -17,6 +17,13 @@ describe("formatos especiais na interface", () => {
     expect(homeSource).toContain("onOptimizeModuleCountChange={(value) => { setOptimizeModuleCount(value); setShapeResult(null); }}");
   });
 
+  it("sincroniza o catálogo técnico antes de calcular formatos e não o trata como vazio durante o carregamento", () => {
+    expect(homeSource).toContain('const profileCatalogStatusLabel = alfaluxLoading && !profileCatalogIsFromApi');
+    expect(homeSource).toContain('"carregando catálogo"');
+    expect(homeSource).toContain("setActiveCatalog(activeProfileCatalog);");
+    expect(homeSource).toContain('"Aguarde o carregamento do catálogo técnico da API antes de calcular o formato."');
+  });
+
   it("persiste o mapa físico somente nos novos itens calculados", () => {
     expect(homeSource).toContain("profileShape: shapeResult.shape");
     expect(homeSource).toContain("shapeAssemblyEdges: shapeResult.assemblyEdges");

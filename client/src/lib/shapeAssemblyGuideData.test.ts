@@ -7,6 +7,7 @@ describe("guia de montagem da produção", () => {
     sku: "LLP-6060",
     description: "BLAZE H RETANGULAR 4500 X 3500MM",
     itemEmPlanta: "L1",
+    assemblyItemNumber: 7,
     qty: 1,
     profileShape: "RECTANGLE" as const,
     shapeAssemblyEdges: [
@@ -15,6 +16,14 @@ describe("guia de montagem da produção", () => {
         modules: [
           { type: "CORNER" as const, sku: "LLP-6060.1L1.48F", length: 600, bars: 2 },
           { type: "ML" as const, sku: "LLP-6060.5ML.48F", length: 3300, bars: 11 },
+          { type: "CORNER" as const, sku: "LLP-6060.1L1.48F", length: 600, bars: 2 },
+        ],
+      },
+      {
+        id: "right", label: "Direita", requestedLength: 3500, achievedLength: 3500,
+        modules: [
+          { type: "CORNER" as const, sku: "LLP-6060.1L1.48F", length: 600, bars: 2 },
+          { type: "ML" as const, sku: "LLP-6060.3ML.48F", length: 2300, bars: 3 },
           { type: "CORNER" as const, sku: "LLP-6060.1L1.48F", length: 600, bars: 2 },
         ],
       },
@@ -28,6 +37,10 @@ describe("guia de montagem da produção", () => {
   it("gera página vertical com aresta, sequência, SKU e instrução de montagem", () => {
     const html = buildShapeAssemblyGuideHtml([specialShapeItem as any]);
     expect(html).toContain("INSTRUÇÃO DE MONTAGEM");
+    expect(html).toContain("BLAZE H RETANGULAR 4500 X 3500MM");
+    expect(html).toContain("Formato retangular 4.500 mm × 3.500 mm");
+    expect(html).toContain("Item 7");
+    expect(html).toContain("Item em planta: L1");
     expect(html).toContain("Superior");
     expect(html).toContain("LLP-6060.5ML.48F");
     expect(html).toContain("Monte as peças na ordem numerada");

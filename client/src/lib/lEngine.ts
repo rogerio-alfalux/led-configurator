@@ -514,10 +514,13 @@ function findBestEndCappedSegment(
   availableLength: number,
   allowLongModules: boolean,
   allowFractionalBars: boolean,
-  options: { optimizeModuleCount?: boolean; adjustToLarger?: boolean; requiredIfSku?: string } = {},
+  options: { optimizeModuleCount?: boolean; adjustToLarger?: boolean; requiredIfSku?: string; allowSmallMl?: boolean } = {},
 ): EndCappedSegment | null {
-  // When allowFractionalBars is true, we allow small (1-bar) modules in the ML segment
-  const allowSmallInMl = allowFractionalBars;
+  // Módulos de uma barra são módulos físicos inteiros, não medidas fracionadas.
+  // L/U podem precisar desse complemento para fechar uma aresta, mesmo quando o
+  // usuário não habilitou barras decimais. A opção explícita preserva a lógica
+  // anterior para os fluxos que não devem usar esse complemento.
+  const allowSmallInMl = options.allowSmallMl ?? allowFractionalBars;
   if (availableLength <= 0) return null;
 
   // Preferir IFs de 2+ barras; usar IF de 1 barra como fallback quando é a única opção disponível
@@ -1101,7 +1104,7 @@ export function calculateUShape(
     availDepth,
     allowLongModules,
     allowFractionalBars,
-    { optimizeModuleCount, adjustToLarger },
+    { optimizeModuleCount, adjustToLarger, allowSmallMl: true },
   );
   const segBase = findBestSegmentOptimal(
     profileEntry,
@@ -1109,7 +1112,7 @@ export function calculateUShape(
     allowLongModules,
     allowFractionalBars,
     "ML",
-    allowFractionalBars, // permitir módulos de 1 barra quando medidas quebradas está ativo
+    true, // ML de uma barra é inteiro e pode completar a base do U sem barras decimais
     true, // priorizar proximidade da medida solicitada
     optimizeModuleCount,
     adjustToLarger,

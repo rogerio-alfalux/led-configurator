@@ -259,11 +259,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
           const officialPrintStyle = clonedDocument.createElement("style");
           officialPrintStyle.textContent = `
             html, body { width: 793px !important; margin: 0 !important; padding: 0 !important; background: #ffffff !important; }
-            /* A tela usa zoom para caber o A4 no modal. A cópia enviada ao LD
-               precisa usar a mesma geometria nativa da impressão oficial, sem
-               herdar essa escala visual — caso contrário html2canvas calcula
-               posições e texto em referenciais diferentes e pode sobrepô-los. */
-            [data-quote-pdf-page] { box-sizing: border-box !important; width: 793px !important; min-width: 0 !important; max-width: none !important; margin: 0 !important; padding: 10px 15px !important; box-shadow: none !important; font-size: 9px !important; zoom: 1 !important; transform: none !important; }
+            [data-quote-pdf-page] { box-sizing: border-box !important; width: 793px !important; min-width: 0 !important; max-width: none !important; margin: 0 !important; padding: 10px 15px !important; box-shadow: none !important; font-size: 9px !important; }
             [data-quote-pdf-page] table { width: 100% !important; font-size: 8px !important; }
             [data-quote-pdf-page] th, [data-quote-pdf-page] td { padding: 2px 3px !important; font-size: 8px !important; }
             [data-quote-pdf-page] .quote-items-table[data-ipi-columns="true"] th.quote-ipi-compact-header { font-size: 7px !important; line-height: 1.1 !important; padding: 2px 1px !important; }
