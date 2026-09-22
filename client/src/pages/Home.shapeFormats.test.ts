@@ -23,7 +23,8 @@ describe("formatos especiais na interface", () => {
   });
 
   it("oferece o guia na configuração, no orçamento salvo e na fábrica", () => {
-    expect(homeSource).toContain("<ShapeAssemblyGuide result={shapeResult} />");
+    expect(homeSource).toContain("productDescription: [");
+    expect(homeSource).toContain("<ShapeAssemblyGuide");
     expect(quoteDetailSource).toContain("d.shapeAssemblyEdges");
     expect(factorySource).toContain("parsed.shapeAssemblyEdges");
   });

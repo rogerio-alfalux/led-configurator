@@ -283,6 +283,9 @@ function SortableCartItem({
                         assemblyEdges: entry.data.shapeAssemblyEdges,
                         profileName: entry.data.quoteSummary || entry.data.description,
                         profileCode: entry.data.sku,
+                        productDescription: entry.data.quoteSummary || entry.data.description,
+                        itemEmPlanta: entry.data.itemEmPlanta,
+                        itemNumber: globalSeq,
                       }} />
                     </div>
                   )}

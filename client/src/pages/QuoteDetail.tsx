@@ -4920,6 +4920,9 @@ export default function QuoteDetail() {
                                         assemblyEdges: d.shapeAssemblyEdges,
                                         profileName: d.quoteSummary || d.description,
                                         profileCode: d.sku,
+                                        productDescription: d.quoteSummary || d.description,
+                                        itemEmPlanta: d.itemEmPlanta,
+                                        itemNumber: itemIdx,
                                       }} />
                                     </div>
                                   )}

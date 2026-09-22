@@ -1088,7 +1088,17 @@ function ShapeResultCard({
                 <><Copy className="w-3.5 h-3.5" /> Copiar Resumo</>
               )}
             </Button>
-            <ShapeAssemblyGuide result={shapeResult} />
+            <ShapeAssemblyGuide
+              result={{
+                ...shapeResult,
+                productDescription: [
+                  shapeResult.profileName,
+                  shapeResult.power != null ? `${shapeResult.power}W` : null,
+                  shapeResult.cct,
+                  shapeResult.voltage,
+                ].filter(Boolean).join(" "),
+              }}
+            />
             <Button
               size="sm"
               className="gap-1.5 text-xs h-7 bg-emerald-600 hover:bg-emerald-700 text-white cart-action-btn"

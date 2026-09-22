@@ -578,6 +578,8 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
                 assemblyEdges: parsed.shapeAssemblyEdges,
                 profileName: parsed.description,
                 profileCode: parsed.sku,
+                productDescription: parsed.description,
+                itemEmPlanta: parsed.itemEmPlanta,
               }} />
             </div>
           )}

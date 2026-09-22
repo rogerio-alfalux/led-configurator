@@ -74,7 +74,25 @@ function ShapeTopology({ shape }: { shape: ShapeResult["shape"] }) {
   </svg>;
 }
 
-type ShapeAssemblyGuideResult = Pick<ShapeResult, "shape" | "assemblyEdges" | "profileName" | "profileCode">;
+type ShapeAssemblyGuideResult = Pick<ShapeResult, "shape" | "assemblyEdges" | "profileName" | "profileCode"> & {
+  productDescription?: string | null;
+  itemEmPlanta?: string | null;
+  itemNumber?: number | string | null;
+};
+
+function getShapeTitle(shape: ShapeResult["shape"]): string {
+  switch (shape) {
+    case "SQUARE": return "Quadrado";
+    case "RECTANGLE": return "Retangular";
+    case "L_SHAPE": return "Formato L";
+    case "U_SHAPE": return "Formato U";
+    default: return "Formato especial";
+  }
+}
+
+function formatAssemblyMeasure(value: number): string {
+  return `${Number(value).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mm`;
+}
 
 export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResult }) {
   const [open, setOpen] = useState(false);
@@ -86,11 +104,23 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
   const printItem = {
     profileShape: result.shape,
     shapeAssemblyEdges: result.assemblyEdges,
-    description: result.profileName ?? result.profileCode,
+    description: result.productDescription ?? result.profileName ?? result.profileCode,
     sku: result.profileCode,
     itemEmPlanta: "Guia de montagem",
     qty: 1,
   } as any;
+  const edgeMeasures = edges.slice(0, 2).map((edge) => edge.requestedLength).filter((value) => Number.isFinite(value));
+  const dimensionsLabel = edgeMeasures.length >= 2
+    ? `${getShapeTitle(result.shape)} ${formatAssemblyMeasure(edgeMeasures[0])} × ${formatAssemblyMeasure(edgeMeasures[1])}`
+    : getShapeTitle(result.shape);
+  const productDescription = result.productDescription?.trim() || result.profileName?.trim() || result.profileCode || "Luminária configurada";
+  const itemMeta = [
+    result.itemNumber != null && String(result.itemNumber).trim() ? `Item ${result.itemNumber}` : null,
+    result.itemEmPlanta?.trim() ? `Item em planta: ${result.itemEmPlanta.trim()}` : null,
+  ].filter(Boolean).join(" · ");
+  const guideProductLabel = `${productDescription} — ${dimensionsLabel}${itemMeta ? ` — ${itemMeta}` : ""}`;
+  printItem.description = guideProductLabel;
+  printItem.itemEmPlanta = result.itemEmPlanta?.trim() || "Guia de montagem";
 
   const printGuide = () => {
     const host = document.createElement("div");
@@ -136,7 +166,7 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
             <div className="flex items-center justify-between gap-3 pr-8">
               <div>
                 <DialogTitle className="text-lg leading-6">Prévia de impressão</DialogTitle>
-                <p className="mt-1 text-xs leading-4 text-muted-foreground">Confira o guia e imprima sem sair da configuração.</p>
+                <p className="mt-1 text-xs leading-4 text-muted-foreground">{guideProductLabel}</p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <Button type="button" size="sm" variant="outline" className="gap-1.5" onClick={() => setPrintOpen(false)}>
@@ -153,8 +183,10 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
         <DialogHeader className="border-b bg-background px-5 py-3 shadow-sm sm:px-6 sm:py-4">
           <div className="pr-8">
             <div>
-              <DialogTitle className="text-lg leading-6">Guia de montagem — {result.profileName ?? result.profileCode}</DialogTitle>
+              <DialogTitle className="text-lg leading-6">Guia de montagem — {productDescription}</DialogTitle>
               <p className="mt-1 leading-4 text-xs text-muted-foreground">Sequência física por aresta, pronta para consulta e impressão.</p>
+              <p className="mt-2 text-sm font-semibold text-primary">{dimensionsLabel}</p>
+              {itemMeta && <p className="mt-1 text-xs text-muted-foreground">{itemMeta}</p>}
             </div>
           </div>
         </DialogHeader>

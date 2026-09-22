@@ -46,6 +46,9 @@ export function LdGuestCartItemCard({
             assemblyEdges: item.shapeAssemblyEdges,
             profileName: item.quoteSummary || item.description,
             profileCode: item.sku,
+            productDescription: item.quoteSummary || item.description,
+            itemEmPlanta: item.itemEmPlanta,
+            itemNumber: index + 1,
           }} />
         </div>
       )}
