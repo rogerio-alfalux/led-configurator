@@ -92,6 +92,25 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
     qty: 1,
   } as any;
 
+  const printGuide = () => {
+    const host = document.createElement("div");
+    host.setAttribute("data-print-modal", "true");
+    host.style.cssText = "position:fixed;inset:0;background:#fff;z-index:2147483647;overflow:visible;";
+    host.innerHTML = `<style>${inlinePrintStyles}</style><div data-print-content class="inline-assembly-print">${buildShapeAssemblyGuideHtml([printItem])}</div>`;
+    document.body.appendChild(host);
+
+    let cleaned = false;
+    const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
+      window.removeEventListener("afterprint", cleanup);
+      host.remove();
+    };
+    window.addEventListener("afterprint", cleanup, { once: true });
+    window.setTimeout(cleanup, 120000);
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => window.print()));
+  };
+
   return <>
     <Button
       type="button"
@@ -122,7 +141,7 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
                 <Button type="button" size="sm" variant="outline" className="gap-1.5" onClick={() => setPrintOpen(false)}>
                   <ArrowLeft className="h-4 w-4" /> Voltar
                 </Button>
-                <Button type="button" size="sm" className="gap-1.5" onClick={() => window.print()}>
+                <Button type="button" size="sm" className="gap-1.5" onClick={printGuide}>
                   <Printer className="h-4 w-4" /> Imprimir guia
                 </Button>
               </div>
