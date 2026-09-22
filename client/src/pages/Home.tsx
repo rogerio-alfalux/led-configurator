@@ -10285,6 +10285,7 @@ export default function Home() {
                         <p className="text-xs text-muted-foreground mt-1">{formatBRL(bgResult.precoDriverPorUnidade)}/un × {bgResult.driverQtd} = <span className="font-semibold text-foreground">{formatBRL(bgResult.precoDriverTotal!)}</span></p>
                       )}
                     </div>
+                    <ProductDocumentDownloads documents={bgResult.product.documentos} />
                   </CardContent>
                 </Card>
                 {/* Resumos */}
