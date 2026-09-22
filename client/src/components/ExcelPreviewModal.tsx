@@ -8,9 +8,10 @@
 import { Fragment, useMemo, useEffect, useRef, useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, FileDown, AlertCircle } from "lucide-react";
-import { downloadPdfBlob } from "@/lib/pdfVisualCapture";
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
+import { capturePreviewPagePdf, downloadPdfBlob } from "@/lib/pdfVisualCapture";
 import type { CartItemData, QuoteFormData } from "@/lib/cartTypes";
-import { buildQuotePdfFileName, generateQuotePdfBlob } from "@/lib/quotePdfGenerator";
 import { formatBRL, getEffectiveDriverLineQuantity } from "@/lib/cartTypes";
 import { getStateInfo } from "@/lib/difalTable";
 import { toBrasiliaDate } from "@/lib/dateUtils";
@@ -164,16 +165,26 @@ interface Props {
   freshPhotoMap?: Map<string, string>;
   /** Se true, dispara o download de PDF automaticamente ao abrir (sem exibir o modal) */
   autoPrint?: boolean;
+  /** Captura a mesma página visual da prévia como Blob, para entrega arquivada ao LD. */
+  onCapturePdf?: (blob: Blob) => void;
+  onCapturePdfError?: (error: Error) => void;
 }
 
-export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMap, autoPrint }: Props) {
+export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMap, autoPrint, onCapturePdf, onCapturePdfError }: Props) {
   const [manualPdfShowIpi, setManualPdfShowIpi] = useState(false);
   const [manualPdfOptionsOpen, setManualPdfOptionsOpen] = useState(false);
   const showIpi = formData.showIpi === true || manualPdfShowIpi;
   const previewColumnWidths = getQuotePreviewColumnWidths(showIpi);
   const previewColumnCount = getQuotePreviewColumnCount(showIpi);
   const contentRef = useRef<HTMLDivElement>(null);
+  const previewPageRef = useRef<HTMLDivElement>(null);
+  const capturedRef = useRef(false);
+  const captureCallbacksRef = useRef({ onCapturePdf, onCapturePdfError });
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+
+  useEffect(() => {
+    captureCallbacksRef.current = { onCapturePdf, onCapturePdfError };
+  }, [onCapturePdf, onCapturePdfError]);
 
   // Gera nome do arquivo no mesmo padrão do Excel
   const buildFileName = useCallback(() => {
@@ -188,8 +199,146 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
       .substring(0, 200);
   }, [formData]);
 
+  const captureVisiblePreviewPdf = useCallback(async () => {
+    const deadline = Date.now() + 8_000;
+    let page = previewPageRef.current;
+    while ((!page || page.getBoundingClientRect().width <= 0 || page.getBoundingClientRect().height <= 0) && Date.now() < deadline) {
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+      page = previewPageRef.current;
+    }
+    if (!page) throw new Error("Prévia oficial indisponível para captura.");
+    if (document.fonts?.ready) await document.fonts.ready;
+    // A captura é feita somente com a página efetivamente renderizada. Isso evita
+    // PDFs vazios quando o portal ainda está concluindo a montagem do preview.
+    if (page.getBoundingClientRect().width <= 0 || page.getBoundingClientRect().height <= 0) {
+      throw new Error("Prévia oficial ainda não foi renderizada.");
+    }
+    return capturePreviewPagePdf({
+      page,
+      // Nunca permitir canvas contaminado: allowTaint:true faz toDataURL falhar
+      // quando uma foto externa não oferece CORS. As fotos externas são servidas pelo
+      // proxy local e imagens que eventualmente falharem são omitidas sem interromper o PDF.
+      rasterize: (node) => html2canvas(node as HTMLElement, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        useCORS: true,
+        allowTaint: false,
+        imageTimeout: 15_000,
+        logging: false,
+        windowWidth: (node as HTMLElement).scrollWidth,
+        windowHeight: (node as HTMLElement).scrollHeight,
+        onclone: (clonedDocument) => {
+          // html2canvas ainda não interpreta funções CSS OKLCH. O tema do sistema
+          // usa esses tokens, então a cópia efêmera usada para o PDF recebe apenas
+          // equivalentes HEX. O preview e o PDF oficial exibido ao administrador
+          // não são alterados por esta regra.
+          const compatibilityStyle = clonedDocument.createElement("style");
+          compatibilityStyle.textContent = `
+            [data-quote-pdf-page] {
+              --primary: #1a2b4a; --primary-foreground: #ffffff;
+              --background: #ffffff; --foreground: #1f2937;
+              --card: #ffffff; --card-foreground: #1f2937;
+              --popover: #ffffff; --popover-foreground: #1f2937;
+              --secondary: #eef2f7; --secondary-foreground: #1f2937;
+              --muted: #f4f6f8; --muted-foreground: #64748b;
+              --accent: #f0a84a; --accent-foreground: #1f2937;
+              --destructive: #c53030; --destructive-foreground: #ffffff;
+              --border: #d1d9e2; --input: #d1d9e2; --ring: #1a2b4a;
+              --chart-1: #1a2b4a; --chart-2: #2d5a8e; --chart-3: #f0a84a;
+              --chart-4: #2f855a; --chart-5: #c53030;
+              --sidebar: #1a2b4a; --sidebar-foreground: #ffffff;
+              --sidebar-primary: #f0a84a; --sidebar-primary-foreground: #1f2937;
+              --sidebar-accent: #253b5b; --sidebar-accent-foreground: #ffffff;
+              --sidebar-border: #253b5b; --sidebar-ring: #1a2b4a;
+            }
+          `;
+          clonedDocument.head.appendChild(compatibilityStyle);
+          // Aplicar ao clone a mesma geometria da regra @media print que gera o
+          // arquivo oficial: A4 retrato, margens de 8 mm e tipografia compacta.
+          // A regra não toca na tela nem no PDF oficial já validado.
+          const officialPrintStyle = clonedDocument.createElement("style");
+          officialPrintStyle.textContent = `
+            html, body { width: 793px !important; margin: 0 !important; padding: 0 !important; background: #ffffff !important; }
+            [data-quote-pdf-page] { box-sizing: border-box !important; width: 793px !important; min-width: 0 !important; max-width: none !important; margin: 0 !important; padding: 10px 15px !important; box-shadow: none !important; font-size: 9px !important; }
+            [data-quote-pdf-page] table { width: 100% !important; font-size: 8px !important; }
+            [data-quote-pdf-page] th, [data-quote-pdf-page] td { padding: 2px 3px !important; font-size: 8px !important; }
+            [data-quote-pdf-page] .quote-items-table[data-ipi-columns="true"] th.quote-ipi-compact-header { font-size: 7px !important; line-height: 1.1 !important; padding: 2px 1px !important; }
+            [data-quote-pdf-page] img { max-width: 60px !important; max-height: 60px !important; }
+            [data-quote-pdf-page] img[alt="ALFALUX"] { max-width: 180px !important; max-height: 55px !important; width: auto !important; height: auto !important; }
+          `;
+          clonedDocument.head.appendChild(officialPrintStyle);
+          // O tema pode propagar OKLCH por propriedades que não usam os tokens
+          // acima (inclusive body/html, bordas e sombras). html2canvas falha ao
+          // encontrar qualquer uma delas. Neutralizamos somente os valores que
+          // ainda contenham OKLCH no clone efêmero, mantendo os estilos em HEX
+          // definidos pelo documento oficial sempre que já forem compatíveis.
+          const cloneWindow = clonedDocument.defaultView;
+          const cloneNodes = [clonedDocument.documentElement, clonedDocument.body, ...Array.from(clonedDocument.querySelectorAll<HTMLElement>("*"))]
+            .filter((node): node is HTMLElement => Boolean(node));
+          cloneNodes.forEach((node) => {
+            const computed = cloneWindow?.getComputedStyle(node);
+            if (!computed) return;
+            const fallback = (property: string, value: string) => {
+              if (computed.getPropertyValue(property).includes("oklch(")) node.style.setProperty(property, value, "important");
+            };
+            fallback("color", "#1f2937");
+            fallback("background-color", "transparent");
+            fallback("border-top-color", "#d1d9e2");
+            fallback("border-right-color", "#d1d9e2");
+            fallback("border-bottom-color", "#d1d9e2");
+            fallback("border-left-color", "#d1d9e2");
+            fallback("outline-color", "#1f2937");
+            fallback("text-decoration-color", "#1f2937");
+            fallback("caret-color", "#1f2937");
+            fallback("fill", "#1f2937");
+            fallback("stroke", "#1f2937");
+            if (computed.boxShadow.includes("oklch(")) node.style.setProperty("box-shadow", "none", "important");
+            if (computed.textShadow.includes("oklch(")) node.style.setProperty("text-shadow", "none", "important");
+            if (computed.backgroundImage.includes("oklch(")) node.style.setProperty("background-image", "none", "important");
+          });
+          clonedDocument.documentElement.style.setProperty("background-color", "#ffffff", "important");
+          clonedDocument.body.style.setProperty("background-color", "#ffffff", "important");
+          // As fotos já passam por rota de mesmo domínio, mas o atributo elimina
+          // contaminação do canvas em navegadores que reavaliam as imagens clonadas.
+          clonedDocument.querySelectorAll("img").forEach((image) => {
+            image.setAttribute("crossorigin", "anonymous");
+          });
+        },
+      }),
+      // O PDF oficial validado é A4 retrato. A captura para o LD deve apenas
+      // arquivar a mesma prévia oficial nesse formato — nunca usar um layout alternativo.
+      createPdf: () => new jsPDF({ orientation: "portrait", unit: "pt", format: "a4", compress: true }),
+      // A regra @page oficial usa 8 mm nas quatro bordas (22,68 pt).
+      margins: { top: 22.68, right: 22.68, bottom: 22.68, left: 22.68 },
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!open || !onCapturePdf || capturedRef.current) return;
+    capturedRef.current = true;
+    let cancelled = false;
+    const capture = async (attempt: number) => {
+      try {
+        const blob = await captureVisiblePreviewPdf();
+        if (!cancelled) await captureCallbacksRef.current.onCapturePdf?.(blob);
+      } catch (error) {
+        // Imagens e fontes podem terminar de carregar depois da primeira pintura
+        // do portal. Uma única nova tentativa evita falhas transitórias sem mudar
+        // qualquer conteúdo ou formatação do PDF oficial.
+        if (!cancelled && attempt === 0) {
+          window.setTimeout(() => { void capture(1); }, 1_500);
+          return;
+        }
+        if (!cancelled) captureCallbacksRef.current.onCapturePdfError?.(error instanceof Error ? error : new Error("Não foi possível capturar o PDF."));
+      }
+    };
+    const timer = window.setTimeout(() => { void capture(0); }, 1_800);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [open, Boolean(onCapturePdf), captureVisiblePreviewPdf]);
+
   useEffect(() => {
     if (!open) {
+      capturedRef.current = false;
       setManualPdfShowIpi(false);
       setManualPdfOptionsOpen(false);
     }
@@ -197,19 +346,16 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
 
   const [pdfError, setPdfError] = useState<string | null>(null);
 
-  // A prévia gera o mesmo PDF vetorial determinístico usado pelo documento oficial.
+  // Baixa o PDF usando window.print() — mesmo mecanismo do autoPrint
   const handleDownloadPDF = useCallback(async () => {
     setPdfError(null);
-    setIsDownloadingPdf(true);
-    try {
-      const blob = await generateQuotePdfBlob(items, { ...formData, showIpi });
-      downloadPdfBlob(blob, buildQuotePdfFileName(formData));
-    } catch (error) {
-      setPdfError(error instanceof Error ? error.message : "Não foi possível gerar o PDF oficial.");
-    } finally {
-      setIsDownloadingPdf(false);
-    }
-  }, [formData, items, showIpi]);
+    const originalTitle = document.title;
+    document.title = buildFileName();
+    window.print();
+    // Restaurar título após impressão
+    const restore = () => { document.title = originalTitle; };
+    window.addEventListener("afterprint", restore, { once: true });
+  }, [buildFileName]);
 
   // Bloqueia scroll do body quando aberto
   useEffect(() => {
@@ -656,6 +802,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
               A impressão continua usando as regras A4 oficiais em index.css. */}
           <div
             data-quote-pdf-page
+            ref={previewPageRef}
             style={{
               fontFamily: "Calibri, Arial, sans-serif",
               width: 1100,

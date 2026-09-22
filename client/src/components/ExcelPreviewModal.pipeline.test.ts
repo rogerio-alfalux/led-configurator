@@ -7,23 +7,35 @@ describe("pipeline visual do PDF oficial e LD", () => {
   const quoteDetailSource = readFileSync(resolve(process.cwd(), "client/src/pages/QuoteDetail.tsx"), "utf8");
   const cartSource = readFileSync(resolve(process.cwd(), "client/src/pages/Cart.tsx"), "utf8");
 
-  it("gera um único Blob vetorial determinístico para download e entrega ao LD", () => {
-    expect(quoteDetailSource).toContain("const buildOfficialPdf = async (showIpi: boolean)");
-    expect(quoteDetailSource).toContain("generateQuotePdfBlob(commercialQuoteItems, formData)");
-    expect(quoteDetailSource.match(/await buildOfficialPdf\(showIpi\)/g)).toHaveLength(2);
-    expect(quoteDetailSource).toContain("downloadPdfBlob(blob, buildQuotePdfFileName(formData))");
-    expect(quoteDetailSource).toContain("pdfBase64: btoa(binary)");
-    expect(quoteDetailSource).toContain("fileName: buildQuotePdfFileName(formData)");
-    expect(quoteDetailSource).not.toContain("ldPdfCaptureOpen");
-    expect(quoteDetailSource).not.toContain("onCapturePdf=");
+  it("anexa automaticamente ao LD a mesma prévia oficial sem abrir diálogo de arquivo", () => {
+    expect(previewSource).toContain("const captureVisiblePreviewPdf");
+    expect(previewSource).toContain("await captureCallbacksRef.current.onCapturePdf?.(blob)");
+    expect(quoteDetailSource).toContain("setLdPdfCaptureOpen(true)");
+    expect(quoteDetailSource).toContain("onCapturePdf={ldPdfCaptureOpen ? handleOfficialPdfCapturedForLd : undefined}");
+    expect(quoteDetailSource).toContain("open={pdfPrintOpen || ldPdfCaptureOpen}");
+    expect(quoteDetailSource).not.toContain("officialLdPdfInputRef");
+    expect(previewSource).toContain("attempt === 0");
+    expect(previewSource).toContain("crossorigin\", \"anonymous");
+    expect(previewSource).toContain("const previewPageRef");
+    expect(previewSource).toContain("const deadline = Date.now() + 8_000");
+    expect(previewSource).toContain("ref={previewPageRef}");
+    expect(previewSource).toContain("html2canvas ainda não interpreta funções CSS OKLCH");
+    expect(previewSource).toContain("--primary: #1a2b4a");
+    expect(previewSource).toContain("cloneNodes.forEach");
+    expect(previewSource).toContain("fallback(\"background-color\", \"transparent\")");
+    expect(previewSource).toContain("computed.boxShadow.includes(\"oklch(\")");
+    expect(previewSource).toContain("Aplicar ao clone a mesma geometria da regra @media print");
+    expect(previewSource).toContain("margins: { top: 22.68, right: 22.68, bottom: 22.68, left: 22.68 }");
+    expect(previewSource).toContain("allowTaint: false");
+    expect(previewSource).toContain("useCORS: true");
+    expect(previewSource).toContain('orientation: "portrait"');
+    expect(previewSource).toContain("layout alternativo");
+    expect(previewSource).toContain("formData.freteValue != null && formData.freteValue > 0");
   });
 
-  it("não rasteriza a prévia HTML para nenhum PDF comercial", () => {
-    expect(previewSource).toContain("const handleDownloadPDF = useCallback(async () => {");
-    expect(previewSource).toContain("generateQuotePdfBlob(items, { ...formData, showIpi })");
-    expect(previewSource).not.toContain("html2canvas");
-    expect(previewSource).not.toContain("captureVisiblePreviewPdf");
-    expect(previewSource).not.toContain("onCapturePdf");
+  it("usa window.print() para o download oficial do PDF", () => {
+    expect(previewSource).toContain("window.print()");
+    expect(previewSource).toContain("document.title = buildFileName()");
   });
 
   it("mostra em tela a prévia na proporção A4 retrato sem alterar a escala da impressão", () => {
@@ -38,10 +50,9 @@ describe("pipeline visual do PDF oficial e LD", () => {
     expect(cartSource).toContain("setPdfPrintOpen(true)");
   });
 
-  it("permite o envio do PDF à solicitação LD pela equipe que edita o orçamento", () => {
-    expect(quoteDetailSource).toContain("trpc.ldRequests.forQuote.useQuery");
-    expect(quoteDetailSource).toContain("{canEdit && linkedLdRequest && (");
-    expect(quoteDetailSource).toContain('setExportOptions({ format: "PDF", run: handleSendPdfToLd })');
+  it("usa autoPrint no QuoteDetail para disparar impressão automática", () => {
+    expect(quoteDetailSource).toContain("autoPrint={pdfPrintOpen}");
+    expect(quoteDetailSource).toContain("setPdfPrintOpen(true)");
   });
 
   it("mantém os campos de cabeçalho Obra, Cliente e E-mail na prévia", () => {
