@@ -7,39 +7,23 @@ describe("pipeline visual do PDF oficial e LD", () => {
   const quoteDetailSource = readFileSync(resolve(process.cwd(), "client/src/pages/QuoteDetail.tsx"), "utf8");
   const cartSource = readFileSync(resolve(process.cwd(), "client/src/pages/Cart.tsx"), "utf8");
 
-  it("anexa ao LD o mesmo arquivo oficial gerado pelo fluxo de download", () => {
-    expect(previewSource).toContain("const captureVisiblePreviewPdf");
-    expect(previewSource).toContain("await captureCallbacksRef.current.onCapturePdf?.(blob)");
-    expect(previewSource).toContain('downloadPdfBlob(blob, `${buildFileName()}.pdf`)');
-    expect(quoteDetailSource).toContain("setLdPdfCaptureOpen(true)");
-    expect(quoteDetailSource).toContain("onCapturePdf={ldPdfCaptureOpen ? handleOfficialPdfCapturedForLd : undefined}");
-    expect(quoteDetailSource).toContain("open={pdfPrintOpen || ldPdfCaptureOpen}");
-    expect(quoteDetailSource).toContain("autoDownload={pdfPrintOpen}");
-    expect(quoteDetailSource).toContain("showIpi: (pdfPrintOpen || ldPdfCaptureOpen) ? pdfShowIpi : false");
-    expect(quoteDetailSource).not.toContain("officialLdPdfInputRef");
-    expect(previewSource).toContain("attempt === 0");
-    expect(previewSource).toContain("crossorigin\", \"anonymous");
-    expect(previewSource).toContain("const previewPageRef");
-    expect(previewSource).toContain("const deadline = Date.now() + 8_000");
-    expect(previewSource).toContain("ref={previewPageRef}");
-    expect(previewSource).toContain("html2canvas ainda não interpreta funções CSS OKLCH");
-    expect(previewSource).toContain("--primary: #1a2b4a");
-    expect(previewSource).toContain("cloneNodes.forEach");
-    expect(previewSource).toContain("fallback(\"background-color\", \"transparent\")");
-    expect(previewSource).toContain("computed.boxShadow.includes(\"oklch(\")");
-    expect(previewSource).toContain("Aplicar ao clone a mesma geometria da regra @media print");
-    expect(previewSource).toContain("margins: { top: 22.68, right: 22.68, bottom: 22.68, left: 22.68 }");
-    expect(previewSource).toContain("allowTaint: false");
-    expect(previewSource).toContain("useCORS: true");
-    expect(previewSource).toContain('orientation: "portrait"');
-    expect(previewSource).toContain("layout alternativo");
-    expect(previewSource).toContain("formData.freteValue != null && formData.freteValue > 0");
+  it("gera um único Blob vetorial determinístico para download e entrega ao LD", () => {
+    expect(quoteDetailSource).toContain("const buildOfficialPdf = async (showIpi: boolean)");
+    expect(quoteDetailSource).toContain("generateQuotePdfBlob(commercialQuoteItems, formData)");
+    expect(quoteDetailSource.match(/await buildOfficialPdf\(showIpi\)/g)).toHaveLength(2);
+    expect(quoteDetailSource).toContain("downloadPdfBlob(blob, buildQuotePdfFileName(formData))");
+    expect(quoteDetailSource).toContain("pdfBase64: btoa(binary)");
+    expect(quoteDetailSource).toContain("fileName: buildQuotePdfFileName(formData)");
+    expect(quoteDetailSource).not.toContain("ldPdfCaptureOpen");
+    expect(quoteDetailSource).not.toContain("onCapturePdf=");
   });
 
-  it("usa o Blob visual oficial para download, em vez de um layout de impressão separado", () => {
+  it("não rasteriza a prévia HTML para nenhum PDF comercial", () => {
     expect(previewSource).toContain("const handleDownloadPDF = useCallback(async () => {");
-    expect(previewSource).toContain("const blob = await captureVisiblePreviewPdf()");
-    expect(previewSource).toContain("if (!open || !autoDownload) return");
+    expect(previewSource).toContain("generateQuotePdfBlob(items, { ...formData, showIpi })");
+    expect(previewSource).not.toContain("html2canvas");
+    expect(previewSource).not.toContain("captureVisiblePreviewPdf");
+    expect(previewSource).not.toContain("onCapturePdf");
   });
 
   it("mostra em tela a prévia na proporção A4 retrato sem alterar a escala da impressão", () => {
@@ -52,11 +36,6 @@ describe("pipeline visual do PDF oficial e LD", () => {
   it("usa autoPrint no Cart para disparar impressão automática", () => {
     expect(cartSource).toContain("autoPrint");
     expect(cartSource).toContain("setPdfPrintOpen(true)");
-  });
-
-  it("usa autoDownload no QuoteDetail para gerar o mesmo arquivo oficial", () => {
-    expect(quoteDetailSource).toContain("autoDownload={pdfPrintOpen}");
-    expect(quoteDetailSource).toContain("setPdfPrintOpen(true)");
   });
 
   it("permite o envio do PDF à solicitação LD pela equipe que edita o orçamento", () => {

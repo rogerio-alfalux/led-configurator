@@ -811,15 +811,20 @@ export async function generateQuotePdfBlob(
   return _generatePdfBlob(items, formData);
 }
 
+/** Nome canônico para qualquer cópia do PDF oficial: download ou entrega ao LD. */
+export function buildQuotePdfFileName(formData: Pick<QuoteFormData, "numero" | "cliente">): string {
+  const quoteNum = (formData.numero || "orcamento").replace(/[^a-zA-Z0-9-_]/g, "_");
+  const clientName = (formData.cliente || "cliente").replace(/[^a-zA-Z0-9-_ ]/g, "").trim().replace(/\s+/g, "_");
+  return `Alfalux_${quoteNum}_${clientName}.pdf`;
+}
+
 /** Gera e baixa o PDF do orçamento */
 export async function generateQuotePdf(
   items: CartItemData[],
   formData: QuoteFormData
 ): Promise<void> {
   const blob = await _generatePdfBlob(items, formData);
-  const quoteNum = (formData.numero || "orcamento").replace(/[^a-zA-Z0-9-_]/g, "_");
-  const clientName = (formData.cliente || "cliente").replace(/[^a-zA-Z0-9-_ ]/g, "").trim().replace(/\s+/g, "_");
-  const fileName = `Alfalux_${quoteNum}_${clientName}.pdf`;
+  const fileName = buildQuotePdfFileName(formData);
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

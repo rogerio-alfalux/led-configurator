@@ -53,6 +53,7 @@ import { canAccessQuoteAnalysis } from "@/lib/quoteAnalysisAccess";
 import type { ApiProductDriverInfo } from "@/lib/cartTypes";
 import { calculateCommercialProductsBeforeDiscount, calculateCommercialQuoteTotal, deriveCommercialItemBaseFromStoredTotal } from "@shared/quoteCommercialTotal";
 import { resolveProductionSheetLayoutVersion } from "@/lib/productionSheetLayout";
+import { downloadPdfBlob } from "@/lib/pdfVisualCapture";
 
 /** Aplica margem individual do item (itemMarginPercent em %) sobre um valor base */
 function applyItemMarginQD(base: number, itemMarginPercent?: number | null): number {
@@ -126,7 +127,7 @@ import type { LinkedAccessory, SpecialEquipment } from "@/lib/cartTypes";
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { CORES_PECA } from "@/components/ColorPickerModal";
 import { generateQuoteExcel } from "@/lib/quoteExcelGenerator";
-import { generateQuotePdfBlob } from "@/lib/quotePdfGenerator";
+import { buildQuotePdfFileName, generateQuotePdfBlob } from "@/lib/quotePdfGenerator";
 import { ExcelPreviewModal } from "@/components/ExcelPreviewModal";
 import { QuoteExportOptionsDialog } from "@/components/QuoteExportOptionsDialog";
 import { isLdDraftQuoteNumber } from "@shared/ldDraftQuoteNumber";
@@ -1010,9 +1011,6 @@ export default function QuoteDetail() {
   const [billingCompanyInput, setBillingCompanyInput] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [pdfPrintOpen, setPdfPrintOpen] = useState(false);
-  const [ldPdfCaptureOpen, setLdPdfCaptureOpen] = useState(false);
-  const [pdfShowIpi, setPdfShowIpi] = useState(false);
   const [exportOptions, setExportOptions] = useState<{
     format: "PDF" | "Excel";
     run: (showIpi: boolean) => void | Promise<void>;
@@ -2090,6 +2088,74 @@ export default function QuoteDetail() {
   const storedCustomerTotal = getStoredCustomerTotal(quote);
   const totalRecalculado = storedCustomerTotal > 0 ? storedCustomerTotal : headerCommercialTotals.totalFinal;
 
+  /**
+   * Fonte única do PDF comercial. Download e entrega ao LD recebem o Blob
+   * produzido por esta mesma função — não há captura de tela nem segundo layout.
+   */
+  const buildOfficialPdf = async (showIpi: boolean) => {
+    if (hasDraftRevision) {
+      await bumpRevisionMutation.mutateAsync({ id: Number(id) });
+      await utils.quotes.getById.invalidate({ id: Number(id) });
+      await utils.quotes.list.invalidate();
+    }
+    const seller1 = quote.seller1Id ? editSellers.find((seller) => seller.id === quote.seller1Id) : undefined;
+    const seller2 = quote.seller2Id ? editSellers.find((seller) => seller.id === quote.seller2Id) : undefined;
+    const formData: QuoteFormData = {
+      cliente: quote.clientName,
+      contato: quote.clientContact ?? "",
+      tel: quote.clientPhone ?? "",
+      email: quote.clientEmail ?? "",
+      obra: quote.projectName ?? "",
+      referencia: quote.projectRef ?? "",
+      notes: quote.notes ?? undefined,
+      numero: quote.quoteNumber,
+      data: toBrasiliaDate(quote.updatedAt ?? quote.createdAt),
+      arquiteto: (quote as any).arquiteto ?? undefined,
+      lightDesigner: (quote as any).lightDesigner ?? undefined,
+      seller1Name: quote.seller1Name ?? undefined,
+      seller1Phone: seller1?.phone ?? undefined,
+      seller1Email: seller1?.email ?? undefined,
+      seller2Name: quote.seller2Name ?? undefined,
+      seller2Phone: seller2?.phone ?? undefined,
+      seller2Email: seller2?.email ?? undefined,
+      assistantName: quote.assistantName ?? undefined,
+      rtPercent: quote.rtPercent ? parseFloat(String(quote.rtPercent)) : undefined,
+      rtDest1: quote.rtDest1 ?? undefined,
+      rtDest1Active: quote.rtDest1Active ?? false,
+      rtDest2: quote.rtDest2 ?? undefined,
+      rtDest2Active: quote.rtDest2Active ?? false,
+      rtDest3: quote.rtDest3 ?? undefined,
+      rtDest3Active: quote.rtDest3Active ?? false,
+      marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
+      discountPercent: (quote as any).discountPercent ? parseFloat(String((quote as any).discountPercent)) : undefined,
+      showDiscount: !!(quote as any).showDiscount,
+      showIpi,
+      freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
+      freteIsento: quote.freteIsento ?? false,
+      freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
+      freteCity: (quote as any).freteCity ?? undefined,
+      freteState: (quote as any).freteState ?? undefined,
+      freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
+      freteIncluded: (quote as any).freteIncluded ?? false,
+      diluicaoValor: commercialDiluicaoValor || undefined,
+      revisionCount: exportRevisionCount,
+      totalFinalOverride: totalRecalculado,
+      deliveryDays: quote.deliveryDays ?? 20,
+      commissionPercent: quote.commissionPercent ? parseFloat(String(quote.commissionPercent)) : undefined,
+      paymentTerm: quote.paymentTerm ?? undefined,
+      destState: quote.destState ?? undefined,
+      difalEnabled: quote.difalEnabled ?? false,
+      difalFcpIncluded: !!(quote as any).difalFcpIncluded,
+      difalPercent: quote.difalPercent ? parseFloat(String(quote.difalPercent)) : undefined,
+      difalValue: quote.difalValue ? parseFloat(String(quote.difalValue)) : undefined,
+      fcpEnabled: quote.fcpEnabled ?? false,
+      fcpPercent: quote.fcpPercent ? parseFloat(String(quote.fcpPercent)) : undefined,
+      fcpValue: quote.fcpValue ? parseFloat(String(quote.fcpValue)) : undefined,
+      quoteCreatedAt: quote.createdAt ? new Date(quote.createdAt).toISOString() : undefined,
+    };
+    return { blob: await generateQuotePdfBlob(commercialQuoteItems, formData), formData };
+  };
+
   const handleGenerateQuote = async (showIpi = false) => {
     setIsGenerating(true);
     try {
@@ -2170,31 +2236,25 @@ export default function QuoteDetail() {
   };
 
   const handleGeneratePdf = async (showIpi = false) => {
-    if (hasDraftRevision) {
-      try {
-        await bumpRevisionMutation.mutateAsync({ id: Number(id) });
-        await utils.quotes.getById.invalidate({ id: Number(id) });
-        await utils.quotes.list.invalidate();
-      } catch (err) {
-        toast.error("Não foi possível arquivar a revisão antes de gerar o PDF.");
-        return;
-      }
+    setIsGenerating(true);
+    try {
+      const { blob, formData } = await buildOfficialPdf(showIpi);
+      downloadPdfBlob(blob, buildQuotePdfFileName(formData));
+      toast.success("PDF oficial gerado.");
+    } catch (error) {
+      console.error("Falha ao gerar PDF oficial:", error);
+      toast.error("Não foi possível gerar o PDF oficial.");
+    } finally {
+      setIsGenerating(false);
     }
-    setPdfShowIpi(showIpi);
-    setPdfPrintOpen(true);
   };
 
   const handleSendPdfToLd = async (showIpi = false) => {
     if (!linkedLdRequest || !quote) return;
     setIsGenerating(true);
-    setPdfShowIpi(showIpi);
-    setLdPdfCaptureOpen(true);
-  };
-
-  const handleOfficialPdfCapturedForLd = async (pdfBlob: Blob) => {
-    if (!linkedLdRequest || !quote) return;
     try {
-      const bytes = new Uint8Array(await pdfBlob.arrayBuffer());
+      const { blob, formData } = await buildOfficialPdf(showIpi);
+      const bytes = new Uint8Array(await blob.arrayBuffer());
       let binary = "";
       for (let offset = 0; offset < bytes.length; offset += 8192) {
         const chunk = bytes.subarray(offset, offset + 8192);
@@ -2204,13 +2264,12 @@ export default function QuoteDetail() {
         requestId: linkedLdRequest.id,
         quoteId: Number(id),
         pdfBase64: btoa(binary),
-        fileName: `Alfalux_${quote.quoteNumber.replace(/[^a-zA-Z0-9_-]/g, "_")}.pdf`,
+        fileName: buildQuotePdfFileName(formData),
       });
     } catch (err) {
       console.error("Falha ao anexar PDF oficial ao LD:", err);
       toast.error("Não foi possível anexar o PDF oficial ao LD.");
     } finally {
-      setLdPdfCaptureOpen(false);
       setIsGenerating(false);
     }
   };
@@ -5483,61 +5542,6 @@ export default function QuoteDetail() {
         }}
       />
 
-      {/* Documento oficial único: o mesmo Blob atende ao download e ao envio ao LD. */}
-      <ExcelPreviewModal
-        open={pdfPrintOpen || ldPdfCaptureOpen}
-        onClose={() => { setPdfPrintOpen(false); setLdPdfCaptureOpen(false); if (ldPdfCaptureOpen) setIsGenerating(false); }}
-        autoDownload={pdfPrintOpen}
-        onCapturePdf={ldPdfCaptureOpen ? handleOfficialPdfCapturedForLd : undefined}
-        onCapturePdfError={ldPdfCaptureOpen ? (error) => { console.error("Falha na captura interna do PDF LD:", error); toast.error("Não foi possível gerar o PDF oficial para o LD."); setLdPdfCaptureOpen(false); setIsGenerating(false); } : undefined}
-        items={commercialQuoteItems}
-        freshPhotoMap={productPhotoMap}
-        formData={{
-          cliente: quote.clientName,
-          contato: quote.clientContact ?? "",
-          tel: quote.clientPhone ?? "",
-          email: quote.clientEmail ?? "",
-          obra: quote.projectName ?? "",
-          referencia: quote.projectRef ?? "",
-          notes: quote.notes ?? undefined,
-          numero: quote.quoteNumber,
-          data: toBrasiliaDate(quote.updatedAt ?? quote.createdAt),
-          arquiteto: (quote as any).arquiteto ?? undefined,
-          lightDesigner: (quote as any).lightDesigner ?? undefined,
-          seller1Name: quote.seller1Name ?? undefined,
-          seller1Phone: editSellers.find(s => s.id === quote.seller1Id)?.phone ?? undefined,
-          seller1Email: editSellers.find(s => s.id === quote.seller1Id)?.email ?? undefined,
-          seller2Name: quote.seller2Name ?? undefined,
-          seller2Phone: editSellers.find(s => s.id === quote.seller2Id)?.phone ?? undefined,
-          seller2Email: editSellers.find(s => s.id === quote.seller2Id)?.email ?? undefined,
-          assistantName: quote.assistantName ?? undefined,
-          rtPercent: quote.rtPercent ? parseFloat(String(quote.rtPercent)) : undefined,
-          marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
-          discountPercent: (quote as any).discountPercent ? parseFloat(String((quote as any).discountPercent)) : undefined,
-          showDiscount: !!(quote as any).showDiscount,
-          showIpi: (pdfPrintOpen || ldPdfCaptureOpen) ? pdfShowIpi : false,
-          freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
-          freteIsento: quote.freteIsento ?? false,
-          freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",
-          freteCity: (quote as any).freteCity ?? undefined,
-          freteState: (quote as any).freteState ?? undefined,
-          freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
-          freteIncluded: (quote as any).freteIncluded ?? false,
-          revisionCount: exportRevisionCount,
-          totalFinalOverride: totalRecalculado,
-          deliveryDays: quote.deliveryDays ?? 20,
-          paymentTerm: quote.paymentTerm ?? undefined,
-          destState: quote.destState ?? undefined,
-          difalEnabled: quote.difalEnabled ?? false,
-          difalFcpIncluded: !!(quote as any).difalFcpIncluded,
-          difalPercent: quote.difalPercent ? parseFloat(String(quote.difalPercent)) : undefined,
-          difalValue: quote.difalValue ? parseFloat(String(quote.difalValue)) : undefined,
-          fcpEnabled: quote.fcpEnabled ?? false,
-          fcpPercent: quote.fcpPercent ? parseFloat(String(quote.fcpPercent)) : undefined,
-          fcpValue: quote.fcpValue ? parseFloat(String(quote.fcpValue)) : undefined,
-          diluicaoValor: commercialDiluicaoValor || undefined,
-        }}
-      />
       {/* Dialog de edição manual de revisão (somente gestores) */}
       <Dialog open={setRevisionDialogOpen} onOpenChange={setSetRevisionDialogOpen}>
         <DialogContent className="max-w-sm">
