@@ -169,7 +169,6 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
             <div className="min-w-0 pr-8">
               <div className="min-w-0">
                 <DialogTitle className="break-words text-lg leading-6">Prévia de impressão</DialogTitle>
-                <p className="mt-1 break-words text-xs leading-4 text-muted-foreground">{guideProductLabel}</p>
               </div>
             </div>
           </DialogHeader>
@@ -184,14 +183,6 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
               </Button>
             </div>
           </div>
-          <button
-            type="button"
-            data-print-control
-            onClick={printGuide}
-            className="fixed right-10 top-20 z-[2147483646] inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-xl ring-2 ring-background hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <Printer className="h-4 w-4" /> Imprimir guia
-          </button>
           <div data-inline-print-content className="inline-assembly-print bg-white p-3 sm:p-5" dangerouslySetInnerHTML={{ __html: buildShapeAssemblyGuideHtml([printItem]) }} />
         </> : <>
         <DialogHeader className="border-b bg-background px-5 py-3 shadow-sm sm:px-6 sm:py-4">
