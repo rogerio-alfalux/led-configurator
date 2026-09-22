@@ -57,8 +57,51 @@ function resolveShapeCorner(
     if (apiCorner) return apiCorner;
   }
 
-  // Catálogo API nunca pode receber SKU comercial substituído pelo catálogo estático.
-  if (profileEntry.catalogSource === "api") return null;
+  if (profileEntry.catalogSource === "api") {
+    const pickApiCorner = (corners: ResolvedShapeCorner[]): ResolvedShapeCorner | null => {
+      if (corners.length === 0) return null;
+      const occurrences = new Map<string, { corner: ResolvedShapeCorner; count: number }>();
+      for (const corner of corners) {
+        const current = occurrences.get(corner.sku);
+        if (current) current.count += 1;
+        else occurrences.set(corner.sku, { corner, count: 1 });
+      }
+      return Array.from(occurrences.values())
+        .sort((a, b) => b.count - a.count || a.corner.sku.localeCompare(b.corner.sku))[0]?.corner ?? null;
+    };
+
+    // O canto 1×1 é uma peça mecânica do perfil, não uma versão de potência.
+    // Snapshots mais antigos da API podem trazer o mesmo canto só uma vez (por
+    // exemplo em 18W) e os módulos retos já separados em 26W/36W. Nessa
+    // situação, reutilizar APENAS o canto físico já devolvido pela própria API
+    // evita bloquear o cálculo de L/U/quadrado/retângulo durante a atualização
+    // do catálogo, sem inventar SKU nem recorrer ao catálogo estático.
+    const apiCorners = Object.values(profileEntry.apiLinearVariants ?? {})
+      .flatMap((variant) => variant.shapeCorners ?? [])
+      .filter((corner) => corner.barsLong === 1 && corner.barsShort === 1);
+    const ownApiCorner = pickApiCorner(apiCorners);
+    if (ownApiCorner) return ownApiCorner;
+
+    // Algumas instalações compartilham o canto com outra versão mecânica da
+    // mesma família — por exemplo MINI BLAZE S usa o LLP-3336.1L1.48F. A regra
+    // de compatibilidade vem do catálogo físico já conhecido, mas o SKU e as
+    // dimensões só são aceitos se aquele exato canto constar no catálogo da API.
+    const configuredCornerSkus = new Set(
+      (getLConfig(profileCode)?.corners ?? [])
+        .filter((corner) => corner.barsLong === 1 && corner.barsShort === 1)
+        .map((corner) => corner.sku),
+    );
+    const sharedApiCorners = Object.values(getActiveCatalog())
+      .filter((entry) => entry.catalogSource === "api")
+      .flatMap((entry) => Object.values(entry.apiLinearVariants ?? {}))
+      .flatMap((variant) => variant.shapeCorners ?? [])
+      .filter((corner) => corner.barsLong === 1 && corner.barsShort === 1 && configuredCornerSkus.has(corner.sku));
+    const sharedApiCorner = pickApiCorner(sharedApiCorners);
+    if (sharedApiCorner) return sharedApiCorner;
+
+    // Catálogo API nunca pode receber SKU comercial substituído pelo catálogo estático.
+    return null;
+  }
   return getCorner1x1(profileCode);
 }
 

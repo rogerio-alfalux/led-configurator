@@ -11,7 +11,7 @@
  */
 
 import { afterEach, describe, it, expect } from "vitest";
-import { calculateLShape, calculateSquare, calculateRectangle } from "./lEngine";
+import { calculateLShape, calculateSquare, calculateRectangle, calculateUShape } from "./lEngine";
 import { getCabeceiraMm } from "./lCatalog";
 import { adaptProfileProducts } from "./profileApiAdapter";
 import { resetActiveCatalog, setActiveCatalog } from "./ledCatalog";
@@ -116,6 +116,63 @@ describe("calculateLShape — SKU do canto vindo exclusivamente da API", () => {
     });
 
     expect(result).toBeNull();
+  });
+});
+
+describe("calculateUShape — cantos e extremidades do U", () => {
+  const params26W = {
+    power: 26 as const,
+    voltage: "220V" as const,
+    stripMethod: "STRIPFLEX" as const,
+    allowLongModules: false,
+    allowFractionalBars: false,
+  };
+
+  it("calcula o U do MINI BLAZE com 2 cantos, 2 IFs e ML somente como complemento", () => {
+    const result = calculateUShape("LLP-3336", 2743, 1794, params26W);
+
+    expect(result).not.toBeNull();
+    expect(result!.shape).toBe("U_SHAPE");
+    expect(result!.pieces.find((piece) => piece.type === "CORNER")?.quantity).toBe(2);
+    expect(result!.pieces.filter((piece) => piece.type === "STRAIGHT_IF").reduce((sum, piece) => sum + piece.quantity, 0)).toBe(2);
+    expect(result!.pieces.filter((piece) => piece.type !== "CORNER" && piece.type !== "STRAIGHT_IF").every((piece) => piece.type === "STRAIGHT_ML")).toBe(true);
+    const base = result!.assemblyEdges!.find((edge) => edge.id === "base")!;
+    expect(base.modules.some((module) => module.type === "IF")).toBe(false);
+  });
+
+  it("usa o canto compartilhado confirmado pela API para MINI BLAZE sobrepor", () => {
+    const catalog = adaptProfileProducts([
+      {
+        sku: "LLP-3336.1L1.48F",
+        name: "MINI BLAZE P ML 1B X 1B 590 X 590MM 18W",
+        categoria: "PERFIS",
+        familia: "MINI BLAZE",
+        instalacao: "PENDENTE",
+      },
+      {
+        sku: "LLS-3336.2IF.38F",
+        name: "MINI BLAZE S IF 2B 1135MM 26W",
+        categoria: "PERFIS",
+        familia: "MINI BLAZE",
+        instalacao: "SOBREPOR",
+      },
+      {
+        sku: "LLS-3336.2ML.38F",
+        name: "MINI BLAZE S ML 2B 1130MM 26W",
+        categoria: "PERFIS",
+        familia: "MINI BLAZE",
+        instalacao: "SOBREPOR",
+      },
+    ] as any);
+    expect(catalog).not.toBeNull();
+    setActiveCatalog(catalog!);
+
+    const result = calculateUShape("LLS-3336", 2743, 1794, params26W);
+
+    expect(result).not.toBeNull();
+    expect(result!.pieces.find((piece) => piece.type === "CORNER")?.sku).toBe("LLP-3336.1L1.48F");
+    expect(result!.pieces.find((piece) => piece.type === "CORNER")?.quantity).toBe(2);
+    expect(result!.pieces.filter((piece) => piece.type === "STRAIGHT_IF").reduce((sum, piece) => sum + piece.quantity, 0)).toBe(2);
   });
 });
 
