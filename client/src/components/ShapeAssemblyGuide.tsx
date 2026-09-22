@@ -185,13 +185,11 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
           </div>
           <div data-inline-print-content className="inline-assembly-print bg-white p-3 sm:p-5" dangerouslySetInnerHTML={{ __html: buildShapeAssemblyGuideHtml([printItem]) }} />
         </> : <>
-        <DialogHeader className="border-b bg-background px-5 py-3 shadow-sm sm:px-6 sm:py-4">
+        <DialogHeader className="border-b bg-background px-5 py-2.5 shadow-sm sm:px-6">
           <div className="pr-8">
             <div>
-              <DialogTitle className="break-words pr-6 text-lg leading-6">Guia de montagem — {productDescription}</DialogTitle>
-              <p className="mt-1 break-words leading-4 text-xs text-muted-foreground">Sequência física por aresta, pronta para consulta e impressão.</p>
-              <p className="mt-2 text-sm font-semibold text-primary">{dimensionsLabel}</p>
-              {itemMeta && <p className="mt-1 text-xs text-muted-foreground">{itemMeta}</p>}
+              <DialogTitle className="break-words pr-4 text-base leading-5">Guia de montagem — {productDescription}</DialogTitle>
+              {result.itemEmPlanta?.trim() && <p className="mt-1 text-xs leading-4 text-muted-foreground">Item em planta: {result.itemEmPlanta.trim()}</p>}
             </div>
           </div>
         </DialogHeader>
