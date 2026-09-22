@@ -672,6 +672,8 @@ function ShapeResultCard({
   onOpenAccessoryModal,
   pendingAccessoriesCount,
   globalPavimento,
+  itemEmPlanta,
+  setItemEmPlanta,
   technicalDocuments,
 }: {
   shapeResult: ShapeResult;
@@ -682,6 +684,8 @@ function ShapeResultCard({
   onOpenAccessoryModal?: () => void;
   pendingAccessoriesCount?: number;
   globalPavimento?: string;
+  itemEmPlanta?: string;
+  setItemEmPlanta?: (value: string) => void;
   technicalDocuments?: ProfileTechnicalDocumentsData;
 }) {
   const [copied, setCopied] = useState(false);
@@ -1057,12 +1061,24 @@ function ShapeResultCard({
     {/* Card principal: Resumo da Configuração */}
     <Card className="ld-configuration-summary shadow-sm border-blue-500/30">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3">
           <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-green-500" />
             Resumo — {shapeLabel}
           </CardTitle>
           <div className="flex flex-wrap items-center gap-2">
+            {setItemEmPlanta && (
+              <div className="flex items-center gap-1.5">
+                <label htmlFor="shape-item-em-planta" className="text-xs text-muted-foreground whitespace-nowrap">Item em planta:</label>
+                <Input
+                  id="shape-item-em-planta"
+                  className="h-7 w-28 text-xs"
+                  placeholder="ex.: L1, P2"
+                  value={itemEmPlanta ?? ""}
+                  onChange={(event) => setItemEmPlanta(event.target.value)}
+                />
+              </div>
+            )}
             {setGlobalQty && (
               <div className="flex items-center gap-1.5">
                 <label className="text-xs text-muted-foreground whitespace-nowrap">Qtd:</label>
@@ -1076,18 +1092,6 @@ function ShapeResultCard({
                 />
               </div>
             )}
-            <Button
-              size="sm"
-              variant={copied ? "default" : "outline"}
-              onClick={handleCopy}
-              className="gap-1.5 text-xs h-7"
-            >
-              {copied ? (
-                <><ClipboardCheck className="w-3.5 h-3.5" /> Copiado!</>
-              ) : (
-                <><Copy className="w-3.5 h-3.5" /> Copiar Resumo</>
-              )}
-            </Button>
             <ShapeAssemblyGuide
               result={{
                 ...shapeResult,
@@ -1097,6 +1101,7 @@ function ShapeResultCard({
                   shapeResult.cct,
                   shapeResult.voltage,
                 ].filter(Boolean).join(" "),
+                itemEmPlanta,
               }}
             />
             <Button
@@ -9749,6 +9754,8 @@ export default function Home() {
                   onAddToQuote={(appendToQuoteId || replaceInQuoteId) ? handleAddItemOrToQuote : undefined}
                   globalQty={globalQty}
                   setGlobalQty={setGlobalQty}
+                  itemEmPlanta={globalItemEmPlanta}
+                  setItemEmPlanta={setGlobalItemEmPlanta}
                   onOpenAccessoryModal={() => { setAddAcModalOpen(true); setAddAcModalSearch(""); setAddAcModalFamilia(""); setAddAcModalSelectedId(null); }}
                   pendingAccessoriesCount={pendingAccessories.length}
                   globalPavimento={globalPavimento}

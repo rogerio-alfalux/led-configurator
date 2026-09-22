@@ -166,12 +166,12 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
         {printOpen ? <>
           <style>{inlinePrintStyles}</style>
           <DialogHeader className="inline-print-actions border-b bg-background px-5 py-3 shadow-sm sm:px-6">
-            <div className="flex items-center justify-between gap-3 pr-8">
-              <div>
-                <DialogTitle className="text-lg leading-6">Prévia de impressão</DialogTitle>
-                <p className="mt-1 text-xs leading-4 text-muted-foreground">{guideProductLabel}</p>
+            <div className="flex flex-col items-stretch gap-3 pr-8">
+              <div className="min-w-0">
+                <DialogTitle className="break-words text-lg leading-6">Prévia de impressão</DialogTitle>
+                <p className="mt-1 break-words text-xs leading-4 text-muted-foreground">{guideProductLabel}</p>
               </div>
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button type="button" size="sm" variant="outline" className="gap-1.5" onClick={() => setPrintOpen(false)}>
                   <ArrowLeft className="h-4 w-4" /> Voltar
                 </Button>
@@ -186,8 +186,8 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
         <DialogHeader className="border-b bg-background px-5 py-3 shadow-sm sm:px-6 sm:py-4">
           <div className="pr-8">
             <div>
-              <DialogTitle className="text-lg leading-6">Guia de montagem — {productDescription}</DialogTitle>
-              <p className="mt-1 leading-4 text-xs text-muted-foreground">Sequência física por aresta, pronta para consulta e impressão.</p>
+              <DialogTitle className="break-words pr-6 text-lg leading-6">Guia de montagem — {productDescription}</DialogTitle>
+              <p className="mt-1 break-words leading-4 text-xs text-muted-foreground">Sequência física por aresta, pronta para consulta e impressão.</p>
               <p className="mt-2 text-sm font-semibold text-primary">{dimensionsLabel}</p>
               {itemMeta && <p className="mt-1 text-xs text-muted-foreground">{itemMeta}</p>}
             </div>
