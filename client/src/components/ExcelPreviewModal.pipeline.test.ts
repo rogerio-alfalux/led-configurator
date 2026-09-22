@@ -26,6 +26,7 @@ describe("pipeline visual do PDF oficial e LD", () => {
     expect(previewSource).toContain("computed.boxShadow.includes(\"oklch(\")");
     expect(previewSource).toContain("Aplicar ao clone a mesma geometria da regra @media print");
     expect(previewSource).toContain("margins: { top: 22.68, right: 22.68, bottom: 22.68, left: 22.68 }");
+    expect(previewSource).toContain("zoom: 1 !important; transform: none !important");
     expect(previewSource).toContain("allowTaint: false");
     expect(previewSource).toContain("useCORS: true");
     expect(previewSource).toContain('orientation: "portrait"');
