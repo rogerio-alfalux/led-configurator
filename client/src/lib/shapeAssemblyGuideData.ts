@@ -3,7 +3,7 @@ import type { ShapeAssemblyEdge, ShapeAssemblyModule, ShapeResult } from "./lCat
 
 export type ShapeAssemblySnapshot = Pick<
   CartItemData,
-  "profileShape" | "shapeAssemblyEdges" | "description" | "sku" | "itemEmPlanta" | "qty"
+  "profileShape" | "shapeAssemblyEdges" | "description" | "sku" | "itemEmPlanta" | "assemblyItemNumber" | "qty"
 >;
 
 export interface ShapeAssemblyDocumentEntry {
@@ -34,7 +34,7 @@ export function getShapeAssemblyDocumentEntries(items: CartItemData[]): ShapeAss
     const edges = item.shapeAssemblyEdges;
     if (!shape || !edges || edges.length === 0) return [];
     return [{
-      itemNumber: index + 1,
+      itemNumber: item.assemblyItemNumber != null ? Number(item.assemblyItemNumber) : index + 1,
       item,
       shape,
       edges,
@@ -93,6 +93,12 @@ export function buildShapeAssemblyGuideHtml(items: CartItemData[]): string {
   if (entries.length === 0) return "";
 
   return entries.map(entry => {
+    const achievedDimensions = entry.edges.slice(0, 2).map(edge => edge.achievedLength).filter(value => Number.isFinite(value));
+    const dimensionLabel = achievedDimensions.length >= 2
+      ? `${SHAPE_LABELS[entry.shape]} ${achievedDimensions[0].toLocaleString("pt-BR")} mm × ${achievedDimensions[1].toLocaleString("pt-BR")} mm`
+      : SHAPE_LABELS[entry.shape];
+    const itemLabel = `Item ${entry.itemNumber}`;
+    const plantaLabel = entry.item.itemEmPlanta?.trim() ? `Item em planta: ${entry.item.itemEmPlanta.trim()}` : "";
     const edgeRows = entry.edges.map((edge, edgeIndex) => `
       <section class="assembly-edge">
         <div class="assembly-edge-title">
@@ -114,8 +120,8 @@ export function buildShapeAssemblyGuideHtml(items: CartItemData[]): string {
       <section class="assembly-sheet">
         <header class="assembly-header">
           <p>INSTRUÇÃO DE MONTAGEM</p>
-          <h2>${escapeHtml(SHAPE_LABELS[entry.shape])} — ${escapeHtml(entry.reference)}</h2>
-          <div class="assembly-product">${escapeHtml(entry.title)}</div>
+          <h2>${escapeHtml(entry.title)}</h2>
+          <div class="assembly-header-details"><strong>${escapeHtml(dimensionLabel)}</strong><span>${escapeHtml(itemLabel)}${plantaLabel ? ` · ${escapeHtml(plantaLabel)}` : ""}</span></div>
         </header>
         <div class="assembly-layout">
           <div class="assembly-topology">

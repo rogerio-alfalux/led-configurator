@@ -80,6 +80,8 @@ export interface CartItemData {
    * numeração visível ao usuário, sem persistir ou alterar o item comercial.
    */
   materialSourceItemNumber?: number;
+  /** Número do item no orçamento, quando o guia é aberto a partir de um item já numerado. */
+  assemblyItemNumber?: number | string;
   /** Preço unitário em reais (null se não cadastrado) */
   unitPrice: number | null;
   /** Preço total = unitPrice × qty (null se unitPrice for null) */

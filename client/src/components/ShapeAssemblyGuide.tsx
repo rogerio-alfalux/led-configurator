@@ -21,8 +21,10 @@ const inlinePrintStyles = `
   .inline-assembly-print .assembly-sheet:last-child { page-break-after:auto; }
   .inline-assembly-print .assembly-header { background:#1f3864; color:#fff; padding:10px 13px; border-radius:6px 6px 0 0; }
   .inline-assembly-print .assembly-header p { font-size:9px; font-weight:700; letter-spacing:.7px; margin:0 0 3px; }
-  .inline-assembly-print .assembly-header h2 { font-size:16px; margin:0; }
-  .inline-assembly-print .assembly-product { font-size:10px; margin-top:4px; }
+  .inline-assembly-print .assembly-header h2 { font-size:15px; line-height:1.2; margin:0; }
+  .inline-assembly-print .assembly-header-details { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:6px; font-size:10px; line-height:1.25; }
+  .inline-assembly-print .assembly-header-details strong { font-size:11px; }
+  .inline-assembly-print .assembly-header-details span { opacity:.94; text-align:right; }
   .inline-assembly-print .assembly-layout { border:1px solid #8ea9c1; border-top:0; padding:8px; }
   .inline-assembly-print .assembly-topology { display:grid; grid-template-columns:190px minmax(0,1fr); align-items:center; border-bottom:1px solid #d4dbe5; padding:0 3px 7px; }
   .inline-assembly-print .assembly-topology svg { width:185px; height:100px; color:#1f3864; }
@@ -107,9 +109,10 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
     description: result.productDescription ?? result.profileName ?? result.profileCode,
     sku: result.profileCode,
     itemEmPlanta: "Guia de montagem",
+    assemblyItemNumber: result.itemNumber ?? undefined,
     qty: 1,
   } as any;
-  const edgeMeasures = edges.slice(0, 2).map((edge) => edge.requestedLength).filter((value) => Number.isFinite(value));
+  const edgeMeasures = edges.slice(0, 2).map((edge) => edge.achievedLength).filter((value) => Number.isFinite(value));
   const dimensionsLabel = edgeMeasures.length >= 2
     ? `${getShapeTitle(result.shape)} ${formatAssemblyMeasure(edgeMeasures[0])} × ${formatAssemblyMeasure(edgeMeasures[1])}`
     : getShapeTitle(result.shape);
