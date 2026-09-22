@@ -41,6 +41,15 @@ describe("auditoria da Home para LD Convidado", () => {
     expect(homeSource).toContain('!isConvidado && spUnitPrice');
   });
 
+  it("não exibe o fallback de preço manual das composições modulares ao LD", () => {
+    const shapeResultSection = homeSource.slice(
+      homeSource.indexOf("function ShapeResultCard"),
+      homeSource.indexOf("function ResultBlock"),
+    );
+    expect(shapeResultSection).toContain('!isConvidadoRB && ((precoTotal !== null || precoDriver !== null) ? (');
+    expect(shapeResultSection).toContain('if (!isConvidadoRB && (precoDriver != null || precoEfetivo !== null))');
+  });
+
   it("oculta explicitamente os resumos de Arandela e Spot no modo LD Convidado", () => {
     const arandelaSection = homeSource.slice(homeSource.indexOf("Resultado — Arandela"), homeSource.indexOf("Resultado — Spot"));
     const spotSection = homeSource.slice(homeSource.indexOf("Resultado — Spot"));

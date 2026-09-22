@@ -868,7 +868,7 @@ function ShapeResultCard({
       lines.push(`${piece.quantity}× ${piece.sku}${lenStr}${barsStr}`);
       if (driverStr) lines.push(`   Driver por peça: ${driverStr}`);
     }
-    if (precoDriver != null || precoEfetivo !== null) {
+    if (!isConvidadoRB && (precoDriver != null || precoEfetivo !== null)) {
       lines.push("");
       if (precoLuminaria != null && precoDriver != null) {
         lines.push(`LUMINÁRIA: ${formatBRL(precoLuminaria)} (sem driver)`);
@@ -1233,7 +1233,7 @@ function ShapeResultCard({
 
         {/* Preço estimado ou entrada manual */}
         {/* Exibir preço do driver mesmo quando a luminária não tem preço na API */}
-        {!isConvidadoRB && (precoTotal !== null || precoDriver !== null) ? (
+        {!isConvidadoRB && ((precoTotal !== null || precoDriver !== null) ? (
           <div className="space-y-1">
             {precoLuminaria != null && (
               <div className="flex items-center gap-2">
@@ -1308,7 +1308,7 @@ function ShapeResultCard({
             </div>
             <p className="text-xs text-muted-foreground">Este preço será usado no orçamento (ON/OFF 220V).</p>
           </div>
-        )}
+        ))}
             {technicalDocuments ? <ProfileTechnicalDocuments documents={technicalDocuments} /> : null}
             </CardContent>
     </Card>
