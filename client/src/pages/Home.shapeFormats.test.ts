@@ -22,6 +22,11 @@ describe("formatos especiais na interface", () => {
     expect(homeSource).toContain("shapeAssemblyEdges: shapeResult.assemblyEdges");
   });
 
+  it("preserva o Item em Planta digitado no resultado modular ao enviar ao carrinho", () => {
+    expect(homeSource).toContain('itemEmPlanta: itemEmPlanta?.trim() ?? ""');
+    expect(homeSource).toContain('value={itemEmPlanta ?? ""}');
+  });
+
   it("oferece o guia na configuração, no orçamento salvo e na fábrica", () => {
     expect(homeSource).toContain("productDescription: [");
     expect(homeSource).toContain("<ShapeAssemblyGuide");

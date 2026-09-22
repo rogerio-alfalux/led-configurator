@@ -1043,6 +1043,10 @@ function ShapeResultCard({
         // Exemplo BLAZE 45700mm: (1×15 módulos) + (1×2 caps) = 17 drivers/luminária.
         driverQtyPerUnit: profileSegments.reduce((sum, seg) => sum + (seg.driverQtyPerPiece ?? 1) * seg.qty, 0),
       } : {}),
+      // O campo é preenchido no cabeçalho do resultado modular. Persisti-lo
+      // aqui é necessário porque este caminho envia diretamente ao carrinho
+      // LD, sem passar pelo modal de cor que aplica o patch final.
+      itemEmPlanta: itemEmPlanta?.trim() ?? "",
       ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}),
     };
 
