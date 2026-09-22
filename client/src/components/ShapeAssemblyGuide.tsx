@@ -95,8 +95,9 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
   const printGuide = () => {
     const host = document.createElement("div");
     host.setAttribute("data-print-modal", "true");
+    host.setAttribute("data-inline-print-modal", "true");
     host.style.cssText = "position:fixed;inset:0;background:#fff;z-index:2147483647;overflow:visible;";
-    host.innerHTML = `<style>${inlinePrintStyles}</style><div data-print-content class="inline-assembly-print">${buildShapeAssemblyGuideHtml([printItem])}</div>`;
+    host.innerHTML = `<style>${inlinePrintStyles}</style><div data-print-content data-inline-print-content class="inline-assembly-print">${buildShapeAssemblyGuideHtml([printItem])}</div>`;
     document.body.appendChild(host);
 
     let cleaned = false;
