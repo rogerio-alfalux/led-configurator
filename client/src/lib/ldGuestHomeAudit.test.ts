@@ -33,11 +33,11 @@ describe("auditoria da Home para LD Convidado", () => {
   it("oculta os resumos comerciais e a produção no modo LD, sem removê-los dos outros perfis", () => {
     expect(homeSource).toContain('className="ld-commercial-only shadow-sm border-blue-500/30"');
     expect(homeSource).toContain('<div className="ld-commercial-only">');
-    expect(homeSource).toContain('isAuthLoading || !user || (user as any)?.role === "convidado"');
+    expect(homeSource).toContain('mustHideCommercialValues(user, isAuthLoading)');
   });
 
   it("falha fechado durante a identificação do perfil e não mostra valor de Item Especial ao LD", () => {
-    expect(homeSource).toContain('isAuthLoading || !_srcUser || (_srcUser as any)?.role === "convidado"');
+    expect(homeSource).toContain('mustHideCommercialValues(_srcUser, isAuthLoading)');
     expect(homeSource).toContain('!isConvidado && spUnitPrice');
   });
 

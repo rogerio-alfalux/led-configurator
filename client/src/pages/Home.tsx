@@ -24,6 +24,7 @@ import { ProductDocumentDownloads } from "@/components/ProductDocumentDownloads"
 import { ProfileTechnicalDocuments } from "@/components/ProfileTechnicalDocuments";
 import { getProfileTechnicalDocuments, type ProfileTechnicalDocuments as ProfileTechnicalDocumentsData } from "@/lib/profileCompositionDocuments";
 import { getLdNotificationBadge } from "@/lib/ldRequestNotifications";
+import { mustHideCommercialValues } from "@/lib/ldGuestAccess";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -692,7 +693,7 @@ function ShapeResultCard({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { addItem, isAdding: isAddingToCart } = useCart();
   const { user: _srcUser, loading: isAuthLoading } = useAuth();
-  const isConvidadoRB = isAuthLoading || !_srcUser || (_srcUser as any)?.role === "convidado";
+  const isConvidadoRB = mustHideCommercialValues(_srcUser, isAuthLoading);
   const [colorModalOpen, setColorModalOpen] = useState(false);
   const [pendingItem, setPendingItem] = useState<CartItemData | null>(null);
   const [manualPreco, setManualPreco] = useState<string>("");
@@ -1566,7 +1567,7 @@ type SkuPriceMap = Record<string, {
 
 function ResultBlock({ result, profilePriceMap, profileVariant, skuPriceMap, onAddToQuote, itemEmPlanta, setItemEmPlanta, globalQty, setGlobalQty, onOpenAccessoryModal, pendingAccessoriesCount, globalPavimento, shiftModuleSelector, addBlockedReason, transformCartItem, technicalDocuments }: { result: CompositionResult; profilePriceMap?: ProfilePriceMap; profileVariant?: import("@/lib/ledCatalog").ProfileVariant; skuPriceMap?: SkuPriceMap; onAddToQuote?: (item: CartItemData) => void; itemEmPlanta?: string; setItemEmPlanta?: (v: string) => void; globalQty?: number; setGlobalQty?: (v: number) => void; onOpenAccessoryModal?: () => void; pendingAccessoriesCount?: number; globalPavimento?: string; shiftModuleSelector?: ReactNode; addBlockedReason?: string; transformCartItem?: (item: CartItemData) => CartItemData; technicalDocuments?: ProfileTechnicalDocumentsData }) {
   const { user: _rbUser, loading: isAuthLoading } = useAuth();
-  const isConvidadoRB = isAuthLoading || !_rbUser || (_rbUser as any)?.role === "convidado";
+  const isConvidadoRB = mustHideCommercialValues(_rbUser, isAuthLoading);
   const efficiency = result.requestedLength > 0
     ? Math.round((result.realizedLength / result.requestedLength) * 100)
     : 0;
@@ -1977,7 +1978,7 @@ function QuoteSummaryCard({ result, profilePriceMap, profileVariant, skuPriceMap
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { addItem, isAdding: isAddingToCart } = useCart();
   const { user, loading: isAuthLoading } = useAuth();
-  const isConvidadoQSC = isAuthLoading || !user || (user as any)?.role === "convidado";
+  const isConvidadoQSC = mustHideCommercialValues(user, isAuthLoading);
   const [colorModalOpen, setColorModalOpen] = useState(false);
   const [pendingItem, setPendingItem] = useState<CartItemData | null>(null);
   const [manualPreco, setManualPreco] = useState<string>("");
@@ -2864,7 +2865,7 @@ export default function Home() {
   const { user, logout, isAuthenticated, loading: isAuthLoading } = useAuth();
   const isVivian = user?.email === "vivian@grupoalfalux.com.br";
   // Falhar fechado: valores nunca podem aparecer antes de o perfil ser conhecido.
-  const isConvidado = isAuthLoading || !user || (user as any)?.role === "convidado";
+  const isConvidado = mustHideCommercialValues(user, isAuthLoading);
   const ldNotifications = trpc.ldRequests.notifications.useQuery(undefined, { enabled: Boolean(user), staleTime: 0, refetchInterval: 30_000 });
   const pendingLdRequestCount = ldNotifications.data?.adminPendingCount ?? 0;
   const readyLdResponseCount = ldNotifications.data?.guestReadyCount ?? 0;

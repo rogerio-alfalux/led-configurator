@@ -64,6 +64,7 @@ import { ShapeAssemblyGuide } from "@/components/ShapeAssemblyGuide";
 import { buildLdRequestPayload } from "@/lib/ldRequestForm";
 import { buildSplitBodyPricePatch, cloneCartItemData, getEditableBodyUnitPrice } from "@/lib/splitItemPricing";
 import { getLdRequestDeadlineLimits, getLdRequestDeadlineValidationError } from "@shared/ldRequestDeadlines";
+import { isLdGuestUser } from "@/lib/ldGuestAccess";
 
 /**
  * REGRA INEGOCIÁVEL: Para perfis (com profileSegments), o driverQty total é sempre
@@ -3967,5 +3968,5 @@ export default function Cart() {
   const { user, loading } = useAuth();
   // Evita qualquer renderização transitória do carrinho comercial antes da sessão informar o perfil.
   if (loading) return <div className="min-h-screen bg-background grid place-items-center text-sm text-muted-foreground">Carregando carrinho...</div>;
-  return (user as any)?.role === "convidado" ? <GuestCart /> : <StandardCart />;
+  return isLdGuestUser(user) ? <GuestCart /> : <StandardCart />;
 }
