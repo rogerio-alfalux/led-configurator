@@ -44,7 +44,6 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { CartItemData, formatBRL, parseCartItemData, normalizeStoredQuoteSnapshot, extractPowerLabelFromName, toPowerLabel, enrichDriverCurrentsFromApi, enrichShiftAccessoryTechnicalComponents, migrateItemDrivers, migrateLegacyGlowCommercialItem, type QuoteFormData } from "@/lib/cartTypes";
 import { buildUnambiguousCatalogPhotoMap, resolveCatalogItemPhoto } from "@/lib/itemPhoto";
 import { formatLinkedCommercialQuote } from "@/lib/sampleLinkPresentation";
-import { isLdRequestLinkedToQuote } from "@/lib/ldRequestUtils";
 import { formatCommercialQuoteNumberInput, isCommercialQuoteNumber } from "@shared/quoteNumberFormat";
 import { handleLdPdfSent } from "@/lib/ldAdminBadgeRefresh";
 import { linkSampleOrderByQuoteNumber } from "@/lib/sampleLinkFlow";
@@ -1351,22 +1350,19 @@ export default function QuoteDetail() {
     && (data?.quote as any)?.createdByUserId === (user as any)?.id;
   const visibleEditSellers = isSellerEditing && !isOwnDuplicatedQuote ? (ownEditSeller ? [ownEditSeller] : []) : editSellers;
   const visibleEditAssistants = isAssistantEditing && !isOwnDuplicatedQuote ? (ownEditAssistant ? [ownEditAssistant] : []) : editAssistants;
-  const ldRequestsQuery = trpc.ldRequests.adminList.useQuery(undefined, {
-    enabled: user?.role === "admin",
+  const linkedLdRequestQuery = trpc.ldRequests.forQuote.useQuery({ quoteId: Number(id) }, {
+    enabled: Number.isFinite(Number(id)) && user?.role !== "convidado",
     staleTime: 60_000,
   });
   const attachLdPdfMutation = trpc.ldRequests.adminAttachPdf.useMutation({
     onSuccess: async () => {
-      await utils.ldRequests.adminList.invalidate();
+      await utils.ldRequests.forQuote.invalidate({ quoteId: Number(id) });
       await handleLdPdfSent(() => utils.ldRequests.notifications.invalidate());
       toast.success("PDF validado enviado ao LD Convidado.");
     },
     onError: (err) => toast.error(`Não foi possível enviar o PDF: ${err.message}`),
   });
-  const linkedLdRequest = useMemo(
-    () => (ldRequestsQuery.data ?? []).find((request: any) => isLdRequestLinkedToQuote(request, Number(id))) ?? null,
-    [ldRequestsQuery.data, id],
-  );
+  const linkedLdRequest = linkedLdRequestQuery.data ?? null;
 
   const addRevisionForItemsMutation = trpc.quotes.addRevision.useMutation({
     onSuccess: () => {
@@ -2188,9 +2184,10 @@ export default function QuoteDetail() {
     setPdfPrintOpen(true);
   };
 
-  const handleSendPdfToLd = async () => {
+  const handleSendPdfToLd = async (showIpi = false) => {
     if (!linkedLdRequest || !quote) return;
     setIsGenerating(true);
+    setPdfShowIpi(showIpi);
     setLdPdfCaptureOpen(true);
   };
 
@@ -2205,6 +2202,7 @@ export default function QuoteDetail() {
       }
       await attachLdPdfMutation.mutateAsync({
         requestId: linkedLdRequest.id,
+        quoteId: Number(id),
         pdfBase64: btoa(binary),
         fileName: `Alfalux_${quote.quoteNumber.replace(/[^a-zA-Z0-9_-]/g, "_")}.pdf`,
       });
@@ -2660,14 +2658,14 @@ export default function QuoteDetail() {
             <FileDown className="w-4 h-4" />
             {isGenerating ? "Gerando..." : "Baixar PDF"}
           </Button>
-          {user?.role === "admin" && linkedLdRequest && (
+          {canEdit && linkedLdRequest && (
             <>
               <Button
                 variant="outline"
                 className="gap-2 border-emerald-500/40 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950"
-                onClick={handleSendPdfToLd}
+                onClick={() => setExportOptions({ format: "PDF", run: handleSendPdfToLd })}
                 disabled={isGenerating || attachLdPdfMutation.isPending}
-                title="Gerar e disponibilizar automaticamente o PDF oficial ao LD Convidado"
+                title="Gerar e disponibilizar ao LD o mesmo PDF oficial do download"
               >
                 <FileDown className="w-4 h-4" />
                 {attachLdPdfMutation.isPending ? "Enviando PDF..." : "Enviar PDF ao LD"}
@@ -5485,11 +5483,11 @@ export default function QuoteDetail() {
         }}
       />
 
-      {/* Prévia compartilhada: impressão direta para admin e captura interna para o LD. */}
+      {/* Documento oficial único: o mesmo Blob atende ao download e ao envio ao LD. */}
       <ExcelPreviewModal
         open={pdfPrintOpen || ldPdfCaptureOpen}
         onClose={() => { setPdfPrintOpen(false); setLdPdfCaptureOpen(false); if (ldPdfCaptureOpen) setIsGenerating(false); }}
-        autoPrint={pdfPrintOpen}
+        autoDownload={pdfPrintOpen}
         onCapturePdf={ldPdfCaptureOpen ? handleOfficialPdfCapturedForLd : undefined}
         onCapturePdfError={ldPdfCaptureOpen ? (error) => { console.error("Falha na captura interna do PDF LD:", error); toast.error("Não foi possível gerar o PDF oficial para o LD."); setLdPdfCaptureOpen(false); setIsGenerating(false); } : undefined}
         items={commercialQuoteItems}
@@ -5517,7 +5515,7 @@ export default function QuoteDetail() {
           marginPercent: quote.marginPercent ? parseFloat(String(quote.marginPercent)) : undefined,
           discountPercent: (quote as any).discountPercent ? parseFloat(String((quote as any).discountPercent)) : undefined,
           showDiscount: !!(quote as any).showDiscount,
-          showIpi: pdfPrintOpen ? pdfShowIpi : false,
+          showIpi: (pdfPrintOpen || ldPdfCaptureOpen) ? pdfShowIpi : false,
           freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
           freteIsento: quote.freteIsento ?? false,
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",

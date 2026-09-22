@@ -7,12 +7,15 @@ describe("pipeline visual do PDF oficial e LD", () => {
   const quoteDetailSource = readFileSync(resolve(process.cwd(), "client/src/pages/QuoteDetail.tsx"), "utf8");
   const cartSource = readFileSync(resolve(process.cwd(), "client/src/pages/Cart.tsx"), "utf8");
 
-  it("anexa automaticamente ao LD a mesma prévia oficial sem abrir diálogo de arquivo", () => {
+  it("anexa ao LD o mesmo arquivo oficial gerado pelo fluxo de download", () => {
     expect(previewSource).toContain("const captureVisiblePreviewPdf");
     expect(previewSource).toContain("await captureCallbacksRef.current.onCapturePdf?.(blob)");
+    expect(previewSource).toContain('downloadPdfBlob(blob, `${buildFileName()}.pdf`)');
     expect(quoteDetailSource).toContain("setLdPdfCaptureOpen(true)");
     expect(quoteDetailSource).toContain("onCapturePdf={ldPdfCaptureOpen ? handleOfficialPdfCapturedForLd : undefined}");
     expect(quoteDetailSource).toContain("open={pdfPrintOpen || ldPdfCaptureOpen}");
+    expect(quoteDetailSource).toContain("autoDownload={pdfPrintOpen}");
+    expect(quoteDetailSource).toContain("showIpi: (pdfPrintOpen || ldPdfCaptureOpen) ? pdfShowIpi : false");
     expect(quoteDetailSource).not.toContain("officialLdPdfInputRef");
     expect(previewSource).toContain("attempt === 0");
     expect(previewSource).toContain("crossorigin\", \"anonymous");
@@ -33,9 +36,10 @@ describe("pipeline visual do PDF oficial e LD", () => {
     expect(previewSource).toContain("formData.freteValue != null && formData.freteValue > 0");
   });
 
-  it("usa window.print() para o download oficial do PDF", () => {
-    expect(previewSource).toContain("window.print()");
-    expect(previewSource).toContain("document.title = buildFileName()");
+  it("usa o Blob visual oficial para download, em vez de um layout de impressão separado", () => {
+    expect(previewSource).toContain("const handleDownloadPDF = useCallback(async () => {");
+    expect(previewSource).toContain("const blob = await captureVisiblePreviewPdf()");
+    expect(previewSource).toContain("if (!open || !autoDownload) return");
   });
 
   it("mostra em tela a prévia na proporção A4 retrato sem alterar a escala da impressão", () => {
@@ -50,9 +54,15 @@ describe("pipeline visual do PDF oficial e LD", () => {
     expect(cartSource).toContain("setPdfPrintOpen(true)");
   });
 
-  it("usa autoPrint no QuoteDetail para disparar impressão automática", () => {
-    expect(quoteDetailSource).toContain("autoPrint={pdfPrintOpen}");
+  it("usa autoDownload no QuoteDetail para gerar o mesmo arquivo oficial", () => {
+    expect(quoteDetailSource).toContain("autoDownload={pdfPrintOpen}");
     expect(quoteDetailSource).toContain("setPdfPrintOpen(true)");
+  });
+
+  it("permite o envio do PDF à solicitação LD pela equipe que edita o orçamento", () => {
+    expect(quoteDetailSource).toContain("trpc.ldRequests.forQuote.useQuery");
+    expect(quoteDetailSource).toContain("{canEdit && linkedLdRequest && (");
+    expect(quoteDetailSource).toContain('setExportOptions({ format: "PDF", run: handleSendPdfToLd })');
   });
 
   it("mantém os campos de cabeçalho Obra, Cliente e E-mail na prévia", () => {

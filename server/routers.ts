@@ -593,6 +593,20 @@ export const appRouter = router({
         };
       }))),
 
+    /** Solicitação LD vinculada a um orçamento, acessível apenas à equipe que pode editar o orçamento. */
+    forQuote: commercialQuoteProcedure
+      .input(z.object({ quoteId: z.number().int().positive() }))
+      .query(async ({ ctx, input }) => {
+        const quoteData = await getQuoteById(input.quoteId);
+        if (!quoteData) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado." });
+        if (!await canEditQuote(ctx.user.email, quoteData.quote, ctx.user.role, ctx.user.id)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Sem permissão para consultar a solicitação LD deste orçamento." });
+        }
+        const request = await getGuestQuoteRequestByAdminQuoteId(input.quoteId);
+        if (!request) return null;
+        return { id: request.id, status: request.status, adminQuoteId: request.adminQuoteId };
+      }),
+
     adminStartReview: adminProcedure
       .input(z.object({ requestId: z.number().int().positive() }))
       .mutation(async ({ ctx, input }) => {
@@ -675,15 +689,25 @@ export const appRouter = router({
         return { quoteId: created.quoteId, quoteNumber: created.quoteNumber, alreadyConverted: false };
       }),
 
-    adminAttachPdf: adminProcedure
+    adminAttachPdf: protectedProcedure
       .input(z.object({
         requestId: z.number().int().positive(),
+        quoteId: z.number().int().positive(),
         pdfBase64: z.string().min(16),
         fileName: z.string().trim().min(1).max(180),
       }))
       .mutation(async ({ ctx, input }) => {
+        if (!canAccessCommercialQuotes(ctx.user.role)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "LD Convidado não pode enviar PDF comercial." });
+        }
         const request = await getGuestQuoteRequestById(input.requestId);
-        if (!request?.adminQuoteId) throw new TRPCError({ code: "BAD_REQUEST", message: "Converta a solicitação em orçamento antes de enviar o PDF." });
+        if (!request?.adminQuoteId || request.adminQuoteId !== input.quoteId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "A solicitação LD não está vinculada a este orçamento." });
+        }
+        const quoteData = await getQuoteById(input.quoteId);
+        if (!quoteData || !await canEditQuote(ctx.user.email, quoteData.quote, ctx.user.role, ctx.user.id)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Sem permissão para enviar o PDF deste orçamento ao LD." });
+        }
         const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
         const key = `ld-quotes/${request.guestUserId}/${request.id}/${Date.now()}-${safeName}`;
         const { url } = await storagePut(key, Buffer.from(input.pdfBase64, "base64"), "application/pdf");

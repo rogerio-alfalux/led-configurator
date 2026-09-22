@@ -165,12 +165,14 @@ interface Props {
   freshPhotoMap?: Map<string, string>;
   /** Se true, dispara o download de PDF automaticamente ao abrir (sem exibir o modal) */
   autoPrint?: boolean;
+  /** Baixa o mesmo Blob oficial capturado para arquivamento do LD, sem abrir o diálogo nativo. */
+  autoDownload?: boolean;
   /** Captura a mesma página visual da prévia como Blob, para entrega arquivada ao LD. */
   onCapturePdf?: (blob: Blob) => void;
   onCapturePdfError?: (error: Error) => void;
 }
 
-export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMap, autoPrint, onCapturePdf, onCapturePdfError }: Props) {
+export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMap, autoPrint, autoDownload, onCapturePdf, onCapturePdfError }: Props) {
   const [manualPdfShowIpi, setManualPdfShowIpi] = useState(false);
   const [manualPdfOptionsOpen, setManualPdfOptionsOpen] = useState(false);
   const showIpi = formData.showIpi === true || manualPdfShowIpi;
@@ -346,16 +348,20 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
 
   const [pdfError, setPdfError] = useState<string | null>(null);
 
-  // Baixa o PDF usando window.print() — mesmo mecanismo do autoPrint
+  // Baixa o Blob que também é usado para arquivamento e envio ao LD. Dessa forma,
+  // todos recebem o mesmo documento oficial, não uma versão em layout paralelo.
   const handleDownloadPDF = useCallback(async () => {
     setPdfError(null);
-    const originalTitle = document.title;
-    document.title = buildFileName();
-    window.print();
-    // Restaurar título após impressão
-    const restore = () => { document.title = originalTitle; };
-    window.addEventListener("afterprint", restore, { once: true });
-  }, [buildFileName]);
+    setIsDownloadingPdf(true);
+    try {
+      const blob = await captureVisiblePreviewPdf();
+      downloadPdfBlob(blob, `${buildFileName()}.pdf`);
+    } catch (error) {
+      setPdfError(error instanceof Error ? error.message : "Não foi possível gerar o PDF oficial.");
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  }, [buildFileName, captureVisiblePreviewPdf]);
 
   // Bloqueia scroll do body quando aberto
   useEffect(() => {
@@ -396,6 +402,22 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
       document.title = originalTitle;
     };
   }, [open, autoPrint, buildFileName, onClose]);
+
+  // Fluxo automático do botão Baixar PDF do orçamento salvo. Ele usa exatamente
+  // a mesma captura que é anexada ao LD, preservando conteúdo, orientação, IPI e
+  // paginação entre os dois destinos.
+  useEffect(() => {
+    if (!open || !autoDownload) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        if (cancelled) return;
+        await handleDownloadPDF();
+        if (!cancelled) onClose();
+      })();
+    }, 1_000);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [open, autoDownload, handleDownloadPDF, onClose]);
 
   const revCount = formData.revisionCount ?? 0;
   const rvSuffix = ` (RV${revCount})`;
