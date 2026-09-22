@@ -47,7 +47,7 @@ const inlinePrintStyles = `
     [data-inline-print-modal] { position:static !important; display:block !important; max-width:none !important; width:100% !important; height:auto !important; overflow:visible !important; transform:none !important; }
     [data-inline-print-modal] > *:not([data-inline-print-content]) { display:none !important; }
     [data-inline-print-content] { display:block !important; }
-    .inline-print-actions { display:none !important; }
+    .inline-print-controls { display:none !important; }
   }
 `;
 
@@ -165,13 +165,13 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
       <DialogContent data-inline-print-modal className="h-[94vh] w-[min(96vw,1120px)] max-w-[1120px] overflow-x-hidden overflow-y-auto p-0 sm:rounded-xl">
         {printOpen ? <>
           <style>{inlinePrintStyles}</style>
-          <DialogHeader className="inline-print-actions border-b bg-background px-5 py-3 shadow-sm sm:px-6">
+          <DialogHeader className="border-b bg-background px-5 py-3 shadow-sm sm:px-6">
             <div className="flex flex-col items-stretch gap-3 pr-8">
               <div className="min-w-0">
                 <DialogTitle className="break-words text-lg leading-6">Prévia de impressão</DialogTitle>
                 <p className="mt-1 break-words text-xs leading-4 text-muted-foreground">{guideProductLabel}</p>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-print-controls flex flex-wrap items-center gap-2">
                 <Button type="button" size="sm" variant="outline" className="gap-1.5" onClick={() => setPrintOpen(false)}>
                   <ArrowLeft className="h-4 w-4" /> Voltar
                 </Button>
