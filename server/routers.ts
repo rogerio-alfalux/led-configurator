@@ -100,6 +100,7 @@ import { isCostDepartmentEligibleForManualCost, isCostDepartmentRole, isSpecialO
 import { isCommercialQuoteNumber } from "../shared/quoteNumberFormat";
 import { isFactoryOrderReadOnlyForQuoteStatus } from "../shared/factoryOrderReadOnly";
 import { calculateCommercialQuoteTotal } from "../shared/quoteCommercialTotal";
+import { isDuplicateKeyError } from "./databaseErrors";
 
 async function assertFactoryOrderQuoteMutable(quoteId: number) {
   const quoteData = await getQuoteById(quoteId);
@@ -1200,6 +1201,15 @@ export const appRouter = router({
         ) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "O número do orçamento deve seguir o formato xx.xxxx-xx." });
         }
+        if (requestedQuoteNumber && requestedQuoteNumber !== existingForRevision.quote.quoteNumber) {
+          const duplicate = await checkDuplicateQuoteNumber(requestedQuoteNumber, quoteId);
+          if (duplicate) {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: `O número ${requestedQuoteNumber} já está em uso no orçamento de ${duplicate.clientName}. Informe outro número.`,
+            });
+          }
+        }
         const linkedLdRequestForRevision = await getGuestQuoteRequestByAdminQuoteId(quoteId);
         const needsLdCommercialNumber = Boolean(linkedLdRequestForRevision) && (
           isLdDraftQuoteNumber(existingForRevision.quote.quoteNumber)
@@ -1217,6 +1227,11 @@ export const appRouter = router({
         const boundRest = { ...rest, ...identityTeam };
         const saveRevisionInput = {
           ...boundRest,
+          // Não regravar a chave única quando o número não mudou. Além de reduzir
+          // a query, isso evita conflitos artificiais em edições comuns.
+          quoteNumber: requestedQuoteNumber && requestedQuoteNumber !== existingForRevision.quote.quoteNumber
+            ? requestedQuoteNumber
+            : undefined,
           seller1Id: boundRest.seller1Id ?? undefined,
           seller1Name: boundRest.seller1Name ?? undefined,
           seller2Id: boundRest.seller2Id ?? undefined,
@@ -1273,13 +1288,25 @@ export const appRouter = router({
           }
         }
         // Garantir que 0 seja passado explicitamente (não undefined) para limpar RT/Margem
-        const result = await addQuoteRevision(quoteId, {
-          ...saveRevisionInput,
-          rtPercent: input.rtPercent ?? 0,
-          marginPercent: input.marginPercent ?? 0,
-          discountPercent: input.discountPercent ?? 0,
-          createdByUserId: ctx.user.id,
-        }, bumpVersion ?? false);
+        let result: Awaited<ReturnType<typeof addQuoteRevision>>;
+        try {
+          result = await addQuoteRevision(quoteId, {
+            ...saveRevisionInput,
+            rtPercent: input.rtPercent ?? 0,
+            marginPercent: input.marginPercent ?? 0,
+            discountPercent: input.discountPercent ?? 0,
+            createdByUserId: ctx.user.id,
+          }, bumpVersion ?? false);
+        } catch (error) {
+          // Protege também contra a corrida entre a validação acima e o UPDATE.
+          if (isDuplicateKeyError(error)) {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: `O número ${requestedQuoteNumber ?? existingForRevision.quote.quoteNumber} já está em uso. Informe outro número.`,
+            });
+          }
+          throw error;
+        }
         await insertAuditLog({
           userId: ctx.user.id,
           userEmail: ctx.user.email,
