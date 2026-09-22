@@ -166,21 +166,32 @@ export function ShapeAssemblyGuide({ result }: { result: ShapeAssemblyGuideResul
         {printOpen ? <>
           <style>{inlinePrintStyles}</style>
           <DialogHeader className="border-b bg-background px-5 py-3 shadow-sm sm:px-6">
-            <div className="flex flex-col items-stretch gap-3 pr-8">
+            <div className="min-w-0 pr-8">
               <div className="min-w-0">
                 <DialogTitle className="break-words text-lg leading-6">Prévia de impressão</DialogTitle>
                 <p className="mt-1 break-words text-xs leading-4 text-muted-foreground">{guideProductLabel}</p>
               </div>
-              <div data-print-control className="flex flex-wrap items-center gap-2" style={{ display: "flex" }}>
-                <Button type="button" size="sm" variant="outline" className="gap-1.5" onClick={() => setPrintOpen(false)}>
-                  <ArrowLeft className="h-4 w-4" /> Voltar
-                </Button>
-                <Button type="button" size="sm" className="gap-1.5" onClick={printGuide}>
-                  <Printer className="h-4 w-4" /> Imprimir guia
-                </Button>
-              </div>
             </div>
           </DialogHeader>
+          <div data-print-control className="flex items-center justify-between gap-3 border-b bg-muted/30 px-5 py-2.5 sm:px-6">
+            <p className="text-xs text-muted-foreground">Confira a folha antes de imprimir.</p>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button type="button" size="sm" variant="outline" className="gap-1.5" onClick={() => setPrintOpen(false)}>
+                <ArrowLeft className="h-4 w-4" /> Voltar
+              </Button>
+              <Button type="button" size="sm" className="gap-1.5" onClick={printGuide}>
+                <Printer className="h-4 w-4" /> Imprimir guia
+              </Button>
+            </div>
+          </div>
+          <button
+            type="button"
+            data-print-control
+            onClick={printGuide}
+            className="fixed right-10 top-20 z-[2147483646] inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-xl ring-2 ring-background hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Printer className="h-4 w-4" /> Imprimir guia
+          </button>
           <div data-inline-print-content className="inline-assembly-print bg-white p-3 sm:p-5" dangerouslySetInnerHTML={{ __html: buildShapeAssemblyGuideHtml([printItem]) }} />
         </> : <>
         <DialogHeader className="border-b bg-background px-5 py-3 shadow-sm sm:px-6 sm:py-4">
