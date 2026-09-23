@@ -498,54 +498,46 @@ export async function generateQuoteNumber(sellerCode?: string | null): Promise<s
   }
 
   if (vendorCode) {
-    // Busca a linha de sequência para este vendedor/ano na tabela de controle
-    const seqRows = await db
-      .select()
-      .from(quoteNumberSequences)
-      .where(and(
-        eq(quoteNumberSequences.vendorPrefix, vendorCode),
-        eq(quoteNumberSequences.year, year)
-      ))
-      .limit(1);
+    return db.transaction(async (tx) => {
+      // O banco pode conter uma sequência antiga (por exemplo, após restauração,
+      // importação ou criação manual histórica). A maior numeração efetivamente
+      // salva é a fonte de segurança para nunca reutilizar um número existente.
+      const pattern = `${vendorCode}.%-${year}`;
+      const latestRows = await tx
+        .select({ quoteNumber: quotes.quoteNumber })
+        .from(quotes)
+        .where(like(quotes.quoteNumber, pattern))
+        .orderBy(desc(quotes.quoteNumber))
+        .limit(1);
+      const exactPattern = new RegExp(`^${vendorCode}\\.(\\d{4})-${year}$`);
+      const latestMatch = latestRows[0]?.quoteNumber.match(exactPattern);
+      const firstAvailableSeq = latestMatch ? Number(latestMatch[1]) + 1 : 1;
 
-    if (seqRows.length > 0) {
-      // Usa o nextSeq da tabela e incrementa
-      const currentSeq = seqRows[0].nextSeq;
-      await db
-        .update(quoteNumberSequences)
-        .set({ nextSeq: currentSeq + 1 })
+      // Reserva o número dentro de uma única transação. O ON DUPLICATE KEY
+      // bloqueia a linha vendor/ano e avança a partir do maior valor entre a
+      // sequência registrada e a numeração real já existente. Assim, duas
+      // pessoas salvando ao mesmo tempo nunca recebem o mesmo número.
+      await tx.insert(quoteNumberSequences).values({
+        vendorPrefix: vendorCode,
+        year,
+        nextSeq: firstAvailableSeq + 1,
+      }).onDuplicateKeyUpdate({
+        set: {
+          nextSeq: sql`GREATEST(${quoteNumberSequences.nextSeq}, ${firstAvailableSeq}) + 1`,
+        },
+      });
+
+      const reservedRows = await tx
+        .select({ nextSeq: quoteNumberSequences.nextSeq })
+        .from(quoteNumberSequences)
         .where(and(
           eq(quoteNumberSequences.vendorPrefix, vendorCode),
-          eq(quoteNumberSequences.year, year)
-        ));
-      return `${vendorCode}.${String(currentSeq).padStart(4, "0")}-${year}`;
-    }
-
-    // Sem entrada na tabela: fallback varrendo orçamentos existentes e criando entrada
-    const pattern = `${vendorCode}.%-${year}`;
-    const rows = await db
-      .select({ quoteNumber: quotes.quoteNumber })
-      .from(quotes)
-      .where(like(quotes.quoteNumber, pattern))
-      .orderBy(desc(quotes.quoteNumber))
-      .limit(100);
-    let maxSeq = 0;
-    const re = new RegExp(`^${vendorCode}\\.(\\d{4})-${year}$`);
-    for (const r of rows) {
-      const m2 = r.quoteNumber.match(re);
-      if (m2) {
-        const n = parseInt(m2[1], 10);
-        if (n > maxSeq) maxSeq = n;
-      }
-    }
-    const nextSeq = maxSeq + 1;
-    // Cria entrada na tabela para próxima vez
-    await db.insert(quoteNumberSequences).values({
-      vendorPrefix: vendorCode,
-      year,
-      nextSeq: nextSeq + 1,
-    }).onDuplicateKeyUpdate({ set: { nextSeq: nextSeq + 1 } });
-    return `${vendorCode}.${String(nextSeq).padStart(4, "0")}-${year}`;
+          eq(quoteNumberSequences.year, year),
+        ))
+        .limit(1);
+      const reservedSeq = (reservedRows[0]?.nextSeq ?? firstAvailableSeq + 1) - 1;
+      return `${vendorCode}.${String(reservedSeq).padStart(4, "0")}-${year}`;
+    });
   }
 
   // Fallback sem vendedor: formato ORC-YY-NNNN
