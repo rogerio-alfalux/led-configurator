@@ -18,4 +18,13 @@ describe("Meus Orçamentos: hierarquia entre aprovados e faturados", () => {
     expect(source).toContain("quantity: stats.invoiced, amount: formatBRL(stats.invoicedValue)");
     expect(source).not.toContain('id: "listedValue"');
   });
+
+  it("exige os dois marcos no período aprovado e os exibe separadamente em faturados", () => {
+    const source = readFileSync(resolve(process.cwd(), "client/src/pages/Quotes.tsx"), "utf8");
+
+    expect(source).toContain('status === "approved" && quote.status === "invoiced" && (dateFrom || dateTo)');
+    expect(source).toContain("isDateWithinSelectedRange(quote.approvedAt) && isDateWithinSelectedRange(quote.invoicedAt)");
+    expect(source).toContain("Aprovado em {q.approvedAt ? toBrasiliaDateTimeShort(q.approvedAt) : \"—\"}");
+    expect(source).toContain("Faturado em {q.invoicedAt ? toBrasiliaDateTimeShort(q.invoicedAt) : \"—\"}");
+  });
 });

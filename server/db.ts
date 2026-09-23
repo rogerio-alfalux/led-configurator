@@ -999,15 +999,26 @@ export async function listQuotes(opts: {
   if (opts.assistantId != null) conditions.push(eq(quotes.assistantId, opts.assistantId));
   if (opts.seller1Name) conditions.push(like(quotes.seller1Name, `%${opts.seller1Name}%`));
   if (opts.assistantName) conditions.push(like(quotes.assistantName, `%${opts.assistantName}%`));
-  // Cada status comercial usa seu marco efetivo. Faturados devem sempre
-  // considerar a data fiscal informada, e não a data de criação do orçamento.
+  // Cada status comercial usa seu marco efetivo. No filtro "Aprovados",
+  // faturados só entram quando aprovação e faturamento ocorreram no intervalo.
+  const approvedDateField = sql`COALESCE(${quotes.approvedAt}, ${quotes.invoicedAt}, ${quotes.createdAt})`;
   const dateField = opts.status === 'invoiced'
     ? quotes.invoicedAt
     : opts.status === 'approved'
-      ? sql`COALESCE(${quotes.approvedAt}, ${quotes.invoicedAt}, ${quotes.createdAt})`
+      ? approvedDateField
       : quotes.createdAt;
-  if (opts.dateFrom) conditions.push(sql`DATE(DATE_SUB(${dateField}, INTERVAL 3 HOUR)) >= ${opts.dateFrom}`);
-  if (opts.dateTo) conditions.push(sql`DATE(DATE_SUB(${dateField}, INTERVAL 3 HOUR)) <= ${opts.dateTo}`);
+  if (opts.dateFrom) {
+    conditions.push(sql`DATE(DATE_SUB(${dateField}, INTERVAL 3 HOUR)) >= ${opts.dateFrom}`);
+    if (opts.status === 'approved') {
+      conditions.push(sql`(${quotes.status} != 'invoiced' OR DATE(DATE_SUB(${quotes.invoicedAt}, INTERVAL 3 HOUR)) >= ${opts.dateFrom})`);
+    }
+  }
+  if (opts.dateTo) {
+    conditions.push(sql`DATE(DATE_SUB(${dateField}, INTERVAL 3 HOUR)) <= ${opts.dateTo}`);
+    if (opts.status === 'approved') {
+      conditions.push(sql`(${quotes.status} != 'invoiced' OR DATE(DATE_SUB(${quotes.invoicedAt}, INTERVAL 3 HOUR)) <= ${opts.dateTo})`);
+    }
+  }
   if (opts.search) {
     // Busca case-insensitive: banco usa utf8mb4_bin (case-sensitive), por isso usamos LOWER()
     const sLower = `%${opts.search.toLowerCase()}%`;

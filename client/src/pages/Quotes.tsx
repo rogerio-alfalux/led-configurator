@@ -179,9 +179,20 @@ export default function Quotes() {
   };
 
   const isWithinSelectedDateRange = (quote: any) => {
-    const referenceDate = toBrasiliaFileDate(getQuoteReferenceDate(quote));
-    if (dateFrom && referenceDate < dateFrom) return false;
-    if (dateTo && referenceDate > dateTo) return false;
+    const isDateWithinSelectedRange = (value: unknown) => {
+      if (!value) return false;
+      const referenceDate = toBrasiliaFileDate(value as string | Date);
+      if (dateFrom && referenceDate < dateFrom) return false;
+      if (dateTo && referenceDate > dateTo) return false;
+      return true;
+    };
+    // A seleção de Aprovados inclui Faturados por hierarquia. Quando há um
+    // período, ambos os marcos precisam pertencer a ele para evitar atribuir um
+    // faturamento posterior a uma aprovação do mês filtrado.
+    if (status === "approved" && quote.status === "invoiced" && (dateFrom || dateTo)) {
+      return isDateWithinSelectedRange(quote.approvedAt) && isDateWithinSelectedRange(quote.invoicedAt);
+    }
+    if (!isDateWithinSelectedRange(getQuoteReferenceDate(quote))) return false;
     return true;
   };
 
@@ -782,9 +793,17 @@ export default function Quotes() {
                               {participation.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} do total filtrado
                             </p>
                           )}
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            <span className="font-mono font-semibold text-foreground/70">RV{q.revisionCount ?? 0}</span> · v{q.currentVersion} · {q.status === "invoiced" ? "Faturado em" : q.status === "approved" ? "Aprovado em" : "Criado em"} {toBrasiliaDateTimeShort(getQuoteReferenceDate(q))}
-                          </p>
+                          <div className="mt-0.5 space-y-0.5 text-right text-xs text-muted-foreground">
+                            <p>
+                              <span className="font-mono font-semibold text-foreground/70">RV{q.revisionCount ?? 0}</span> · v{q.currentVersion}
+                            </p>
+                            {q.status === "invoiced" ? <>
+                              <p>Aprovado em {q.approvedAt ? toBrasiliaDateTimeShort(q.approvedAt) : "—"}</p>
+                              <p>Faturado em {q.invoicedAt ? toBrasiliaDateTimeShort(q.invoicedAt) : "—"}</p>
+                            </> : (
+                              <p>{q.status === "approved" ? "Aprovado em" : "Criado em"} {toBrasiliaDateTimeShort(getQuoteReferenceDate(q))}</p>
+                            )}
+                          </div>
                         </div>
 
                         {/* Ações */}
