@@ -1049,6 +1049,7 @@ export default function QuoteDetail() {
   const [showAllVersions, setShowAllVersions] = useState(false);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [newStatus, setNewStatus] = useState<string>("");
+  const [approvedDateInput, setApprovedDateInput] = useState("");
   const [invoicedDateInput, setInvoicedDateInput] = useState("");
   const [sampleDialogOpen, setSampleDialogOpen] = useState(false);
   const [sampleNotes, setSampleNotes] = useState("");
@@ -3466,13 +3467,19 @@ export default function QuoteDetail() {
           {/* Alterar Status */}
           {canChangeStatus && <Dialog open={statusDialogOpen} onOpenChange={(open) => {
             setStatusDialogOpen(open);
+            if (open && quote.status === "approved") {
+              setNewStatus("approved");
+              setApprovedDateInput((quote as any).approvedAt
+                ? toBrasiliaFileDate((quote as any).approvedAt)
+                : toBrasiliaFileDate(new Date()));
+            }
             if (open && quote.status === "invoiced" && canInvoice) {
               setNewStatus("invoiced");
               setInvoicedDateInput((quote as any).invoicedAt
                 ? toBrasiliaFileDate((quote as any).invoicedAt)
                 : toBrasiliaFileDate(new Date()));
             }
-            if (!open) { setNewStatus(""); setInvoicedDateInput(""); setOrderNumberInput(""); setBillingCompanyInput(""); }
+            if (!open) { setNewStatus(""); setApprovedDateInput(""); setInvoicedDateInput(""); setOrderNumberInput(""); setBillingCompanyInput(""); }
           }}>
             <DialogTrigger asChild>
               <Button variant="outline" className="gap-2">
@@ -3489,6 +3496,7 @@ export default function QuoteDetail() {
                   <Label>Novo Status</Label>
                   <Select value={newStatus} onValueChange={(v) => {
                     setNewStatus(v);
+                    setApprovedDateInput(v === "approved" ? toBrasiliaFileDate(new Date()) : "");
                     setInvoicedDateInput(v === "invoiced" ? toBrasiliaFileDate(new Date()) : "");
                     setOrderNumberInput("");
                     setBillingCompanyInput("");
@@ -3515,10 +3523,27 @@ export default function QuoteDetail() {
                 </div>
 
                 {newStatus === "approved" && (
-                  <div className="p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
+                  <div className="space-y-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
                     <p className="text-sm text-green-700 dark:text-green-400 flex items-center gap-1">
                       <CheckCircle className="w-4 h-4" /> O orçamento será marcado como <strong>Aprovado</strong>. O número de pedido e empresa faturadora serão solicitados ao gerar o Pedido de Fábrica.
                     </p>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="approved-date" className="text-green-900 dark:text-green-200">Data de aprovação</Label>
+                      <Input
+                        id="approved-date"
+                        type="date"
+                        value={approvedDateInput}
+                        max={toBrasiliaFileDate(new Date())}
+                        onChange={(event) => setApprovedDateInput(event.target.value)}
+                        className="bg-background"
+                        required
+                      />
+                      <p className="text-xs text-green-700/80 dark:text-green-300/80">
+                        {quote.status === "approved"
+                          ? "Data atual de aprovação. Altere-a para corrigir a data efetiva do fechamento."
+                          : "Preenchida inicialmente com a data atual de Brasília. Altere-a se o orçamento foi aprovado anteriormente."}
+                      </p>
+                    </div>
                   </div>
                 )}
 
@@ -3557,9 +3582,14 @@ export default function QuoteDetail() {
                       toast.error("Informe a data de faturamento.");
                       return;
                     }
+                    if (newStatus === "approved" && !approvedDateInput) {
+                      toast.error("Informe a data de aprovação.");
+                      return;
+                    }
                     updateStatusMutation.mutate({
                       id: Number(id),
                       status: newStatus as "open" | "approved" | "lost" | "cancelled" | "invoiced",
+                      approvedDate: newStatus === "approved" ? approvedDateInput : undefined,
                       invoicedDate: newStatus === "invoiced" ? invoicedDateInput : undefined,
                     });
                   }}

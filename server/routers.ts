@@ -1560,6 +1560,7 @@ export const appRouter = router({
         quoteNumber: z.string().optional(),
         orderNumber: z.string().regex(/^\d{6}$/, "Número do pedido deve ter exatamente 6 dígitos").optional(),
         billingCompany: z.enum(["alfalux", "primelux", "decada", "primelase", "luminew"]).optional(),
+        approvedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data de aprovação inválida").optional(),
         invoicedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data de faturamento inválida").optional(),
       }))
       .mutation(async ({ ctx, input }) => {
@@ -1583,9 +1584,13 @@ export const appRouter = router({
         if (input.invoicedDate && input.status !== "invoiced") {
           throw new TRPCError({ code: "BAD_REQUEST", message: "A data de faturamento só pode ser informada ao faturar o orçamento." });
         }
+        if (input.approvedDate && input.status !== "approved") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "A data de aprovação só pode ser informada ao aprovar o orçamento." });
+        }
         await updateQuoteStatus(input.id, input.status, {
           orderNumber: input.orderNumber,
           billingCompany: input.billingCompany,
+          approvedDate: input.approvedDate,
           invoicedDate: input.invoicedDate,
         });
         await insertAuditLog({
@@ -1600,6 +1605,7 @@ export const appRouter = router({
             quoteNumber: input.quoteNumber,
             orderNumber: input.orderNumber,
             billingCompany: input.billingCompany,
+            approvedDate: input.approvedDate,
             invoicedDate: input.invoicedDate,
           }),
         });

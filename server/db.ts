@@ -1241,6 +1241,8 @@ export async function updateQuoteStatus(
     orderNumber?: string;
     billingCompany?: "alfalux" | "primelux" | "decada" | "primelase" | "luminew";
     /** Data civil escolhida pelo usuário no fuso de Brasília (YYYY-MM-DD). */
+    approvedDate?: string;
+    /** Data civil escolhida pelo usuário no fuso de Brasília (YYYY-MM-DD). */
     invoicedDate?: string;
   }
 ) {
@@ -1248,7 +1250,9 @@ export async function updateQuoteStatus(
   if (!db) throw new Error("Database not available");
   const updateData: Record<string, unknown> = { status };
   if (status === "approved") {
-    updateData.approvedAt = nowUtcStr();
+    updateData.approvedAt = opts?.approvedDate
+      ? brasiliaDateToUtcSqlTimestamp(opts.approvedDate)
+      : nowUtcStr();
     if (opts?.orderNumber) updateData.orderNumber = opts.orderNumber;
     if (opts?.billingCompany) updateData.billingCompany = opts.billingCompany;
   }
