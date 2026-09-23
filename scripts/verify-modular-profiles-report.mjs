@@ -19,10 +19,23 @@ for (const sheet of [ranking, detail]) {
 }
 
 const firstFullModuleSku = String(ranking.getCell("D7").value ?? "");
-const quotedModules = Number(ranking.getCell("F7").value);
+const firstCct = String(ranking.getCell("E7").value ?? "");
+const quotedModules = Number(ranking.getCell("G7").value);
 const soldModules = Number(ranking.getCell("H7").value);
 if (!/^[A-Z]{3}-\d{4}\.[^.]+\.[A-Z0-9]+$/i.test(firstFullModuleSku)) throw new Error(`SKU de módulo não está completo: ${firstFullModuleSku}`);
+if (!firstCct) throw new Error("CCT ausente no ranking");
 if (!Number.isFinite(quotedModules) || quotedModules <= 0 || !Number.isFinite(soldModules)) throw new Error("Métricas do ranking não foram preenchidas");
+if (ranking.getRow(6).values.some((value) => /barra/i.test(String(value)))) throw new Error("Coluna de barras não deveria constar no ranking");
+if (!ranking.getRow(6).values.some((value) => String(value) === "CCT")) throw new Error("Coluna CCT ausente no ranking");
+if (detail.getRow(6).values.some((value) => /barra/i.test(String(value)))) throw new Error("Coluna de barras não deveria constar na base auditável");
+if (!detail.getRow(6).values.some((value) => String(value) === "CCT")) throw new Error("Coluna CCT ausente na base auditável");
+
+let previousSold = Number.POSITIVE_INFINITY;
+for (let rowNumber = 7; rowNumber <= ranking.rowCount; rowNumber += 1) {
+  const currentSold = Number(ranking.getCell(`H${rowNumber}`).value ?? 0);
+  if (currentSold > previousSold) throw new Error(`Ranking fora de ordem decrescente de vendidos na linha ${rowNumber}`);
+  previousSold = currentSold;
+}
 
 const fileStat = await stat(filePath);
 console.log(JSON.stringify({
@@ -31,5 +44,5 @@ console.log(JSON.stringify({
   sheets: actualSheets,
   rows: { ranking: ranking.rowCount - 6, audit: detail.rowCount - 6 },
   filters: { ranking: filterRef(ranking), audit: filterRef(detail) },
-  leader: { moduleSku: firstFullModuleSku, modulesQuoted: quotedModules, modulesSold: soldModules },
+  leader: { moduleSku: firstFullModuleSku, cct: firstCct, modulesQuoted: quotedModules, modulesSold: soldModules },
 }, null, 2));

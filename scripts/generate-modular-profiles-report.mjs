@@ -58,17 +58,15 @@ function formatDateTime(value) {
 }
 
 function createMetrics() {
-  return { quotes: new Set(), modulesQuoted: 0, barsQuoted: 0, modulesSold: 0, barsSold: 0 };
+  return { quotes: new Set(), modulesQuoted: 0, modulesSold: 0 };
 }
 
-function addMetrics(target, quoteNumber, status, modules, bars) {
+function addMetrics(target, quoteNumber, status, modules) {
   if (!COMMERCIAL_STATUSES.has(status)) return;
   target.quotes.add(quoteNumber);
   target.modulesQuoted += modules;
-  target.barsQuoted += bars;
   if (status === SOLD_STATUS) {
     target.modulesSold += modules;
-    target.barsSold += bars;
   }
 }
 
@@ -78,11 +76,9 @@ function finaliseMetrics(entries) {
       ...entry,
       quoteCount: entry.quotes.size,
       modulesQuoted: round(entry.modulesQuoted),
-      barsQuoted: round(entry.barsQuoted),
       modulesSold: round(entry.modulesSold),
-      barsSold: round(entry.barsSold),
     }))
-    .sort((a, b) => b.modulesQuoted - a.modulesQuoted || b.barsQuoted - a.barsQuoted || a.moduleSku.localeCompare(b.moduleSku));
+    .sort((a, b) => b.modulesSold - a.modulesSold || b.modulesQuoted - a.modulesQuoted || a.moduleSku.localeCompare(b.moduleSku));
 }
 
 function title(sheet, name, subtitle, totalColumns) {
@@ -149,22 +145,22 @@ function addKpi(sheet, startColumn, label, value, fill, format = "#,##0.00") {
 
 function buildRankingSheet(workbook, rows, subtitle) {
   const sheet = workbook.addWorksheet("Ranking por Módulo", { views: [{ state: "frozen", ySplit: 6 }] });
-  const columns = ["Posição", "Família", "Instalação", "SKU Completo do Módulo", "Cor da Peça", "Módulos Orçados", "Barras Orçadas", "Módulos Vendidos", "Barras Vendidas"];
+  const columns = ["Posição", "Família", "Instalação", "SKU Completo do Módulo", "CCT", "Cor da Peça", "Módulos Orçados", "Módulos Vendidos"];
   title(sheet, "RANKING GERENCIAL — MÓDULOS DE PERFIL", subtitle, columns.length);
   sheet.getRow(6).values = columns;
   styleHeader(sheet.getRow(6));
   rows.forEach((entry, index) => {
-    const row = sheet.addRow([index + 1, entry.family, entry.installation, entry.moduleSku, entry.color, entry.modulesQuoted, entry.barsQuoted, entry.modulesSold, entry.barsSold]);
-    styleBody(row, index, [1, 6, 7, 8, 9]);
+    const row = sheet.addRow([index + 1, entry.family, entry.installation, entry.moduleSku, entry.cct, entry.color, entry.modulesQuoted, entry.modulesSold]);
+    styleBody(row, index, [1, 7, 8]);
     row.getCell(1).font = { bold: true, color: { argb: COLORS.navy } };
     if (index < 10) row.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLORS.paleGold } };
-    [6, 7, 8, 9].forEach((column) => { row.getCell(column).numFmt = "#,##0.00"; });
+    [7, 8].forEach((column) => { row.getCell(column).numFmt = "#,##0.00"; });
   });
-  sheet.autoFilter = { from: "A6", to: `I${Math.max(6, 6 + rows.length)}` };
-  sheet.columns = [{ width: 10 }, { width: 23 }, { width: 15 }, { width: 29 }, { width: 24 }, { width: 18 }, { width: 17 }, { width: 18 }, { width: 17 }];
-  sheet.getColumn(6).eachCell({ includeEmpty: false }, (cell, row) => { if (row > 6) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLORS.paleBlue } }; });
+  sheet.autoFilter = { from: "A6", to: `H${Math.max(6, 6 + rows.length)}` };
+  sheet.columns = [{ width: 10 }, { width: 23 }, { width: 15 }, { width: 29 }, { width: 14 }, { width: 24 }, { width: 18 }, { width: 18 }];
+  sheet.getColumn(7).eachCell({ includeEmpty: false }, (cell, row) => { if (row > 6) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLORS.paleBlue } }; });
   sheet.getColumn(8).eachCell({ includeEmpty: false }, (cell, row) => { if (row > 6) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLORS.paleGreen } }; });
-  configurePrint(sheet, `A1:I${Math.max(6, 6 + rows.length)}`, "6:6");
+  configurePrint(sheet, `A1:H${Math.max(6, 6 + rows.length)}`, "6:6");
   return sheet;
 }
 
@@ -195,18 +191,18 @@ async function main() {
     const description = normaliseText(item.description || item.quoteSummary || item.orderSummary);
     const family = classifyFamily(description);
     const installation = classifyInstallation(description, productSku);
+    const cct = normaliseText(item.cct) || "NÃO INFORMADO";
     const color = normaliseText(item.corPeca) || "NÃO INFORMADA";
 
     for (const segment of Array.isArray(item.profileSegments) ? item.profileSegments : []) {
       const moduleSku = normaliseText(segment?.sku) || "NÃO INFORMADO";
       const modules = Number(segment?.qty ?? 0) * itemQty;
-      const bars = modules * Number(segment?.barsPerPiece ?? 0);
       if (!Number.isFinite(modules) || modules <= 0) continue;
 
-      const key = [family, installation, moduleSku, color].join("¦");
-      if (!moduleGroups.has(key)) moduleGroups.set(key, { family, installation, moduleSku, color, ...createMetrics() });
-      addMetrics(moduleGroups.get(key), source.quoteNumber, status, modules, bars);
-      addMetrics(overall, source.quoteNumber, status, modules, bars);
+      const key = [family, installation, moduleSku, cct, color].join("¦");
+      if (!moduleGroups.has(key)) moduleGroups.set(key, { family, installation, moduleSku, cct, color, ...createMetrics() });
+      addMetrics(moduleGroups.get(key), source.quoteNumber, status, modules);
+      addMetrics(overall, source.quoteNumber, status, modules);
       if (COMMERCIAL_STATUSES.has(status)) commercialQuotes.add(source.quoteNumber);
       detailRows.push({
         quoteNumber: source.quoteNumber,
@@ -216,9 +212,9 @@ async function main() {
         family,
         installation,
         moduleSku,
+        cct,
         color,
         modules: round(modules),
-        bars: round(bars),
       });
     }
   }
@@ -245,9 +241,9 @@ async function main() {
   overview.getCell("A7").fill = { type: "pattern", pattern: "solid", fgColor: { argb: COLORS.blue } };
   const notes = [
     ["SKU completo", "Cada linha usa o SKU técnico integral do módulo, por exemplo LLP-6060.2IF.48F. Não há agrupamento apenas pelo SKU-base da família."],
+    ["CCT", "Temperatura de cor selecionada na configuração do perfil. O mesmo SKU é separado quando tiver CCTs diferentes."],
     ["Módulos orçados", "Quantidade do módulo registrada em orçamentos abertos, aprovados, faturados ou perdidos; cada orçamento entra somente pela sua revisão vigente."],
     ["Módulos vendidos", "Quantidade do módulo em orçamentos faturados."],
-    ["Barras", "Quantidade de barras de LED associada aos módulos, apresentada separadamente para apoiar planejamento de materiais."],
   ];
   overview.mergeCells("A8:B8"); overview.mergeCells("C8:H8");
   overview.getCell("A8").value = "Conceito"; overview.getCell("C8").value = "Critério";
@@ -267,17 +263,17 @@ async function main() {
   buildRankingSheet(workbook, moduleRows, subtitle);
 
   const detail = workbook.addWorksheet("Base Auditável", { views: [{ state: "frozen", ySplit: 6 }] });
-  const detailColumns = ["Nº Orçamento", "Status", "Data", "Item", "Família", "Instalação", "SKU Completo do Módulo", "Cor", "Qtd. Módulos", "Qtd. Barras"];
+  const detailColumns = ["Nº Orçamento", "Status", "Data", "Item", "Família", "Instalação", "SKU Completo do Módulo", "CCT", "Cor", "Qtd. Módulos"];
   title(detail, "BASE AUDITÁVEL — MÓDULOS DE PERFIL", subtitle, detailColumns.length);
   detail.getRow(6).values = detailColumns;
   styleHeader(detail.getRow(6));
   detailRows.forEach((entry, index) => {
-    const row = detail.addRow([entry.quoteNumber, entry.status, entry.quoteDate, entry.itemNumber, entry.family, entry.installation, entry.moduleSku, entry.color, entry.modules, entry.bars]);
-    styleBody(row, index, [4, 9, 10]);
-    row.getCell(9).numFmt = "#,##0.00"; row.getCell(10).numFmt = "#,##0.00";
+    const row = detail.addRow([entry.quoteNumber, entry.status, entry.quoteDate, entry.itemNumber, entry.family, entry.installation, entry.moduleSku, entry.cct, entry.color, entry.modules]);
+    styleBody(row, index, [4, 10]);
+    row.getCell(10).numFmt = "#,##0.00";
   });
   detail.autoFilter = { from: "A6", to: `J${Math.max(6, 6 + detailRows.length)}` };
-  detail.columns = [{ width: 15 }, { width: 12 }, { width: 14 }, { width: 8 }, { width: 22 }, { width: 15 }, { width: 29 }, { width: 24 }, { width: 16 }, { width: 15 }];
+  detail.columns = [{ width: 15 }, { width: 12 }, { width: 14 }, { width: 8 }, { width: 22 }, { width: 15 }, { width: 29 }, { width: 14 }, { width: 24 }, { width: 16 }];
   configurePrint(detail, `A1:J${Math.max(6, 6 + detailRows.length)}`, "6:6");
 
   await mkdir(OUTPUT_DIR, { recursive: true });
@@ -292,7 +288,7 @@ async function main() {
     detailRows: detailRows.length,
     modulesQuoted: round(overall.modulesQuoted),
     modulesSold: round(overall.modulesSold),
-    topQuoted: moduleRows.slice(0, 5).map(({ family, installation, moduleSku, color, modulesQuoted, modulesSold }) => ({ family, installation, moduleSku, color, modulesQuoted, modulesSold })),
+    topSold: moduleRows.slice(0, 5).map(({ family, installation, moduleSku, cct, color, modulesQuoted, modulesSold }) => ({ family, installation, moduleSku, cct, color, modulesQuoted, modulesSold })),
   }, null, 2));
 }
 
