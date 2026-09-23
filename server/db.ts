@@ -2784,8 +2784,10 @@ export async function getSellerDashboard(sellerEmail: string, year: number, mont
 
 // ─── Relatório Mensal de Vendas ───────────────────────────────────────────────
 /**
- * Retorna todos os orçamentos aprovados de um mês/ano com dados de comissão e RT.
- * Usado para gerar o relatório mensal de vendas.
+ * Retorna os orçamentos aprovados do período com dados de comissão e RT.
+ * Faturados são incluídos somente quando aprovação e faturamento pertencem ao
+ * mesmo mês, reproduzindo o filtro "Aprovados (incl. faturados)" de Meus
+ * Orçamentos e impedindo que uma venda de outro período infle o relatório.
  */
 export async function getMonthlyReport(year: number, month: number) {
   const db = await getDb();
@@ -2820,7 +2822,18 @@ export async function getMonthlyReport(year: number, month: number) {
     approvedAt: sql<string>`approvedAt`,
   })
     .from(quotes)
-    .where(sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND MONTH(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${month} AND status IN ('approved', 'invoiced')`)
+    .where(sql`
+      YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year}
+      AND MONTH(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${month}
+      AND status IN ('approved', 'invoiced')
+      AND (
+        status != 'invoiced'
+        OR (
+          YEAR(DATE_SUB(invoicedAt, INTERVAL 3 HOUR)) = ${year}
+          AND MONTH(DATE_SUB(invoicedAt, INTERVAL 3 HOUR)) = ${month}
+        )
+      )
+    `)
     .orderBy(sql`approvedAt`);
 
   // O relatório deve reproduzir o mesmo total comercial exibido em Meus
