@@ -11,4 +11,11 @@ describe("Gerenciar Orçamentos no servidor", () => {
     expect(source).toContain("if (!shouldBindCommercialQuoteTeam(user.role, canManageQuotes)) {");
     expect(source).toContain("const identityTeam = await getIdentityBoundTeam(ctx.user, existingForRevision.quote);");
   });
+
+  it("não restringe a lista nem o detalhe ao vendedor vinculado quando a assistente pode gerenciar orçamentos", () => {
+    const source = readFileSync(resolve(process.cwd(), "server/routers.ts"), "utf8");
+
+    expect(source).toContain('const canManageAnyQuote = ctx.user.role === "admin"\n          || await hasUserPermission(ctx.user.id, ctx.user.role, PERMISSIONS.GERENCIAR_ORCAMENTOS);');
+    expect(source).toContain("if (!canInvoiceAnyQuote && !canManageAnyQuote && ctx.user.role === 'assistente' && ctx.user.email)");
+  });
 });

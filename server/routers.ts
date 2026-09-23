@@ -1341,9 +1341,11 @@ export const appRouter = router({
       .query(async ({ ctx, input }) => {
         const canInvoiceAnyQuote = ctx.user.role === "admin"
           || await hasExplicitUserPermission(ctx.user.id, PERMISSIONS.FATURAR_ORCAMENTOS);
+        const canManageAnyQuote = ctx.user.role === "admin"
+          || await hasUserPermission(ctx.user.id, ctx.user.role, PERMISSIONS.GERENCIAR_ORCAMENTOS);
         // Assistentes com allowedSellerId só podem ver orçamentos do vendedor vinculado.
-        // A responsável nominal de faturamento precisa localizar qualquer orçamento aprovado.
-        if (!canInvoiceAnyQuote && ctx.user.role === 'assistente' && ctx.user.email) {
+        // Quem pode gerenciar ou faturar orçamentos pode consultar qualquer registro.
+        if (!canInvoiceAnyQuote && !canManageAnyQuote && ctx.user.role === 'assistente' && ctx.user.email) {
           const db = await getDb();
           if (db) {
             const assistantRow = await db
@@ -1425,8 +1427,10 @@ export const appRouter = router({
         if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
         const canInvoiceAnyQuote = ctx.user.role === "admin"
           || await hasExplicitUserPermission(ctx.user.id, PERMISSIONS.FATURAR_ORCAMENTOS);
+        const canManageAnyQuote = ctx.user.role === "admin"
+          || await hasUserPermission(ctx.user.id, ctx.user.role, PERMISSIONS.GERENCIAR_ORCAMENTOS);
         // Assistentes com allowedSellerId só podem ver orçamentos do vendedor vinculado
-        if (!canInvoiceAnyQuote && ctx.user.role === 'assistente' && ctx.user.email) {
+        if (!canInvoiceAnyQuote && !canManageAnyQuote && ctx.user.role === 'assistente' && ctx.user.email) {
           const db = await getDb();
           if (db) {
             const assistantRow = await db
