@@ -54,7 +54,6 @@ import { DIFAL_TABLE, getStateInfo } from "@/lib/difalTable";
 import { StateCitySelector, isSaoPauloCapital } from "@/components/StateCitySelector";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PERMISSIONS } from "@shared/permissions";
-import { formatCommercialQuoteNumberInput, isCommercialQuoteNumber } from "@shared/quoteNumberFormat";
 import { toBrasiliaDate } from "@/lib/dateUtils";
 import { parseShiftModuleManualPrice } from "@/lib/shiftModulePrices";
 import { applyCCTChange } from "@/lib/cctUtils";
@@ -1033,23 +1032,13 @@ function StandardCart() {
     { sellerId: seller1IdNum },
     { enabled: saveDialogOpen, staleTime: 0 }
   );
-  // Flag para saber se o usuário editou manualmente o número de orçamento
-  const [userEditedQuoteNumber, setUserEditedQuoteNumber] = React.useState(false);
-  // Atualiza número automaticamente quando vendedor é selecionado — apenas se o usuário não editou manualmente
+  // O número é uma prévia do sequencial do vendedor. O servidor atribui o
+  // número definitivo de forma atômica ao salvar; não há edição manual.
   useEffect(() => {
-    if (saveDialogOpen && suggestQuery.data?.suggested && !userEditedQuoteNumber) {
+    if (saveDialogOpen && suggestQuery.data?.suggested) {
       setSaveForm(prev => ({ ...prev, quoteNumber: suggestQuery.data!.suggested }));
     }
-  }, [saveDialogOpen, suggestQuery.data?.suggested, saveForm.seller1Id, userEditedQuoteNumber]);
-  // Resetar flag quando o diálogo fecha
-  useEffect(() => {
-    if (!saveDialogOpen) setUserEditedQuoteNumber(false);
-  }, [saveDialogOpen]);
-  // Verificar se o número de orçamento já existe
-  const checkNumberQuery = trpc.quotes.checkNumber.useQuery(
-    { quoteNumber: saveForm.quoteNumber.trim() },
-    { enabled: saveDialogOpen && !!saveForm.quoteNumber.trim(), staleTime: 2000 }
-  );
+  }, [saveDialogOpen, suggestQuery.data?.suggested]);
 
   // Auto-preenche o estado da aba Frete quando o estado da aba Comercial muda
   // (apenas se o usuário ainda não escolheu um estado diferente na aba Frete)
@@ -1297,10 +1286,6 @@ function StandardCart() {
       toast.error("Informe o Número do Projeto ou marque \"Sem Projeto\".");
       return;
     }
-    if (saveForm.quoteNumber.trim() && !isCommercialQuoteNumber(saveForm.quoteNumber)) {
-      toast.error("O número do orçamento deve seguir o formato xx.xxxx-xx.");
-      return;
-    }
     const teamValidationError = getQuoteTeamValidationError({
       role: userRole,
       sellerId: saveForm.seller1Id,
@@ -1315,7 +1300,6 @@ function StandardCart() {
       return;
     }
     saveQuoteMutation.mutate({
-      quoteNumber: saveForm.quoteNumber.trim() || undefined,
       clientName: saveForm.clientName,
       clientContact: saveForm.clientContact || undefined,
       clientPhone: saveForm.clientPhone || undefined,
@@ -1783,31 +1767,6 @@ function StandardCart() {
 
                           {/* ─── Aba Cliente ─── */}
                           <TabsContent value="cliente" className="space-y-3 pt-3">
-                            <div>
-                              <Label>Número do Orçamento</Label>
-                              <div className="relative">
-                                <Input
-                                  value={saveForm.quoteNumber}
-                                  placeholder={suggestQuery.isLoading ? "Calculando..." : "Selecione o Vendedor 1"}
-                                  className="font-mono"
-                                  inputMode="numeric"
-                                  maxLength={10}
-                                  onChange={e => {
-                                    setUserEditedQuoteNumber(true);
-                                    updateSaveForm("quoteNumber", formatCommercialQuoteNumberInput(e.target.value));
-                                  }}
-                                />
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  {suggestQuery.isLoading
-                                    ? "Calculando número..."
-                                    : saveForm.quoteNumber && isCommercialQuoteNumber(saveForm.quoteNumber)
-                                    ? "✓ Número no formato xx.xxxx-xx"
-                                    : saveForm.quoteNumber
-                                    ? "Complete o formato xx.xxxx-xx"
-                                    : "Selecione o Vendedor 1 para gerar o número automaticamente"}
-                                </p>
-                              </div>
-                            </div>
                             <div>
                               <Label>Cliente *</Label>
                               <Input

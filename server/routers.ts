@@ -979,7 +979,6 @@ export const appRouter = router({
   quotes: router({
     save: commercialQuoteProcedure
       .input(z.object({
-        quoteNumber: z.string().optional(),
         clientName: z.string().min(1),
         clientContact: z.string().optional(),
         clientPhone: z.string().optional(),
@@ -1034,9 +1033,6 @@ export const appRouter = router({
         showDiscount: z.boolean().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (input.quoteNumber?.trim() && !isCommercialQuoteNumber(input.quoteNumber)) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "O número do orçamento deve seguir o formato xx.xxxx-xx." });
-        }
         const identityTeam = await getIdentityBoundTeam(ctx.user);
         const boundInput = { ...input, ...identityTeam };
         const saveInput = {
