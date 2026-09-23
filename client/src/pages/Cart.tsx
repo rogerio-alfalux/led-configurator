@@ -769,6 +769,7 @@ function StandardCart() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [pdfPrintOpen, setPdfPrintOpen] = useState(false);
   const [pdfShowIpi, setPdfShowIpi] = useState(false);
+  const [pdfUnifyItemValues, setPdfUnifyItemValues] = useState(false);
   const [exportOptionsOpen, setExportOptionsOpen] = useState(false);
 
   // Item em Planta — mapa local (UI imediata) + autosave via updateItemField
@@ -1265,12 +1266,13 @@ function StandardCart() {
     }
   };
 
-  const handleGeneratePdf = (showIpi = false) => {
+  const handleGeneratePdf = (showIpi = false, unifyItemValues = false) => {
     if (!form.cliente.trim()) {
       toast.error("Informe o nome do cliente.");
       return;
     }
     setPdfShowIpi(showIpi);
+    setPdfUnifyItemValues(unifyItemValues);
     setPdfPrintOpen(true);
   };
   const handleSaveQuote = () => {
@@ -3679,9 +3681,9 @@ function StandardCart() {
         format="PDF"
         onOpenChange={setExportOptionsOpen}
         isGenerating={isGenerating}
-        onConfirm={(showIpi) => {
+        onConfirm={(showIpi, unifyItemValues) => {
           setExportOptionsOpen(false);
-          handleGeneratePdf(showIpi);
+          handleGeneratePdf(showIpi, unifyItemValues);
         }}
       />
       {/* PDF automático — abre o mesmo modal mas dispara download imediatamente */}
@@ -3706,6 +3708,7 @@ function StandardCart() {
           discountPercent: discountPct > 0 ? discountPct : undefined,
           showDiscount: saveForm.showDiscount && discountPct > 0,
           showIpi: pdfShowIpi,
+          unifyPdfItemValues: pdfUnifyItemValues,
           freteType: saveForm.freteType,
           freteIsento: saveForm.freteIsento,
           freteLocalidade: saveForm.freteStateCode === "SP" ? "sp" : "other",

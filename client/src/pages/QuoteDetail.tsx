@@ -1063,9 +1063,10 @@ export default function QuoteDetail() {
   const [pdfPrintOpen, setPdfPrintOpen] = useState(false);
   const [ldPdfCaptureOpen, setLdPdfCaptureOpen] = useState(false);
   const [pdfShowIpi, setPdfShowIpi] = useState(false);
+  const [pdfUnifyItemValues, setPdfUnifyItemValues] = useState(false);
   const [exportOptions, setExportOptions] = useState<{
     format: "PDF" | "Excel";
-    run: (showIpi: boolean) => void | Promise<void>;
+    run: (showIpi: boolean, unifyItemValues: boolean) => void | Promise<void>;
   } | null>(null);
 
   // Edit (add revision) dialog — full form with all tabs
@@ -2222,7 +2223,7 @@ export default function QuoteDetail() {
     }
   };
 
-  const handleGeneratePdf = async (showIpi = false) => {
+  const handleGeneratePdf = async (showIpi = false, unifyItemValues = false) => {
     if (hasDraftRevision) {
       try {
         await bumpRevisionMutation.mutateAsync({ id: Number(id) });
@@ -2234,6 +2235,7 @@ export default function QuoteDetail() {
       }
     }
     setPdfShowIpi(showIpi);
+    setPdfUnifyItemValues(unifyItemValues);
     setPdfPrintOpen(true);
   };
 
@@ -5504,10 +5506,10 @@ export default function QuoteDetail() {
         format={exportOptions?.format ?? "PDF"}
         onOpenChange={(open) => { if (!open) setExportOptions(null); }}
         isGenerating={isGenerating}
-        onConfirm={async (showIpi) => {
+        onConfirm={async (showIpi, unifyItemValues) => {
           const request = exportOptions;
           setExportOptions(null);
-          await request?.run(showIpi);
+          await request?.run(showIpi, unifyItemValues);
         }}
       />
 
@@ -5596,6 +5598,7 @@ export default function QuoteDetail() {
           discountPercent: (quote as any).discountPercent ? parseFloat(String((quote as any).discountPercent)) : undefined,
           showDiscount: !!(quote as any).showDiscount,
           showIpi: pdfPrintOpen ? pdfShowIpi : false,
+          unifyPdfItemValues: pdfPrintOpen ? pdfUnifyItemValues : false,
           freteType: (quote.freteType as "free" | "paid" | "night" | "consult" | "pickup") ?? "free",
           freteIsento: quote.freteIsento ?? false,
           freteLocalidade: (quote.freteLocalidade as "sp" | "other") ?? "sp",

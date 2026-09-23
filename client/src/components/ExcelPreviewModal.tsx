@@ -5,7 +5,7 @@
  * Exibe marca d'água "RASCUNHO" em diagonal para deixar claro que não é versão oficial.
  * Usa createPortal para garantir tela cheia real sem interferência do Dialog do shadcn.
  */
-import { Fragment, useMemo, useEffect, useRef, useCallback, useState } from "react";
+import React, { Fragment, useMemo, useEffect, useRef, useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, FileDown, AlertCircle } from "lucide-react";
 import html2canvas from "html2canvas";
@@ -20,6 +20,7 @@ import { appendQuoteGeneralObservation } from "@/lib/quoteDocumentObservation";
 import { getUnitPriceWithoutIpi } from "@/lib/quoteIpi";
 import { allocateDilutedAmount } from "@/lib/quoteTaxDilution";
 import { getCommercialBodyTotal, getEditableBodyUnitPrice } from "@/lib/splitItemPricing";
+import { getUnifiedPdfPrices, getUnifiedPdfRawItemTotal, hasUnifiedPdfComponents } from "@/lib/quotePdfUnifiedPricing";
 import { QuoteExportOptionsDialog } from "@/components/QuoteExportOptionsDialog";
 
 // ── Helpers (mesmos do gerador Excel) ────────────────────────────────────────
@@ -172,8 +173,10 @@ interface Props {
 
 export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMap, autoPrint, onCapturePdf, onCapturePdfError }: Props) {
   const [manualPdfShowIpi, setManualPdfShowIpi] = useState(false);
+  const [manualPdfUnifyItemValues, setManualPdfUnifyItemValues] = useState(false);
   const [manualPdfOptionsOpen, setManualPdfOptionsOpen] = useState(false);
   const showIpi = formData.showIpi === true || manualPdfShowIpi;
+  const unifyItemValues = formData.unifyPdfItemValues === true || manualPdfUnifyItemValues;
   const previewColumnWidths = getQuotePreviewColumnWidths(showIpi);
   const previewColumnCount = getQuotePreviewColumnCount(showIpi);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -340,6 +343,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
     if (!open) {
       capturedRef.current = false;
       setManualPdfShowIpi(false);
+      setManualPdfUnifyItemValues(false);
       setManualPdfOptionsOpen(false);
     }
   }, [open]);
@@ -731,8 +735,9 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
             format="PDF"
             onOpenChange={setManualPdfOptionsOpen}
             isGenerating={isDownloadingPdf}
-            onConfirm={(includeIpi) => {
+            onConfirm={(includeIpi, unifyValues) => {
               setManualPdfShowIpi(includeIpi);
+              setManualPdfUnifyItemValues(unifyValues);
               setManualPdfOptionsOpen(false);
               window.requestAnimationFrame(() => {
                 window.requestAnimationFrame(() => { void handleDownloadPDF(); });
@@ -974,6 +979,23 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                           {(() => {
                             const _effectiveUnitLum = getEditableBodyUnitPrice(item);
                             const _qty = item.qty ?? 1;
+                            if (unifyItemValues && hasUnifiedPdfComponents(item)) {
+                              const _itemRawTotal = getUnifiedPdfRawItemTotal(item);
+                              const _itemDilution = diluicaoParaDiluir > 0 && totalBase > 0
+                                ? diluicaoParaDiluir * (_itemRawTotal / totalBase)
+                                : 0;
+                              const _unifiedFinalTotal = applyMarkupItem(
+                                _itemRawTotal + getFreteItem(item) + _itemDilution,
+                                item.itemMarginPercent,
+                                item.itemDiscountPercent,
+                              ) + getItemDifalFcp(item);
+                              const _unified = getUnifiedPdfPrices(_unifiedFinalTotal, _qty);
+                              return (<>
+                                <td style={tdStyle}>{formatBRL(showIpi ? _unified.unitWithoutIpi : _unified.unitWithIpi)}</td>
+                                {showIpi && <td style={tdStyle}>{formatBRL(_unified.unitWithIpi)}</td>}
+                                <td style={tdStyle}>{formatBRL(_unified.total)}</td>
+                              </>);
+                            }
                             const _correctedTotal = getCommercialBodyTotal(item);
                             // Diluição proporcional: peso = total real do item / totalBase
                             const _itemTotalReal = getItemTotalReal(item);
@@ -1055,6 +1077,19 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                             const _totalWithDil = _totalWithFrete + _diluicaoFatorSimple;
                             const _itemDifalFcpTotal = getItemDifalFcp(item);
                             const _itemDifalFcpUnit = _qty > 0 ? _itemDifalFcpTotal / _qty : 0;
+                            if (unifyItemValues && hasUnifiedPdfComponents(item)) {
+                              const _unifiedFinalTotal = applyMarkupItem(
+                                _itemTotalRealSimple + getFreteItem(item) + _diluicaoFatorSimple,
+                                item.itemMarginPercent,
+                                item.itemDiscountPercent,
+                              ) + _itemDifalFcpTotal;
+                              const _unified = getUnifiedPdfPrices(_unifiedFinalTotal, _qty);
+                              return (<>
+                                <td style={tdStyle}>{formatBRL(showIpi ? _unified.unitWithoutIpi : _unified.unitWithIpi)}</td>
+                                {showIpi && <td style={tdStyle}>{formatBRL(_unified.unitWithIpi)}</td>}
+                                <td style={tdStyle}>{formatBRL(_unified.total)}</td>
+                              </>);
+                            }
                             return (<>
                               <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(applyMarkupItem(_unitWithDil, item.itemMarginPercent, item.itemDiscountPercent) + _itemDifalFcpUnit) : applyMarkupItem(_unitWithDil, item.itemMarginPercent, item.itemDiscountPercent) + _itemDifalFcpUnit) : "-"}</td>
                               {showIpi && <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkupItem(_unitWithDil, item.itemMarginPercent, item.itemDiscountPercent) + _itemDifalFcpUnit) : "-"}</td>}
@@ -1089,9 +1124,9 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                             <td key={i} style={{ ...tdStyle, fontSize: 9 }}></td>
                           ))}
                           <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold" }}>{accQty}</td>
-                          <td style={{ ...tdStyle, fontSize: 9 }}>{acc.unitPrice && acc.unitPrice > 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(accUnitWithTax) : accUnitWithTax) : "-"}</td>
-                          {showIpi && <td style={{ ...tdStyle, fontSize: 9 }}>{acc.unitPrice && acc.unitPrice > 0 ? formatBRL(accUnitWithTax) : "-"}</td>}
-                          <td style={{ ...tdStyle, fontSize: 9 }}>{acc.unitPrice && acc.unitPrice > 0 ? formatBRL(acc.unitPrice * accQty + accTaxTotal) : "-"}</td>
+                          <td style={{ ...tdStyle, fontSize: 9 }}>{unifyItemValues ? "incl." : acc.unitPrice && acc.unitPrice > 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(accUnitWithTax) : accUnitWithTax) : "-"}</td>
+                          {showIpi && <td style={{ ...tdStyle, fontSize: 9 }}>{unifyItemValues ? "incl." : acc.unitPrice && acc.unitPrice > 0 ? formatBRL(accUnitWithTax) : "-"}</td>}
+                          <td style={{ ...tdStyle, fontSize: 9 }}>{unifyItemValues ? "incl." : acc.unitPrice && acc.unitPrice > 0 ? formatBRL(acc.unitPrice * accQty + accTaxTotal) : "-"}</td>
                         </tr>
                         );
                       })}
@@ -1164,13 +1199,13 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                           ))}
                           <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold", color: "#E65100" }}>{_effectiveDrvQty}</td>
                           <td style={{ ...tdStyle, fontSize: 9, color: "#E65100" }}>
-                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(applyMarkupItem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent) + _drvDifalFcpUnit) : applyMarkupItem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent) + _drvDifalFcpUnit) : "-"}
+                            {unifyItemValues ? "incl." : drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(applyMarkupItem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent) + _drvDifalFcpUnit) : applyMarkupItem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent) + _drvDifalFcpUnit) : "-"}
                           </td>
                           {showIpi && <td style={{ ...tdStyle, fontSize: 9, color: "#E65100" }}>
-                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupItem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent) + _drvDifalFcpUnit) : "-"}
+                            {unifyItemValues ? "incl." : drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupItem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent) + _drvDifalFcpUnit) : "-"}
                           </td>}
                           <td style={{ ...tdStyle, fontSize: 9, color: "#E65100" }}>
-                            {drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupItem(_drvTotalPrice + _drvDilTotal + _drvFreteFrac, item.itemMarginPercent, item.itemDiscountPercent) + _drvDifalFcpTotal) : "-"}
+                            {unifyItemValues ? "incl." : drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupItem(_drvTotalPrice + _drvDilTotal + _drvFreteFrac, item.itemMarginPercent, item.itemDiscountPercent) + _drvDifalFcpTotal) : "-"}
                           </td>
                         </tr>
                         );
@@ -1250,7 +1285,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                     </tr>
                   )}
                   {/* Totais com/sem driver — apenas para orçamentos novos */}
-                  {hasDriverBreakdown && totalDriverRaw > 0 && (
+                  {!unifyItemValues && hasDriverBreakdown && totalDriverRaw > 0 && (
                     <>
                       <tr>
                         <td style={{ fontWeight: "bold", color: "#E65100", paddingTop: 8 }}>Total sem driver:</td>

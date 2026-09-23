@@ -581,6 +581,8 @@ export interface QuoteFormData {
   showDiscount?: boolean;
   /** Se true, exibe Preço unitário sem IPI (C/ IPI ÷ 1,0975) e mantém a coluna C/ IPI com o preço original. */
   showIpi?: boolean;
+  /** Se true, somente no PDF, soma luminária, drivers e acessórios no preço da linha principal. */
+  unifyPdfItemValues?: boolean;
   /**
    * Data de criação do orçamento (ISO string, ex: "2026-07-17T00:00:00.000Z").
    * Usado para distinguir orçamentos antigos (antes de 17/07/2026) dos novos,
