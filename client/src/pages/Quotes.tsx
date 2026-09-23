@@ -38,7 +38,6 @@ const DEFAULT_VISIBLE_METRICS: Record<string, boolean> = {
   approved: true,
   lost: true,
   invoiced: true,
-  listedValue: true,
   valueWithoutDuplicates: true,
   ldProspecting: false,
   duplicateValue: true,
@@ -231,13 +230,17 @@ export default function Quotes() {
     });
     const realValue = withoutDuplicates.reduce((sum, q) => sum + getQuoteValue(q), 0);
     const duplicateCount = commercialRows.filter((q: any) => q.isDuplicate).length;
-    const prospectingValue = rows.filter((q: any) => q.isProspecting).reduce((sum, q) => sum + getQuoteValue(q), 0);
+    const prospectingRows = rows.filter((q: any) => q.isProspecting);
+    const prospectingValue = prospectingRows.reduce((sum, q) => sum + getQuoteValue(q), 0);
+    const openValue = commercialRows.filter(q => q.status === "open").reduce((sum, q) => sum + getQuoteValue(q), 0);
     const approvedValue = commercialRows.filter(q => isApprovedOrInvoicedStatus(q.status)).reduce((sum, q) => sum + getQuoteValue(q), 0);
+    const lostValue = commercialRows.filter(q => q.status === "lost").reduce((sum, q) => sum + getQuoteValue(q), 0);
     const invoicedValue = commercialRows.filter(q => q.status === "invoiced").reduce((sum, q) => sum + getQuoteValue(q), 0);
     return {
       total, open, approved, lost, invoiced, totalValue, realValue,
       duplicateValue: Math.max(0, totalValue - realValue),
-      duplicateCount, prospectingValue, approvedValue, invoicedValue,
+      duplicateCount, prospectingCount: prospectingRows.length, prospectingValue,
+      openValue, approvedValue, lostValue, invoicedValue,
     };
   }, [filteredAllData, canSeeCommission, manualDuplicateOverrides, dateFrom, dateTo]);
 
@@ -438,23 +441,21 @@ export default function Quotes() {
 
         {/* Cards de estatísticas */}
         {(() => {
-          const metricCards: Array<{ id: string; label: string; value: string | number; color: string; icon: React.ReactNode; isValue: boolean; sub?: string }> = [
-            { id: "total", label: "Total", value: stats.total, color: "text-foreground", icon: <ClipboardList className="w-4 h-4" />, isValue: false },
-            { id: "open", label: "Em Aberto", value: stats.open, color: "text-blue-600", icon: <Clock className="w-4 h-4 text-blue-500" />, isValue: false },
-            { id: "approved", label: "Aprovados (incl. faturados)", value: stats.approved, color: "text-green-600", icon: <CheckCircle className="w-4 h-4 text-green-500" />, isValue: false },
-            { id: "lost", label: "Perdidos", value: stats.lost, color: "text-red-600", icon: <TrendingDown className="w-4 h-4 text-red-500" />, isValue: false },
-            { id: "invoiced", label: "Faturados", value: stats.invoiced, color: "text-purple-600", icon: <Receipt className="w-4 h-4 text-purple-500" />, isValue: false },
-            { id: "listedValue", label: "Valor Orçado", value: formatBRL(stats.totalValue), color: "text-primary", icon: <BarChart2 className="w-4 h-4 text-primary" />, isValue: true },
-            { id: "valueWithoutDuplicates", label: "Valor sem duplicados", value: formatBRL(stats.realValue), color: "text-emerald-600", icon: <CheckCircle className="w-4 h-4 text-emerald-500" />, isValue: true },
-            { id: "ldProspecting", label: "Prospecções LD", value: formatBRL(stats.prospectingValue), color: "text-indigo-600", icon: <Users className="w-4 h-4 text-indigo-500" />, isValue: true },
-            { id: "duplicateValue", label: "Valor dos Duplicados", value: formatBRL(stats.duplicateValue), color: "text-orange-600", icon: <Copy className="w-4 h-4 text-orange-500" />, isValue: true },
+          const metricCards: Array<{ id: string; label: string; value?: string | number; quantity?: number; amount?: string; color: string; icon: React.ReactNode; sub?: string }> = [
+            { id: "total", label: "Total", quantity: stats.total, amount: formatBRL(stats.totalValue), color: "text-foreground", icon: <ClipboardList className="w-4 h-4" /> },
+            { id: "open", label: "Em Aberto", quantity: stats.open, amount: formatBRL(stats.openValue), color: "text-blue-600", icon: <Clock className="w-4 h-4 text-blue-500" /> },
+            { id: "approved", label: "Aprovados (incl. faturados)", quantity: stats.approved, amount: formatBRL(stats.approvedValue), color: "text-green-600", icon: <CheckCircle className="w-4 h-4 text-green-500" /> },
+            { id: "lost", label: "Perdidos", quantity: stats.lost, amount: formatBRL(stats.lostValue), color: "text-red-600", icon: <TrendingDown className="w-4 h-4 text-red-500" /> },
+            { id: "invoiced", label: "Faturados", quantity: stats.invoiced, amount: formatBRL(stats.invoicedValue), color: "text-purple-600", icon: <Receipt className="w-4 h-4 text-purple-500" /> },
+            { id: "valueWithoutDuplicates", label: "Valor sem duplicados", value: formatBRL(stats.realValue), color: "text-emerald-600", icon: <CheckCircle className="w-4 h-4 text-emerald-500" /> },
+            { id: "ldProspecting", label: "Prospecções LD", quantity: stats.prospectingCount, amount: formatBRL(stats.prospectingValue), color: "text-indigo-600", icon: <Users className="w-4 h-4 text-indigo-500" /> },
+            { id: "duplicateValue", label: "Valor dos Duplicados", value: formatBRL(stats.duplicateValue), color: "text-orange-600", icon: <Copy className="w-4 h-4 text-orange-500" /> },
             ...(user.role === "admin" ? [{
               id: "generalExpenses",
               label: "Gastos Gerais",
               value: generalExpensesQuery.isLoading ? "Apurando…" : formatBRL(generalExpensesQuery.data?.total ?? 0),
               color: "text-rose-600",
               icon: <TrendingDown className="w-4 h-4 text-rose-500" />,
-              isValue: true,
               sub: generalExpensesQuery.data
                 ? `${generalExpensesQuery.data.counts.unrecoveredSamples} amostra(s) não recuperada(s) · ${generalExpensesQuery.data.counts.unrecoveredMaintenances} manutenção(ões) não recuperada(s) · ${generalExpensesQuery.data.counts.additionalCosts} custo(s) adicional(is) · ${generalExpensesQuery.data.counts.waivedFreights} frete(s) isentado(s)`
                 : "Amostras e manutenções não recuperadas, custos adicionais e fretes isentados",
@@ -476,16 +477,19 @@ export default function Quotes() {
             </details>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {metricCards.filter(metric => visibleMetrics[metric.id] !== false).map(s => (
-                <Card key={s.id} className="p-4 min-w-0 min-h-[104px] overflow-visible">
+                <Card key={s.id} className="min-w-0 overflow-hidden p-4">
                   <div className="flex items-start gap-2 mb-2 min-w-0 min-h-8">
                     <span className="shrink-0">{s.icon}</span>
-                    <span className="text-xs leading-4 text-muted-foreground">{s.label}</span>
+                    <span className="min-w-0 text-xs leading-4 text-muted-foreground">{s.label}</span>
                     <label className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground cursor-pointer">
                       <input type="checkbox" className="h-3 w-3" checked={visibleMetrics[s.id] !== false} onChange={event => updateMetricVisibility(s.id, event.target.checked)} aria-label={`Exibir ${s.label}`} />
                       Exibir
                     </label>
                   </div>
-                  <p className={`font-bold tabular-nums ${s.color} ${s.isValue ? "text-base sm:text-lg lg:text-xl leading-tight whitespace-nowrap" : "text-2xl"}`}>{s.value}</p>
+                  {s.quantity !== undefined && s.amount ? <div className="min-w-0 space-y-1" data-testid={`quote-metric-${s.id}`}>
+                    <p className={`font-bold tabular-nums leading-none ${s.color} text-2xl`}>{s.quantity}</p>
+                    <p title={s.amount} className={`overflow-hidden text-ellipsis whitespace-nowrap font-semibold tabular-nums leading-tight ${s.color} text-sm sm:text-base`}>{s.amount}</p>
+                  </div> : <p className={`overflow-hidden text-ellipsis whitespace-nowrap font-bold tabular-nums ${s.color} text-base leading-tight sm:text-lg lg:text-xl`}>{s.value}</p>}
                   {s.sub && <p className="mt-1 line-clamp-2 text-[10px] leading-3 text-muted-foreground">{s.sub}</p>}
                 </Card>
               ))}

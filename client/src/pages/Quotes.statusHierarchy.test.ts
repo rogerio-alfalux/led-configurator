@@ -3,12 +3,19 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("Meus Orçamentos: hierarquia entre aprovados e faturados", () => {
-  it("inclui faturados nos aprovados e mantém a base total de valor orçado", () => {
+  it("inclui faturados nos aprovados e apresenta quantidade com valor por status", () => {
     const source = readFileSync(resolve(process.cwd(), "client/src/pages/Quotes.tsx"), "utf8");
 
     expect(source).toContain("isApprovedOrInvoicedStatus(q.status)");
     expect(source).toContain('label: "Aprovados (incl. faturados)"');
-    expect(source).toContain('label: "Valor Orçado"');
     expect(source).toContain("const totalValue = commercialRows.reduce");
+    expect(source).toContain("const openValue = commercialRows.filter");
+    expect(source).toContain("const lostValue = commercialRows.filter");
+    expect(source).toContain("quantity: stats.total, amount: formatBRL(stats.totalValue)");
+    expect(source).toContain("quantity: stats.open, amount: formatBRL(stats.openValue)");
+    expect(source).toContain("quantity: stats.approved, amount: formatBRL(stats.approvedValue)");
+    expect(source).toContain("quantity: stats.lost, amount: formatBRL(stats.lostValue)");
+    expect(source).toContain("quantity: stats.invoiced, amount: formatBRL(stats.invoicedValue)");
+    expect(source).not.toContain('id: "listedValue"');
   });
 });
