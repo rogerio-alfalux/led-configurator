@@ -139,7 +139,7 @@ import { StateCitySelector, isSaoPauloCapital } from "@/components/StateCitySele
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PERMISSIONS } from "@shared/permissions";
-import { applyCCTChange, applyUnitPriceChange, applyQtyChange } from "@/lib/cctUtils";
+import { applyCCTChange, applyUnitPriceChange, applyQtyChange, getBodyUnitPriceMarkup } from "@/lib/cctUtils";
 import { calculateLinkedAccessoriesTotal, parseShiftModuleManualPrice } from "@/lib/shiftModulePrices";
 import { buildSplitDriverPricePatch, buildSplitDriverQuantityPatch, cloneCartItemData, getEditableBodyUnitPrice } from "@/lib/splitItemPricing";
 import { deriveDriverQuantityPerUnit, selectDriverVariantByDescription } from "@/lib/driverRehydration";
@@ -181,8 +181,19 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
   const [specialUploading, setSpecialUploading] = useState(false);
   const [seqInputVal, setSeqInputVal] = useState<string>("");
   const d = item.parsed;
+  const currentBodyUnitPrice = getEditableBodyUnitPrice(d);
+  const [unitPriceDraft, setUnitPriceDraft] = useState(() => currentBodyUnitPrice != null ? String(currentBodyUnitPrice) : "");
+  const [unitPriceMinimumMessage, setUnitPriceMinimumMessage] = useState<string | null>(null);
   const resolvedPhoto = resolvePhoto(d);
   const linkedAccessories = (d.accessories ?? []).map((accessory, index) => ({ accessory, index }));
+  const currentGenericMarkup = !d.isSpecialItem
+    ? getBodyUnitPriceMarkup(d, currentBodyUnitPrice)
+    : null;
+  useEffect(() => {
+    if (d.isSpecialItem) return;
+    setUnitPriceDraft(currentBodyUnitPrice != null ? String(currentBodyUnitPrice) : "");
+    setUnitPriceMinimumMessage(null);
+  }, [item.id, d.isSpecialItem, currentBodyUnitPrice]);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -426,14 +437,45 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
             )}
           </Label>
           <Input
-            type="number"
+            type={d.isSpecialItem ? "number" : "text"}
             min={0}
             step={0.01}
-            value={getEditableBodyUnitPrice(d) ?? ""}
+            inputMode="decimal"
+            value={d.isSpecialItem ? (currentBodyUnitPrice ?? "") : unitPriceDraft}
             onChange={(d.priceFromApi && !canOverrideApiPrice) ? undefined : (e => {
-              const newUnitPrice = e.target.value ? parseFloat(e.target.value) : null;
-              onUpdate(item.id, { unitPrice: newUnitPrice });
+              const rawValue = e.target.value;
+              if (d.isSpecialItem) {
+                const newUnitPrice = rawValue ? parseFloat(rawValue) : null;
+                onUpdate(item.id, { unitPrice: newUnitPrice });
+                return;
+              }
+
+              setUnitPriceDraft(rawValue);
+              if (!rawValue.trim()) {
+                setUnitPriceMinimumMessage(null);
+                onUpdate(item.id, { unitPrice: null, mkpCustom: undefined });
+                return;
+              }
+              const newUnitPrice = Number(rawValue.replace(",", "."));
+              if (!Number.isFinite(newUnitPrice) || newUnitPrice < 0) return;
+              const markup = getBodyUnitPriceMarkup(d, newUnitPrice);
+              if (markup?.isBelowMinimum) {
+                setUnitPriceMinimumMessage(
+                  `Preço abaixo do mínimo permitido pela API (${formatBRL(markup.minimumUnitPrice)} · MKP mínimo ${markup.minimumMarkup.toFixed(2)}×). Nenhuma alteração foi aplicada.`,
+                );
+                return;
+              }
+              setUnitPriceMinimumMessage(null);
+              onUpdate(item.id, {
+                unitPrice: newUnitPrice,
+                ...(markup ? { mkpCustom: markup.markup } : {}),
+              });
             })}
+            onBlur={() => {
+              if (!d.isSpecialItem && unitPriceMinimumMessage) {
+                setUnitPriceDraft(currentBodyUnitPrice != null ? String(currentBodyUnitPrice) : "");
+              }
+            }}
             readOnly={!!d.priceFromApi && !canOverrideApiPrice}
             placeholder={d.priceFromApi ? (canOverrideApiPrice ? "Sobrescrever preço da API" : "Preço da API") : "Definir preço"}
             className={`mt-1 h-8 text-sm${(d.priceFromApi && !canOverrideApiPrice) ? " bg-muted text-muted-foreground cursor-not-allowed" : ""}`}
@@ -443,6 +485,17 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
           )}
           {d.priceFromApi && canOverrideApiPrice && (
             <p className="text-xs text-amber-500 mt-0.5">Permissão especial: preço da API pode ser sobrescrito.</p>
+          )}
+          {!d.isSpecialItem && unitPriceMinimumMessage && (
+            <p role="alert" className="text-xs text-destructive mt-0.5">{unitPriceMinimumMessage}</p>
+          )}
+          {!d.isSpecialItem && currentGenericMarkup && !currentGenericMarkup.isBelowMinimum && canEditMkp && (
+            <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+              MKP atual: <span className="font-semibold">{currentGenericMarkup.markup.toFixed(2)}×</span>
+              {currentGenericMarkup.minimumMarkup > 0
+                ? ` · mínimo API: ${currentGenericMarkup.minimumMarkup.toFixed(2)}×`
+                : " · mínimo ainda não informado pela API"}
+            </p>
           )}
           {/* Preço com margem individual aplicada */}
           {d.itemMarginPercent != null && d.itemMarginPercent > 0 && d.unitPrice != null && d.unitPrice > 0 && (

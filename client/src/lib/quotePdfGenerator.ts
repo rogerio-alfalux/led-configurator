@@ -322,7 +322,7 @@ async function _generatePdfBlob(
   });
 
   // Construir linhas da tabela
-  type RowMeta = { photoUrl: string | null; isFloorHeader?: boolean; isDriverRow?: boolean; isAccessoryRow?: boolean; isObsRow?: boolean };
+  type RowMeta = { photoUrl: string | null; isFloorHeader?: boolean; isDriverRow?: boolean; isAccessoryRow?: boolean; isEquipmentRow?: boolean; isObsRow?: boolean };
   const rowMeta: RowMeta[] = [];
   const tableBody: (string | { content: string; colSpan?: number; styles?: object })[][] = [];
   let lastFloor: string | undefined = undefined;
@@ -482,6 +482,22 @@ async function _generatePdfBlob(
       rowMeta.push({ photoUrl: null, isAccessoryRow: true });
     }
 
+    // Equipamentos de itens especiais são componentes técnicos já contemplados
+    // no preço da luminária; precisam aparecer para conferência sem alterar o
+    // total comercial da proposta.
+    for (const equipment of item.specialEquipments ?? []) {
+      const equipmentQty = (equipment.qty ?? 0) * (item.qty ?? 1);
+      tableBody.push([
+        "", "",
+        `  ↳ Equipamento: ${equipment.codigo ? `${equipment.codigo} — ` : ""}${equipment.descricao} — incluído no preço`,
+        "", "", "", "", "", "",
+        String(equipmentQty),
+        ...(showIpi ? ["incl.", "incl."] : []),
+        "incl.",
+      ]);
+      rowMeta.push({ photoUrl: null, isEquipmentRow: true });
+    }
+
     // Observação do item
     if (item.itemNote) {
       tableBody.push(Array.from({ length: showIpi ? 13 : 11 }, (_, index) => index === 2 ? `  Obs: ${item.itemNote}` : ""));
@@ -538,7 +554,7 @@ async function _generatePdfBlob(
       const meta = rowMeta[data.row.index];
       if (!meta) return;
       if (meta.isFloorHeader) return;
-      if (meta.isDriverRow || meta.isAccessoryRow) {
+      if (meta.isDriverRow || meta.isAccessoryRow || meta.isEquipmentRow) {
         data.cell.styles.textColor = [100, 100, 100] as [number, number, number];
         data.cell.styles.fontSize = 7;
         data.cell.styles.fillColor = [250, 250, 250] as [number, number, number];
@@ -555,7 +571,7 @@ async function _generatePdfBlob(
     didDrawCell: (data) => {
       if (data.column.index !== 1 || data.section !== "body") return;
       const meta = rowMeta[data.row.index];
-      if (!meta || meta.isFloorHeader || meta.isDriverRow || meta.isAccessoryRow || meta.isObsRow) return;
+      if (!meta || meta.isFloorHeader || meta.isDriverRow || meta.isAccessoryRow || meta.isEquipmentRow || meta.isObsRow) return;
       if (meta.photoUrl && photoCache.has(meta.photoUrl)) {
         const imgData = photoCache.get(meta.photoUrl)!;
         const pad = 1;

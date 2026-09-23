@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { applyQtyChange, applyUnitPriceChange, applyCCTChange } from "./cctUtils";
+import { applyQtyChange, applyUnitPriceChange, applyCCTChange, getBodyUnitPriceMarkup } from "./cctUtils";
 import type { CartItemData } from "./cartTypes";
 
 // Item base simulando BLAZE 45700mm com 1 luminária e 17 drivers
@@ -160,5 +160,40 @@ describe("applyUnitPriceChange", () => {
     expect(patch.unitPriceLuminaria).toBe(35000);
     expect(patch.priceWithoutDriver).toBe(35000 * 12);
     expect(patch.luminariaHasApiPrice).toBe(false);
+  });
+});
+
+describe("getBodyUnitPriceMarkup", () => {
+  const itemWithCatalogCost = {
+    ...blazeItem,
+    custoCorpoBase: 100,
+    markupMinimoApi: 2.5,
+  } as CartItemData;
+
+  it("calcula o MKP do corpo sem incluir o preço do driver", () => {
+    expect(getBodyUnitPriceMarkup(itemWithCatalogCost, 300)).toEqual({
+      markup: 3,
+      minimumMarkup: 2.5,
+      minimumUnitPrice: 250,
+      isBelowMinimum: false,
+    });
+  });
+
+  it("identifica preços abaixo do markup mínimo informado pela API", () => {
+    const result = getBodyUnitPriceMarkup(itemWithCatalogCost, 249.99);
+    expect(result?.isBelowMinimum).toBe(true);
+    expect(result?.minimumUnitPrice).toBe(250);
+  });
+
+  it("atualiza o MKP sem bloquear quando há custo, mas a API ainda não informou mínimo", () => {
+    expect(getBodyUnitPriceMarkup({ ...blazeItem, custoCorpoBase: 100 } as CartItemData, 200)).toMatchObject({
+      markup: 2,
+      minimumMarkup: 0,
+      isBelowMinimum: false,
+    });
+  });
+
+  it("não tenta derivar MKP quando a API não disponibilizou o custo do corpo", () => {
+    expect(getBodyUnitPriceMarkup({ ...blazeItem } as CartItemData, 200)).toBeNull();
   });
 });

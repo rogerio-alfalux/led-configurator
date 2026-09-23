@@ -193,6 +193,39 @@ describe("sub-linha comercial de driver de perfil", () => {
     expect(worksheet.getCell(`N${driverRow}`).value).toBe(16092);
   });
 
+  it("mostra equipamento de item especial como sublinha incluída no preço", async () => {
+    const item: CartItemData = {
+      category: "Item Especial",
+      isSpecialItem: true,
+      sku: "ESP-001",
+      description: "LUMINÁRIA ESPECIAL TESTE",
+      qty: 3,
+      unitPrice: 500,
+      totalPrice: 1_500,
+      photoUrl: null,
+      specialEquipments: [{
+        codigo: "EQ00999",
+        descricao: "DISSIPADOR TÉCNICO TESTE",
+        qty: 2,
+        unitPrice: 35,
+        familia: "DISSIPADORES",
+      }],
+    };
+
+    const buffer = await generateQuoteExcelBuffer([item], form);
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+    const worksheet = workbook.getWorksheet("Alfalux")!;
+    const equipmentRow = Array.from({ length: worksheet.rowCount }, (_, index) => index + 1)
+      .find((row) => String(worksheet.getCell(`E${row}`).value ?? "").includes("↳ Equipamento: DISSIPADOR TÉCNICO TESTE"));
+
+    expect(equipmentRow).toBeDefined();
+    expect(worksheet.getCell(`L${equipmentRow}`).value).toBe(6);
+    expect(worksheet.getCell(`M${equipmentRow}`).value).toBe("incl.");
+    expect(worksheet.getCell(`N${equipmentRow}`).value).toBe("incl.");
+    expect(worksheet.getCell(`E${equipmentRow}`).fill.fgColor?.argb).toBe("FFF3E5F5");
+  });
+
   it("mantém no rodapé o total final soberano da revisão histórica", async () => {
     const item: CartItemData = {
       category: "Painéis",

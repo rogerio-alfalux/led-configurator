@@ -108,6 +108,52 @@ export function applyUnitPriceChange(
   return patch;
 }
 
+export type BodyUnitPriceMarkup = {
+  /** Markup efetivo que resulta do preço unitário informado. */
+  markup: number;
+  /** Menor markup comercial permitido para o corpo do produto. */
+  minimumMarkup: number;
+  /** Preço unitário mínimo permitido para o corpo do produto. */
+  minimumUnitPrice: number;
+  /** Informa se o preço solicitado ficaria abaixo do mínimo da API. */
+  isBelowMinimum: boolean;
+};
+
+/**
+ * Calcula o markup do corpo da luminária a partir de um preço unitário editado.
+ *
+ * O preço da luminária é deliberadamente separado dos drivers: `custoCorpoBase`
+ * é o custo do corpo e a validação não deve usar custo/preço dos equipamentos.
+ * Retorna `null` somente quando o catálogo não forneceu custo do corpo. Quando
+ * o mínimo ainda não estiver cadastrado, o MKP continua sendo atualizado, mas
+ * não há piso comercial a bloquear.
+ */
+export function getBodyUnitPriceMarkup(
+  item: CartItemData,
+  unitPrice: number | null | undefined,
+): BodyUnitPriceMarkup | null {
+  const cost = Number(item.custoCorpoBase);
+  const catalogMinimumMarkup = Number(item.markupMinimoApi);
+  const normalizedPrice = Number(unitPrice);
+
+  if (!Number.isFinite(cost) || cost <= 0 ||
+      !Number.isFinite(normalizedPrice) || normalizedPrice < 0) {
+    return null;
+  }
+
+  const minimumMarkup = Number.isFinite(catalogMinimumMarkup) && catalogMinimumMarkup > 0
+    ? catalogMinimumMarkup
+    : 0;
+  const minimumUnitPrice = Math.round(cost * minimumMarkup * 100) / 100;
+  const markup = Math.round((normalizedPrice / cost) * 10_000) / 10_000;
+  return {
+    markup,
+    minimumMarkup,
+    minimumUnitPrice,
+    isBelowMinimum: normalizedPrice + 0.005 < minimumUnitPrice,
+  };
+}
+
 /**
  * Recalcula priceWithoutDriver e driverLines quando qty muda em item com driverLines.
  * Mantém unitPriceLuminaria inalterado, apenas recalcula os totais.

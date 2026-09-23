@@ -1222,12 +1222,48 @@ async function _generateExcelBuffer(
       }
       currentRow += item.driverLines.length;
     }
+    // ── Equipamentos de itens especiais (já incluídos no preço comercial) ──────
+    const specialEquipmentLines = item.specialEquipments ?? [];
+    if (specialEquipmentLines.length > 0) {
+      for (let equipmentIdx = 0; equipmentIdx < specialEquipmentLines.length; equipmentIdx++) {
+        const equipment = specialEquipmentLines[equipmentIdx];
+        const equipmentRowNum = rowNum + accessoryLines.length + (item.driverLines?.length ?? 0) + equipmentIdx + 1;
+        ws.spliceRows(equipmentRowNum, 0, []);
+        const equipmentRow = ws.getRow(equipmentRowNum);
+        equipmentRow.height = 32;
+        const EQUIPMENT_BG = "FFF3E5F5";
+        const EQUIPMENT_COLOR = "FF6A1B9A";
+        const thinPurple: Partial<ExcelJS.Border> = { style: "thin", color: { argb: "FFCE93D8" } };
+        const equipmentBorder = { top: thinPurple, bottom: thinPurple, left: thinPurple, right: thinPurple };
+        const fillEquipment = (cell: ExcelJS.Cell, value: string | number | null, bold = false) => {
+          cell.value = value ?? "";
+          cell.font = { name: "Calibri", size: 9, bold, italic: true, color: { argb: EQUIPMENT_COLOR } };
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: EQUIPMENT_BG } };
+          cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+          cell.border = equipmentBorder;
+        };
+        fillEquipment(ws.getCell(`C${equipmentRowNum}`), "");
+        fillEquipment(ws.getCell(`D${equipmentRowNum}`), "");
+        fillEquipment(
+          ws.getCell(`E${equipmentRowNum}`),
+          `↳ Equipamento: ${equipment.descricao}${equipment.codigo ? ` (${equipment.codigo})` : ""} — incluído no preço`,
+        );
+        for (const col of ["F", "G", "H", "I", "J", "K"]) {
+          fillEquipment(ws.getCell(`${col}${equipmentRowNum}`), "");
+        }
+        fillEquipment(ws.getCell(`L${equipmentRowNum}`), (equipment.qty ?? 0) * (item.qty ?? 1), true);
+        fillEquipment(ws.getCell(`M${equipmentRowNum}`), "incl.");
+        if (showIpi) fillEquipment(ws.getCell(`N${equipmentRowNum}`), "incl.");
+        fillEquipment(ws.getCell(`${totalPriceCol}${equipmentRowNum}`), "incl.");
+      }
+      currentRow += specialEquipmentLines.length;
+    }
     // ── Sub-linhas de drivers legados (itens antigos sem driverLines mas com profileSegments) ────────────
     const legacyDrvsExcel = getLegacyDriverInfoExcel(item);
     if (legacyDrvsExcel && legacyDrvsExcel.length > 0) {
       for (let ldIdx = 0; ldIdx < legacyDrvsExcel.length; ldIdx++) {
         const ldrv = legacyDrvsExcel[ldIdx];
-        const ldRowNum = rowNum + accessoryLines.length + ldIdx + 1;
+        const ldRowNum = rowNum + accessoryLines.length + (item.driverLines?.length ?? 0) + specialEquipmentLines.length + ldIdx + 1;
         ws.spliceRows(ldRowNum, 0, []);
         const ldRow = ws.getRow(ldRowNum);
         ldRow.height = 28;
@@ -1257,7 +1293,7 @@ async function _generateExcelBuffer(
     }
     // ── Sub-linha de observação do item (quando itemObsShowInExcel=true) ──────────────────────────────────────────────────────────────────────────────────────
     if (item.itemObs && item.itemObsShowInExcel) {
-        const obsOffset = accessoryLines.length + (item.driverLines?.length ?? 0) + (legacyDrvsExcel?.length ?? 0);
+        const obsOffset = accessoryLines.length + (item.driverLines?.length ?? 0) + specialEquipmentLines.length + (legacyDrvsExcel?.length ?? 0);
       const obsRowNum = rowNum + obsOffset + 1;
       ws.spliceRows(obsRowNum, 0, []);
       const obsRow = ws.getRow(obsRowNum);

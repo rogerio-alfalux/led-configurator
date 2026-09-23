@@ -1095,6 +1095,28 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                         </tr>
                         );
                       })}
+                      {/* Equipamentos vinculados a itens especiais: são componentes
+                          técnicos já contemplados no valor da luminária. */}
+                      {(item.specialEquipments ?? []).map((equipment, equipmentIndex) => {
+                        const equipmentQty = (equipment.qty ?? 0) * (item.qty ?? 1);
+                        return (
+                          <tr key={`special-equipment-${idx}-${equipmentIndex}`} style={{ background: "#F3E5F5" }}>
+                            <td style={{ ...tdStyle, fontSize: 9 }}></td>
+                            <td style={{ ...tdStyle, fontSize: 9 }}></td>
+                            <td style={{ ...tdStyle, fontSize: 9, color: "#6A1B9A", fontStyle: "italic", textAlign: "left" }}>
+                              {equipment.codigo && <div style={{ fontFamily: "monospace", fontSize: 9, color: "#888" }}>{equipment.codigo}</div>}
+                              <div>↳ Equipamento: {equipment.descricao} — incluído no preço</div>
+                            </td>
+                            {Array.from({ length: QUOTE_PREVIEW_SUBITEM_BLANK_COLUMN_COUNT }, (_, i) => (
+                              <td key={i} style={{ ...tdStyle, fontSize: 9 }}></td>
+                            ))}
+                            <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold", color: "#6A1B9A" }}>{equipmentQty}</td>
+                            <td style={{ ...tdStyle, fontSize: 9, color: "#6A1B9A", fontStyle: "italic" }}>incl.</td>
+                            {showIpi && <td style={{ ...tdStyle, fontSize: 9, color: "#6A1B9A", fontStyle: "italic" }}>incl.</td>}
+                            <td style={{ ...tdStyle, fontSize: 9, color: "#6A1B9A", fontStyle: "italic" }}>incl.</td>
+                          </tr>
+                        );
+                      })}
                       {/* Sub-linha de observação do item (quando itemObsShowInExcel=true) */}
                       {item.itemObs && item.itemObsShowInExcel && (
                         <tr key={`obs-${idx}`} style={{ background: "#F0FFF4" }}>
