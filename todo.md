@@ -2891,13 +2891,14 @@
 - [x] Cobrir a paridade de acessórios entre Excel e prévia por regressão
 
 ## Regressão: visibilidade de Meus Orçamentos para Geysa
-- [ ] Identificar por que a busca de 32.0099 retorna lista e indicadores zerados para a Geysa
-- [ ] Corrigir a regra de visibilidade para assistentes com permissão de gerenciar orçamentos
-- [ ] Cobrir a listagem e busca de orçamentos por assistente autorizada
+- [x] Identificar por que a busca de 32.0099 retorna lista e indicadores zerados para a Geysa (a sessão ativa não possui Gerenciar Orçamentos)
+- [x] Corrigir a regra de visibilidade para assistentes com permissão de gerenciar orçamentos
+- [x] Cobrir a listagem e busca de orçamentos por assistente autorizada
+- [ ] Aguardar autorização explícita para conceder Gerenciar Orçamentos à conta ativa de Geysa (não alterar permissões por enquanto)
 
 ## Investigação: histórico de orçamentos possivelmente ausente após backup
-- [ ] Preservar o estado atual antes de investigar qualquer recuperação de dados
-- [ ] Verificar se os históricos ausentes existem em versões, auditorias ou backups disponíveis
+- [x] Preservar o estado atual antes de investigar qualquer recuperação de dados (checkpoint 19bec5b4)
+- [x] Verificar se os históricos ausentes existem em versões, auditorias ou backups disponíveis (backups SQL íntegros de 20/08 a 22/09; nenhuma versão órfã no banco atual)
 - [ ] Solicitar confirmação explícita antes de qualquer restauração que possa afetar dados atuais
 
 ## Investigação: orçamentos de 21/08 possivelmente ausentes

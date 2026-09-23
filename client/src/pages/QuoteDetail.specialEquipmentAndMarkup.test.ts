@@ -6,12 +6,15 @@ const root = process.cwd();
 const read = (relativePath: string) => readFileSync(resolve(root, relativePath), "utf8");
 
 describe("Editar Itens: equipamentos especiais e markup", () => {
-  it("atualiza o MKP do corpo e bloqueia preço unitário abaixo do mínimo da API", () => {
+  it("atualiza o MKP do corpo e sinaliza sem bloquear preço abaixo do mínimo da API", () => {
     const source = read("client/src/pages/QuoteDetail.tsx");
 
     expect(source).toContain("getBodyUnitPriceMarkup");
     expect(source).toContain("mkpCustom: markup.markup");
-    expect(source).toContain("Preço abaixo do mínimo permitido pela API");
+    expect(source).toContain("Atenção: preço abaixo do mínimo da API");
+    expect(source).toContain("MKP praticado:");
+    expect(source).toContain("border-destructive text-destructive");
+    expect(source).not.toContain("Nenhuma alteração foi aplicada.");
     expect(source).toContain("MKP atual:");
   });
 

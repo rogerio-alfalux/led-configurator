@@ -461,24 +461,19 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
               const markup = getBodyUnitPriceMarkup(d, newUnitPrice);
               if (markup?.isBelowMinimum) {
                 setUnitPriceMinimumMessage(
-                  `Preço abaixo do mínimo permitido pela API (${formatBRL(markup.minimumUnitPrice)} · MKP mínimo ${markup.minimumMarkup.toFixed(2)}×). Nenhuma alteração foi aplicada.`,
+                  `Atenção: preço abaixo do mínimo da API (${formatBRL(markup.minimumUnitPrice)} · MKP mínimo ${markup.minimumMarkup.toFixed(2)}×). MKP praticado: ${markup.markup.toFixed(2)}×.`,
                 );
-                return;
+              } else {
+                setUnitPriceMinimumMessage(null);
               }
-              setUnitPriceMinimumMessage(null);
               onUpdate(item.id, {
                 unitPrice: newUnitPrice,
                 ...(markup ? { mkpCustom: markup.markup } : {}),
               });
             })}
-            onBlur={() => {
-              if (!d.isSpecialItem && unitPriceMinimumMessage) {
-                setUnitPriceDraft(currentBodyUnitPrice != null ? String(currentBodyUnitPrice) : "");
-              }
-            }}
             readOnly={!!d.priceFromApi && !canOverrideApiPrice}
             placeholder={d.priceFromApi ? (canOverrideApiPrice ? "Sobrescrever preço da API" : "Preço da API") : "Definir preço"}
-            className={`mt-1 h-8 text-sm${(d.priceFromApi && !canOverrideApiPrice) ? " bg-muted text-muted-foreground cursor-not-allowed" : ""}`}
+            className={`mt-1 h-8 text-sm${(d.priceFromApi && !canOverrideApiPrice) ? " bg-muted text-muted-foreground cursor-not-allowed" : ""}${(!d.isSpecialItem && (unitPriceMinimumMessage || currentGenericMarkup?.isBelowMinimum)) ? " border-destructive text-destructive focus-visible:ring-destructive" : ""}`}
           />
           {d.priceFromApi && !canOverrideApiPrice && (
             <p className="text-xs text-muted-foreground mt-0.5">Preço definido pela API — não editável.</p>
@@ -489,11 +484,11 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
           {!d.isSpecialItem && unitPriceMinimumMessage && (
             <p role="alert" className="text-xs text-destructive mt-0.5">{unitPriceMinimumMessage}</p>
           )}
-          {!d.isSpecialItem && currentGenericMarkup && !currentGenericMarkup.isBelowMinimum && canEditMkp && (
-            <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+          {!d.isSpecialItem && currentGenericMarkup && (canOverrideApiPrice || canEditMkp) && (
+            <p className={`text-xs mt-0.5 ${currentGenericMarkup.isBelowMinimum ? "text-destructive font-medium" : "text-amber-700 dark:text-amber-400"}`}>
               MKP atual: <span className="font-semibold">{currentGenericMarkup.markup.toFixed(2)}×</span>
               {currentGenericMarkup.minimumMarkup > 0
-                ? ` · mínimo API: ${currentGenericMarkup.minimumMarkup.toFixed(2)}×`
+                ? ` · mínimo API: ${currentGenericMarkup.minimumMarkup.toFixed(2)}×${currentGenericMarkup.isBelowMinimum ? " — abaixo do mínimo" : ""}`
                 : " · mínimo ainda não informado pela API"}
             </p>
           )}
