@@ -44,6 +44,28 @@ describe("LDGuestRequests", () => {
     open.mockRestore();
   });
 
+  it("abre uma única resposta mesmo quando o LD clica duas vezes antes da consulta terminar", async () => {
+    getResponsePdf.mockClear();
+    markResponseViewed.mockClear();
+    let resolvePdf: ((value: { url: string }) => void) | undefined;
+    getResponsePdf.mockImplementationOnce(() => new Promise<{ url: string }>((resolve) => { resolvePdf = resolve; }));
+    const popup = { location: { href: "" }, close: vi.fn() } as unknown as Window;
+    const open = vi.spyOn(window, "open").mockReturnValue(popup);
+    render(React.createElement(LDGuestRequests));
+
+    const buttons = screen.getAllByRole("button", { name: /ver resposta/i });
+    const button = buttons[buttons.length - 1]!;
+    fireEvent.click(button);
+    fireEvent.click(button);
+
+    await waitFor(() => expect(getResponsePdf).toHaveBeenCalledTimes(1));
+    expect(open).toHaveBeenCalledTimes(1);
+    resolvePdf?.({ url: "/api/assets/ld-quotes/7/1/orcamento-atual.pdf" });
+    await waitFor(() => expect((popup.location as unknown as { href: string }).href).toBe("/api/assets/ld-quotes/7/1/orcamento-atual.pdf"));
+    expect(markResponseViewed).toHaveBeenCalledTimes(1);
+    open.mockRestore();
+  });
+
   it("pede confirmação antes de excluir a solicitação do próprio LD", async () => {
     render(React.createElement(LDGuestRequests));
     const deleteButtons = screen.getAllByRole("button", { name: /^excluir$/i });
@@ -72,5 +94,6 @@ describe("LDGuestRequests", () => {
     expect(source).toContain("ldRequests.startRevision.useMutation");
     expect(source).not.toContain("downloadPdfBlob(blob, currentPdfJob.fileName)");
     expect(source).not.toContain("openLdValidatedPdf");
+    expect(source).toContain("pdfOpenInFlightRef.current");
   });
 });

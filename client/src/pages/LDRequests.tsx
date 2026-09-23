@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { ArrowLeft, CalendarClock, CheckCircle2, ClipboardList, Clock, FileText, Filter, Mail, MapPin, Package, Paperclip, Phone, Search, Trash2, UserRound, X } from "lucide-react";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -167,6 +167,9 @@ export function LDGuestRequests() {
   const utils = trpc.useUtils();
   const [filters, setFilters] = useState<LdRequestFilter>({ search: "", status: "all", dateFrom: "", dateTo: "" });
   const [downloadingRequestId, setDownloadingRequestId] = useState<number | null>(null);
+  // `setState` é assíncrono: sem esta trava, um clique duplo podia abrir duas
+  // abas antes de o botão renderizar como desabilitado.
+  const pdfOpenInFlightRef = useRef(false);
   const [requestIdToDelete, setRequestIdToDelete] = useState<number | null>(null);
   const [requestIdToRevise, setRequestIdToRevise] = useState<number | null>(null);
   const mine = trpc.ldRequests.mine.useQuery(undefined, { staleTime: 0, enabled: (user as any)?.role === "convidado" });
@@ -184,7 +187,8 @@ export function LDGuestRequests() {
   });
   const visibleRequests = useMemo(() => filterLdRequests(mine.data ?? [], filters), [mine.data, filters]);
   const openOfficialPreview = async (requestId: number) => {
-    if (downloadingRequestId !== null) return;
+    if (pdfOpenInFlightRef.current || downloadingRequestId !== null) return;
+    pdfOpenInFlightRef.current = true;
     const pdfWindow = window.open("about:blank", "_blank");
     setDownloadingRequestId(requestId);
     try {
@@ -196,11 +200,12 @@ export function LDGuestRequests() {
       } else {
         window.location.assign(response.url);
       }
-      setDownloadingRequestId(null);
     } catch (error: any) {
       pdfWindow?.close();
       toast.error(error?.message ?? "Não foi possível abrir o PDF desta resposta.");
+    } finally {
       setDownloadingRequestId(null);
+      pdfOpenInFlightRef.current = false;
     }
   };
   const confirmDelete = async () => {
