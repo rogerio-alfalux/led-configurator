@@ -19,6 +19,11 @@ import { getDisplayedCustomerTotal } from "@/lib/quoteTotals";
 import { getQuoteParticipationPercent } from "@/lib/quoteAnalysis";
 import { toBrasiliaDate, toBrasiliaDateTimeShort, toBrasiliaFileDate, toBrasiliaMonthYear } from "@/lib/dateUtils";
 import { generateFilteredQuotesExcel } from "@/lib/quotesExcelGenerator";
+import {
+  clearQuoteListFilterState,
+  persistQuoteListFilterState,
+  readQuoteListFilterState,
+} from "@/lib/quoteListFilterState";
 import { PERMISSIONS } from "@shared/permissions";
 import { getCommercialQuoteValue, isApprovedOrInvoicedStatus, isNonCommercialQuoteStatus } from "@shared/commercialQuote";
 import { toast } from "sonner";
@@ -48,18 +53,19 @@ export default function Quotes() {
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
   const utils = trpc.useUtils();
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<string>("all");
-  const [sellerFilter, setSellerFilter] = useState<string>("all");
-  const [assistantFilter, setAssistantFilter] = useState<string>("all");
-  const [duplicateFilter, setDuplicateFilter] = useState<"all" | "duplicates" | "unique">("all");
-  const [prospectingFilter, setProspectingFilter] = useState<"all" | "prospecting" | "commercial">("all");
-  const [ldOriginFilter, setLdOriginFilter] = useState<"all" | "ld_only">("all");
-  const [ldResponseFilter, setLdResponseFilter] = useState<"all" | "awaiting_pdf" | "sent_pdf">("all");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [datePreset, setDatePreset] = useState("all");
-  const [page, setPage] = useState(0);
+  const [initialFilters] = useState(readQuoteListFilterState);
+  const [search, setSearch] = useState(initialFilters.search);
+  const [status, setStatus] = useState<string>(initialFilters.status);
+  const [sellerFilter, setSellerFilter] = useState<string>(initialFilters.sellerFilter);
+  const [assistantFilter, setAssistantFilter] = useState<string>(initialFilters.assistantFilter);
+  const [duplicateFilter, setDuplicateFilter] = useState<"all" | "duplicates" | "unique">(initialFilters.duplicateFilter);
+  const [prospectingFilter, setProspectingFilter] = useState<"all" | "prospecting" | "commercial">(initialFilters.prospectingFilter);
+  const [ldOriginFilter, setLdOriginFilter] = useState<"all" | "ld_only">(initialFilters.ldOriginFilter);
+  const [ldResponseFilter, setLdResponseFilter] = useState<"all" | "awaiting_pdf" | "sent_pdf">(initialFilters.ldResponseFilter);
+  const [dateFrom, setDateFrom] = useState(initialFilters.dateFrom);
+  const [dateTo, setDateTo] = useState(initialFilters.dateTo);
+  const [datePreset, setDatePreset] = useState(initialFilters.datePreset);
+  const [page, setPage] = useState(initialFilters.page);
   const [isExporting, setIsExporting] = useState(false);
   const [manualDuplicateOverrides, setManualDuplicateOverrides] = useState<Record<number, boolean>>({});
   const [visibleMetrics, setVisibleMetrics] = useState<Record<string, boolean>>(() => {
@@ -80,6 +86,22 @@ export default function Quotes() {
       setVisibleMetrics(previous => ({ ...previous, ...quoteMetricPreferencesQuery.data.visibility }));
     }
   }, [quoteMetricPreferencesQuery.data?.visibility]);
+  useEffect(() => {
+    persistQuoteListFilterState({
+      search,
+      status,
+      sellerFilter,
+      assistantFilter,
+      duplicateFilter,
+      prospectingFilter,
+      ldOriginFilter,
+      ldResponseFilter,
+      dateFrom,
+      dateTo,
+      datePreset,
+      page,
+    });
+  }, [search, status, sellerFilter, assistantFilter, duplicateFilter, prospectingFilter, ldOriginFilter, ldResponseFilter, dateFrom, dateTo, datePreset, page]);
   const limit = 20;
 
   const needsLdRequestData = ldOriginFilter !== "all" || ldResponseFilter !== "all";
@@ -252,6 +274,7 @@ export default function Quotes() {
   };
 
   const clearFilters = () => {
+    clearQuoteListFilterState();
     setSearch("");
     setStatus("all");
     setSellerFilter("all");

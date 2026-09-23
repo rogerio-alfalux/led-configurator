@@ -2812,9 +2812,33 @@ export async function getMonthlyReport(year: number, month: number) {
     .where(sql`YEAR(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${year} AND MONTH(DATE_SUB(approvedAt, INTERVAL 3 HOUR)) = ${month} AND status IN ('approved', 'invoiced')`)
     .orderBy(sql`approvedAt`);
 
+  // O relatório deve reproduzir o mesmo total comercial exibido em Meus
+  // Orçamentos: o total final persistido na revisão vigente é soberano.
+  // A recomposição por itens abaixo existe somente para registros históricos sem
+  // total salvo, nunca para reprecificar uma revisão já entregue.
+  const quoteIds = rows.map((row) => row.id);
+  const versionRows = quoteIds.length > 0
+    ? await db.select({
+      quoteId: quoteVersions.quoteId,
+      version: quoteVersions.version,
+      totalFinal: quoteVersions.totalFinal,
+    }).from(quoteVersions).where(inArray(quoteVersions.quoteId, quoteIds))
+    : [];
+  const effectiveVersionTotalByQuoteId = new Map<number, unknown>();
+  const effectiveVersionByQuoteId = new Map<number, number>();
+  for (const versionRow of versionRows) {
+    const currentVersion = effectiveVersionByQuoteId.get(versionRow.quoteId);
+    if (currentVersion == null || versionRow.version > currentVersion) {
+      effectiveVersionByQuoteId.set(versionRow.quoteId, versionRow.version);
+      effectiveVersionTotalByQuoteId.set(versionRow.quoteId, versionRow.totalFinal);
+    }
+  }
   const totalsByQuoteId = await getEffectiveCommercialTotalsForQuotes(db, rows);
   return rows.map(r => {
-    const totalFinal = totalsByQuoteId.get(r.id) ?? Number(r.totalFinal ?? 0);
+    const totalFinal = resolveStoredCommercialTotal(
+      effectiveVersionTotalByQuoteId.get(r.id) ?? r.totalFinal,
+      totalsByQuoteId.get(r.id),
+    );
     return ({
     ...r,
     totalFinal,
