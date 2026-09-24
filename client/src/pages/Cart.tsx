@@ -98,6 +98,8 @@ function getEffectiveDrvTotal(item: CartItemData): number {
 
 interface SaveFormData {
   quoteNumber: string;
+  /** Impede que a próxima sugestão por vendedor substitua um número informado pelo usuário. */
+  quoteNumberManuallyEdited: boolean;
   clientName: string;
   clientContact: string;
   clientPhone: string;
@@ -925,6 +927,7 @@ function StandardCart() {
   const SAVE_FORM_STORAGE_KEY = "alfalux_cart_save_form_draft";
   const defaultSaveForm: SaveFormData = {
     quoteNumber: "",
+    quoteNumberManuallyEdited: false,
     clientName: "",
     clientContact: "",
     clientPhone: "",
@@ -981,8 +984,17 @@ function StandardCart() {
       const stored = localStorage.getItem(SAVE_FORM_STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored) as Partial<SaveFormData>;
+        const storedQuoteNumber = parsed.quoteNumber?.trim() ?? "";
         // Mesclar com defaultSaveForm para garantir que campos novos tenham valor padrão
-        return { ...defaultSaveForm, ...parsed };
+        return {
+          ...defaultSaveForm,
+          ...parsed,
+          // Descarta o antigo fallback ORC-YY-NNNN, que não é um número comercial válido.
+          quoteNumber: isCommercialQuoteNumber(storedQuoteNumber) ? storedQuoteNumber : "",
+          quoteNumberManuallyEdited: isCommercialQuoteNumber(storedQuoteNumber)
+            ? (parsed.quoteNumberManuallyEdited ?? true)
+            : false,
+        };
       }
     } catch { /* ignore */ }
     return defaultSaveForm;
@@ -1030,19 +1042,24 @@ function StandardCart() {
 
   // Busca sugestão de número ao abrir o diálogo (atualiza quando vendedor muda)
   const seller1IdNum = saveForm.seller1Id ? parseInt(saveForm.seller1Id) : undefined;
+  const selectedSellerCode = sellers.find((seller) => String(seller.id) === saveForm.seller1Id)?.code?.trim() ?? "";
   const suggestQuery = trpc.quotes.suggestNumber.useQuery(
     { sellerId: seller1IdNum },
-    { enabled: saveDialogOpen, staleTime: 0 }
+    { enabled: saveDialogOpen && seller1IdNum != null, staleTime: 0 }
   );
-  // A sugestão sequencial preenche o campo somente enquanto o usuário ainda
-  // não informou um número manual. A edição manual preserva sua escolha.
+  const suggestedNumberMatchesSelectedSeller = Boolean(
+    selectedSellerCode
+    && suggestQuery.data?.suggested?.startsWith(`${selectedSellerCode}.`),
+  );
+  // A sugestão sequencial usa o código do Vendedor 1 e só substitui valores
+  // que ainda não foram editados manualmente pelo usuário.
   useEffect(() => {
-    if (saveDialogOpen && suggestQuery.data?.suggested) {
-      setSaveForm(prev => prev.quoteNumber.trim()
+    if (saveDialogOpen && seller1IdNum != null && suggestedNumberMatchesSelectedSeller && suggestQuery.data?.suggested) {
+      setSaveForm(prev => prev.quoteNumberManuallyEdited
         ? prev
-        : { ...prev, quoteNumber: suggestQuery.data!.suggested });
+        : { ...prev, quoteNumber: suggestQuery.data!.suggested, quoteNumberManuallyEdited: false });
     }
-  }, [saveDialogOpen, suggestQuery.data?.suggested]);
+  }, [saveDialogOpen, seller1IdNum, suggestedNumberMatchesSelectedSeller, suggestQuery.data?.suggested]);
 
   // Auto-preenche o estado da aba Frete quando o estado da aba Comercial muda
   // (apenas se o usuário ainda não escolheu um estado diferente na aba Frete)
@@ -1817,16 +1834,22 @@ function StandardCart() {
                               <Label>Número do Orçamento <span className="text-destructive">*</span></Label>
                               <Input
                                 value={saveForm.quoteNumber}
-                                onChange={e => updateSaveForm("quoteNumber", formatCommercialQuoteNumberInput(e.target.value))}
+                                onChange={e => setSaveForm(prev => ({
+                                  ...prev,
+                                  quoteNumber: formatCommercialQuoteNumberInput(e.target.value),
+                                  quoteNumberManuallyEdited: true,
+                                }))}
                                 className={`font-mono ${saveForm.quoteNumber.trim() && !isCommercialQuoteNumber(saveForm.quoteNumber) ? "border-destructive" : ""}`}
                                 inputMode="numeric"
                                 maxLength={10}
                                 placeholder="Ex: 04.0432-26"
                               />
                               <p className={`text-xs mt-1 ${saveForm.quoteNumber.trim() && !isCommercialQuoteNumber(saveForm.quoteNumber) ? "text-destructive" : "text-muted-foreground"}`}>
-                                {saveForm.quoteNumber.trim() && !isCommercialQuoteNumber(saveForm.quoteNumber)
-                                  ? "Complete o formato xx.xxxx-xx."
-                                  : "Use somente números; o ponto e o hífen são inseridos automaticamente."}
+                                {!saveForm.seller1Id
+                                  ? "Selecione o Vendedor 1 na aba Equipe para sugerir o próximo número."
+                                  : saveForm.quoteNumber.trim() && !isCommercialQuoteNumber(saveForm.quoteNumber)
+                                    ? "Complete o formato xx.xxxx-xx."
+                                    : "Sugestão baseada no código do vendedor; você pode editá-la manualmente."}
                               </p>
                             </div>
                             {/* Número do Projeto */}
@@ -1895,8 +1918,17 @@ function StandardCart() {
                                 disabled={isSellerLogin}
                                 onValueChange={(v) => {
                                   const sel = sellers.find(s => String(s.id) === v);
-                                  updateSaveForm("seller1Id", v);
-                                  updateSaveForm("seller1Name", sel?.name ?? "");
+                                  setSaveForm(prev => ({
+                                    ...prev,
+                                    seller1Id: v,
+                                    seller1Name: sel?.name ?? "",
+                                    // Ao trocar o vendedor, a próxima consulta preenche o
+                                    // próximo número do código comercial dele. Número manual
+                                    // permanece soberano.
+                                    ...(!prev.quoteNumberManuallyEdited
+                                      ? { quoteNumber: "", quoteNumberManuallyEdited: false }
+                                      : {}),
+                                  }));
                                   // Comissão padrão: 10% para Gatti, 5% para demais
                                   const isGatti1 = (sel?.name ?? "").toLowerCase().includes("gatti");
                                   const hasSeller2 = !!saveForm.seller2Id;
@@ -1928,7 +1960,9 @@ function StandardCart() {
                                   {suggestQuery.isLoading ? (
                                     <span className="text-xs text-muted-foreground animate-pulse">Calculando...</span>
                                   ) : (
-                                    <span className="text-sm font-mono font-bold text-primary">{saveForm.quoteNumber || suggestQuery.data?.suggested}</span>
+                                    <span className="text-sm font-mono font-bold text-primary">
+                                      {saveForm.quoteNumber || (suggestedNumberMatchesSelectedSeller ? suggestQuery.data?.suggested : "—")}
+                                    </span>
                                   )}
                                 </div>
                               )}

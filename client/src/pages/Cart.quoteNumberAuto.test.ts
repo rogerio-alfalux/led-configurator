@@ -25,11 +25,25 @@ describe("número manual de novos orçamentos", () => {
     expect(source).toContain("if (!isCommercialQuoteNumber(saveForm.quoteNumber))");
   });
 
-  it("mantém a sugestão automática somente como preenchimento inicial e preserva a edição manual", () => {
+  it("sugere apenas com Vendedor 1 selecionado e usa o próximo número do código dele", () => {
     const source = read("client/src/pages/Cart.tsx");
 
-    expect(source).toContain("prev.quoteNumber.trim()");
-    expect(source).toContain("saveForm.quoteNumber || suggestQuery.data?.suggested");
+    expect(source).toContain("{ enabled: saveDialogOpen && seller1IdNum != null, staleTime: 0 }");
+    expect(source).toContain("sellerId: seller1IdNum");
+    expect(source).toContain("selectedSellerCode");
+    expect(source).toContain("suggestedNumberMatchesSelectedSeller");
+    expect(source).toContain("startsWith(`${selectedSellerCode}.`)");
+    expect(source).toContain("prev.quoteNumberManuallyEdited");
+    expect(source).toContain("quoteNumber: \"\", quoteNumberManuallyEdited: false");
+    expect(source).toContain("Selecione o Vendedor 1 na aba Equipe para sugerir o próximo número.");
+  });
+
+  it("preserva somente o número digitado manualmente ao trocar o vendedor", () => {
+    const source = read("client/src/pages/Cart.tsx");
+
+    expect(source).toContain("quoteNumberManuallyEdited: true");
+    expect(source).toContain("Número manual\n                                    // permanece soberano.");
+    expect(source).toContain("saveForm.quoteNumber || (suggestedNumberMatchesSelectedSeller ? suggestQuery.data?.suggested : \"—\")");
   });
 
   it("valida formato e duplicidade no servidor antes de criar e protege contra corrida", () => {
