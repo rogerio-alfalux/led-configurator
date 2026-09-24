@@ -103,7 +103,7 @@ describe("PDF com valores unificados por produto", () => {
     expect(accessoryRow!.textContent).toContain(formatBRL(22.2222));
   });
 
-  it("mostra os campos técnicos de Item Especial e a observação obrigatória de Não Orçamos", () => {
+  it("mostra os campos técnicos e a cor de Item Especial, além da observação obrigatória de Não Orçamos", () => {
     const specialItem: CartItemData = {
       category: "Item Especial",
       isSpecialItem: true,
@@ -117,6 +117,7 @@ describe("PDF com valores unificados por produto", () => {
       specialPower: "36W",
       specialDim: "DALI",
       specialVoltage: "Bivolt",
+      specialColor: "Grafite",
       specialColorTemp: "6000K",
     };
     const nonQuotedItem: CartItemData = {
@@ -144,6 +145,7 @@ describe("PDF com valores unificados por produto", () => {
     expect(specialRow?.textContent).toContain("36W");
     expect(specialRow?.textContent).toContain("DALI");
     expect(specialRow?.textContent).toContain("Bivolt");
+    expect(specialRow?.textContent).toContain("Grafite");
     expect(specialRow?.textContent).toContain("6000K");
     expect(observationRow?.textContent).toContain("Obs.:");
   });

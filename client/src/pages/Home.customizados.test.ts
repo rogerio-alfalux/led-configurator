@@ -52,6 +52,15 @@ describe("Customizados na Home", () => {
     expect(homeSource).toContain("CCT:</span> {spColorTemp}");
   });
 
+  it("abre o seletor padrão de cor antes de incluir Item Especial e persiste a escolha", () => {
+    expect(homeSource).toContain("const [specialColorModalOpen, setSpecialColorModalOpen] = useState(false)");
+    expect(homeSource).toContain("onClick={() => setSpecialColorModalOpen(true)}");
+    expect(homeSource).toContain("open={specialColorModalOpen}");
+    expect(homeSource).toContain("handleAddSpecialItem(cor)");
+    expect(homeSource).toContain("corPeca: cor");
+    expect(homeSource).toContain("specialColor: cor");
+  });
+
   it("persiste a observação de Não Orçamos separadamente e sem opção de ocultá-la", () => {
     expect(homeSource).toContain('const [noObservation, setNoObservation] = useState<string>("")');
     expect(homeSource).toContain("nonQuotedObservation: noObservation.trim() || undefined");

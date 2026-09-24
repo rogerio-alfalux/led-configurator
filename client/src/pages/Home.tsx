@@ -3577,6 +3577,7 @@ export default function Home() {
   const [spPhotoUrl, setSpPhotoUrl] = useState<string>("");
   const [spPhotoPreview, setSpPhotoPreview] = useState<string>("");
   const [spIsUploading, setSpIsUploading] = useState(false);
+  const [specialColorModalOpen, setSpecialColorModalOpen] = useState(false);
 
   //  // ── Estados de Serviços ──────────────────────────────────────────────
   const [svDescription, setSvDescription] = useState<string>("");
@@ -4088,7 +4089,7 @@ export default function Home() {
     reader.readAsDataURL(file);
   }, [uploadSpecialPhotoMutation]);
 
-  const handleAddSpecialItem = useCallback(() => {
+  const handleAddSpecialItem = useCallback((cor: CorPeca) => {
     if (!spDescription.trim()) {
       toast.error("Informe a descrição do item especial.");
       return;
@@ -4119,6 +4120,8 @@ export default function Home() {
       specialPower: spPower.trim() || undefined,
       specialDim: spDim.trim() || undefined,
       specialVoltage: spVoltage.trim() || undefined,
+      corPeca: cor,
+      specialColor: cor,
       cct: spColorTemp.trim() || undefined,
       specialColorTemp: spColorTemp.trim() || undefined,
       specialUnitPrice: unitPrice || undefined,
@@ -4138,7 +4141,7 @@ export default function Home() {
     if (appendToQuoteId || replaceInQuoteId) {
       handleAddItemOrToQuote(finalItemWithAcc);
     } else {
-      // Item Especial vai direto ao carrinho — cor já está no formulário, não precisa do seletor de cor
+      // O Item Especial já recebe a cor confirmada no seletor próprio.
       addItem(finalItemWithAcc);
     }
     setSpQty("1");
@@ -9092,7 +9095,7 @@ export default function Home() {
                 </div>
                 {/* Botão adicionar */}
                 <Button
-                  onClick={handleAddSpecialItem}
+                  onClick={() => setSpecialColorModalOpen(true)}
                   disabled={!spDescription.trim() || spIsUploading}
                   className="w-full h-12 text-base font-semibold font-display bg-amber-600 hover:bg-amber-700 text-white"
                   size="lg"
@@ -14436,6 +14439,16 @@ export default function Home() {
         excludedColors={pendingCartItem?.category === "LED BAR" ? ["Branco Fosco Micro"] : []}
         allowedColors={/\bAURORA\b/i.test(pendingCartItem?.description ?? "") ? ["Preto Fosco Micro"] : undefined}
         hideUndefinedOption={/\bAURORA\b/i.test(pendingCartItem?.description ?? "")}
+      />
+      <ColorPickerModal
+        open={specialColorModalOpen}
+        onClose={() => setSpecialColorModalOpen(false)}
+        onConfirm={(cor: CorPeca) => {
+          setSpecialColorModalOpen(false);
+          handleAddSpecialItem(cor);
+        }}
+        productName={spDescription.trim() || "Item Especial"}
+        isAdding={spIsUploading}
       />
       {/* SHIFT Module Selector Modal */}
       <ShiftModuleSelector

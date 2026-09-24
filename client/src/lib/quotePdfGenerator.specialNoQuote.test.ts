@@ -27,6 +27,7 @@ describe("PDF comercial: Item Especial e Não Orçamos", () => {
       photoUrl: null,
       specialDim: "DALI",
       specialVoltage: "Bivolt",
+      specialColor: "Grafite",
       specialColorTemp: "6000K",
     };
     const nonQuotedItem: CartItemData = {
@@ -45,6 +46,7 @@ describe("PDF comercial: Item Especial e Não Orçamos", () => {
 
     expect(text).toContain("DALI");
     expect(text).toContain("Bivolt");
+    expect(text).toContain("Grafite");
     expect(text).toContain("6000K");
     expect(text).toContain("OBS-NAO-ORCAMOS-OK");
     vi.unstubAllGlobals();

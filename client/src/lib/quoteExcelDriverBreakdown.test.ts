@@ -226,7 +226,7 @@ describe("sub-linha comercial de driver de perfil", () => {
     expect(worksheet.getCell(`E${equipmentRow}`).fill.fgColor?.argb).toBe("FFF3E5F5");
   });
 
-  it("leva DIM, tensão e CCT de Item Especial para suas colunas comerciais", async () => {
+  it("leva DIM, tensão, cor e CCT de Item Especial para suas colunas comerciais", async () => {
     const item: CartItemData = {
       category: "Item Especial",
       isSpecialItem: true,
@@ -240,6 +240,7 @@ describe("sub-linha comercial de driver de perfil", () => {
       specialPower: "36W",
       specialDim: "DALI",
       specialVoltage: "Bivolt",
+      specialColor: "Grafite",
       specialColorTemp: "6000K",
     };
 
@@ -255,6 +256,7 @@ describe("sub-linha comercial de driver de perfil", () => {
     expect(worksheet.getCell(`G${row}`).value).toBe("36W");
     expect(worksheet.getCell(`H${row}`).value).toBe("DALI");
     expect(worksheet.getCell(`I${row}`).value).toBe("Bivolt");
+    expect(worksheet.getCell(`J${row}`).value).toBe("Grafite");
     expect(worksheet.getCell(`K${row}`).value).toBe("6000K");
   });
 
