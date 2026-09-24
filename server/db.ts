@@ -2075,7 +2075,11 @@ export async function getManagerDashboard(year: number, month?: number, dateFrom
               const apiAccessory = acessorioByCodigo.get(code) ?? acessorioBySku.get(code);
               const apiComponent = componenteByCodigo.get(code);
               const unitCost = Number(apiAccessory?.custo ?? apiComponent?.custoDriver ?? 0);
-              return sum + unitCost * Number(accessory.qty ?? 1) * qty;
+              const accessoryQty = Math.max(0, Number(accessory.qty ?? 0) || 0);
+              const totalAccessoryQty = accessory.quantityScope === 'order_total'
+                ? accessoryQty
+                : accessoryQty * qty;
+              return sum + unitCost * totalAccessoryQty;
             }, 0)
           : 0;
         if (linkedAccessoryCost > 0) {

@@ -36,6 +36,29 @@ describe("calculateCommercialQuoteTotal", () => {
     expect(totals.totalFinal).toBe(1540);
   });
 
+  it("preserva preço e quantidade editados de acessórios como total do pedido", () => {
+    const totals = calculateCommercialQuoteTotal({}, [{
+      category: "Perfis",
+      qty: 12,
+      totalPrice: 1_200,
+      accessories: [{ unitPrice: 37.5, qty: 3, quantityScope: "order_total" }],
+    }]);
+
+    // O acessório foi editado para três unidades no pedido inteiro, não por luminária.
+    expect(totals.totalFinal).toBe(1_312.5);
+  });
+
+  it("mantém a multiplicação por luminária para acessórios legados por unidade", () => {
+    const totals = calculateCommercialQuoteTotal({}, [{
+      category: "Perfis",
+      qty: 3,
+      totalPrice: 300,
+      accessories: [{ unitPrice: 20, qty: 2, quantityScope: "per_unit" }],
+    }]);
+
+    expect(totals.totalFinal).toBe(420);
+  });
+
   it("aplica RT e margem globais ao conjunto de luminária e driver", () => {
     const totals = calculateCommercialQuoteTotal({
       rtPercent: 0.10,

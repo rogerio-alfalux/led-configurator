@@ -36,7 +36,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { useCart } from "@/hooks/useCart";
-import { formatBRL, QuoteFormData, CartItemData, parseCartItemData } from "@/lib/cartTypes";
+import { formatBRL, QuoteFormData, CartItemData, getLinkedAccessoryTotalPrice, parseCartItemData } from "@/lib/cartTypes";
 import { getCartDriverDisplayDetails } from "@/lib/cartDriverDisplay";
 import { buildUnambiguousCatalogPhotoMap, getPersistedItemPhotoUrl } from "@/lib/itemPhoto";
 import type { LinkedAccessory, SpecialEquipment } from "@/lib/cartTypes";
@@ -1123,8 +1123,10 @@ function StandardCart() {
     } else {
       itemTotal = e.data.totalPrice ?? 0;
     }
-    const accessoryTotal = (e.data.accessories ?? []).reduce((sum, accessory) =>
-      sum + (Number(accessory.unitPrice ?? 0) * Number(accessory.qty ?? 0) * Number(e.data.qty ?? 1)), 0);
+    const accessoryTotal = (e.data.accessories ?? []).reduce(
+      (sum, accessory) => sum + getLinkedAccessoryTotalPrice(e.data, accessory),
+      0,
+    );
     return acc + applyItemMargin(itemTotal + accessoryTotal, e.data.itemMarginPercent);
   }, 0);
 

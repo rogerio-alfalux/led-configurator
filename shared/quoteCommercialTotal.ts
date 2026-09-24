@@ -7,6 +7,8 @@ export type CommercialDriverLine = {
 export type CommercialLinkedAccessory = {
   unitPrice?: unknown;
   qty?: unknown;
+  /** Quantidade manual do pedido: não deve ser multiplicada pela quantidade da luminária. */
+  quantityScope?: unknown;
 };
 
 export type CommercialQuoteItem = {
@@ -128,11 +130,13 @@ export function calculateCommercialQuoteTotal(
           return Math.max(0, numberOrZero(item.totalPrice) - driversTotal);
         })()
       : numberOrZero(item.totalPrice);
-    const accessoriesTotal = (item.accessories ?? []).reduce(
-      (accessorySum, accessory) => accessorySum
-        + numberOrZero(accessory.unitPrice) * numberOrZero(accessory.qty) * qty,
-      0,
-    );
+    const accessoriesTotal = (item.accessories ?? []).reduce((accessorySum, accessory) => {
+      const accessoryQty = Math.max(0, numberOrZero(accessory.qty));
+      const totalAccessoryQty = accessory.quantityScope === "order_total"
+        ? accessoryQty
+        : accessoryQty * qty;
+      return accessorySum + numberOrZero(accessory.unitPrice) * totalAccessoryQty;
+    }, 0);
     return sum + applyItemDiscount(
       applyItemMargin(bodyTotal + driversTotal + accessoriesTotal, item.itemMarginPercent),
       item.itemDiscountPercent,
