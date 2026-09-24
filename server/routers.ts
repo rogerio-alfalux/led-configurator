@@ -2882,18 +2882,22 @@ export const appRouter = router({
     }),
 
     runNow: adminProcedure.mutation(async () => {
-      // O backup completo pode ultrapassar 110 MB entre SQL e TSV. Aguardar
-      // os dois uploads dentro da requisição faz o proxy responder 503 antes
-      // de a rotina terminar. Iniciamos a tarefa na fila serializada e o
-      // cliente acompanha o histórico até os dois registros aparecerem.
-      const queuedAt = new Date().toISOString();
+      // O ambiente hospedado encerra trabalho disparado após a resposta HTTP.
+      // Como a geração e os uploads paralelos atuais completam em poucos
+      // segundos, aguardamos a confirmação real para nunca deixar marcador
+      // "Em processamento" sem trabalhador vivo para concluí-lo.
       const executionId = `manual-${crypto.randomUUID()}`;
-      const { createBackupRunMarker } = await import("./backupService");
-      const pendingId = await createBackupRunMarker(executionId);
-      void generateAndStoreCompleteBackup({ trigger: "manual", cronTaskUid: executionId, pendingId }).catch(error => {
-        console.error("[Backup] Falha na execução manual assíncrona:", error);
+      const result = await generateAndStoreCompleteBackup({
+        trigger: "manual",
+        cronTaskUid: executionId,
       });
-      return { ok: true as const, queued: true as const, queuedAt, executionId };
+      return {
+        ok: true as const,
+        executionId,
+        historyRows: result.historyRows,
+        generatedAt: result.generatedAt,
+        elapsedMs: result.elapsedMs,
+      };
     }),
 
     exportSQL: adminProcedure.query(async () => {

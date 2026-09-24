@@ -1,5 +1,5 @@
 import mysql, { type RowDataPacket } from "mysql2/promise";
-import { desc, eq, inArray } from "drizzle-orm";
+import { desc, inArray } from "drizzle-orm";
 import { backups } from "../drizzle/schema";
 import { getDb } from "./db";
 import { ENV } from "./_core/env";
@@ -22,22 +22,6 @@ export type BackupExecutionResult = {
   historyRows: Array<typeof backups.$inferSelect>;
   elapsedMs: number;
 };
-
-export async function createBackupRunMarker(executionId: string): Promise<number> {
-  const db = await getDb();
-  if (!db) throw new Error("DB indisponível");
-  const result = await db.insert(backups).values({
-    type: "sql",
-    fileName: `backup-pendente-${executionId}.sql`,
-    fileUrl: "",
-    fileKey: `pending/${executionId}`,
-    fileSizeBytes: 0,
-    status: "success",
-    recordCounts: JSON.stringify({ state: "queued", trigger: "manual" }),
-    cronTaskUid: executionId,
-  });
-  return Number((result as { insertId?: number }).insertId ?? 0);
-}
 
 const BACKUP_TIME_ZONE = "America/Sao_Paulo";
 const INSERT_BATCH_SIZE = 250;
@@ -231,7 +215,6 @@ async function executeCompleteBackup(options?: {
   cronTaskUid?: string | null;
   trigger?: "automatic" | "manual";
   now?: Date;
-  pendingId?: number;
 }): Promise<BackupExecutionResult> {
   const startedAt = options?.now ?? new Date();
   const startedMs = Date.now();
@@ -276,10 +259,6 @@ async function executeCompleteBackup(options?: {
       },
     ]);
 
-    if (options?.pendingId) {
-      await db.delete(backups).where(eq(backups.id, options.pendingId));
-    }
-
     const uploadedKeys = [sqlUpload.key, excelUpload.key];
     const matchingRows = await db
       .select()
@@ -307,26 +286,17 @@ async function executeCompleteBackup(options?: {
     const message = error instanceof Error ? error.message : String(error);
     const stamp = getBrasiliaBackupStamp(startedAt);
     try {
-      if (options?.pendingId) {
-        await db.update(backups).set({
-          fileName: `backup-error-${stamp}.sql`,
-          errorMessage: message,
-          recordCounts: JSON.stringify({ state: "error", trigger: options?.trigger ?? "automatic" }),
-          status: "error",
-        }).where(eq(backups.id, options.pendingId));
-      } else {
-        await db.insert(backups).values({
-          type: "sql",
-          fileName: `backup-error-${stamp}.sql`,
-          fileUrl: "",
-          fileKey: "",
-          fileSizeBytes: 0,
-          status: "error",
-          errorMessage: message,
-          recordCounts: JSON.stringify({ trigger: options?.trigger ?? "automatic" }),
-          cronTaskUid: options?.cronTaskUid ?? null,
-        });
-      }
+      await db.insert(backups).values({
+        type: "sql",
+        fileName: `backup-error-${stamp}.sql`,
+        fileUrl: "",
+        fileKey: "",
+        fileSizeBytes: 0,
+        status: "error",
+        errorMessage: message,
+        recordCounts: JSON.stringify({ state: "error", trigger: options?.trigger ?? "automatic" }),
+        cronTaskUid: options?.cronTaskUid ?? null,
+      });
     } catch {
       // O erro original é mais útil do que uma falha secundária ao registrar o histórico.
     }
@@ -338,7 +308,6 @@ export function generateAndStoreCompleteBackup(options?: {
   cronTaskUid?: string | null;
   trigger?: "automatic" | "manual";
   now?: Date;
-  pendingId?: number;
 }): Promise<BackupExecutionResult> {
   return enqueueBackup(() => executeCompleteBackup(options));
 }
