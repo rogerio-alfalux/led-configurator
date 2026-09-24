@@ -144,6 +144,7 @@ import { calculateLinkedAccessoriesTotal, parseShiftModuleManualPrice } from "@/
 import { buildSplitDriverPricePatch, buildSplitDriverQuantityPatch, cloneCartItemData, getEditableBodyUnitPrice } from "@/lib/splitItemPricing";
 import { deriveDriverQuantityPerUnit, selectDriverVariantByDescription } from "@/lib/driverRehydration";
 import { shouldBindCommercialQuoteTeam } from "@shared/quoteOwnership";
+import { getActiveQuoteVersionId } from "@shared/quoteVersionSelection";
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   open: { label: "Em Aberto", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300", icon: <Clock className="w-3 h-3" /> },
@@ -1666,8 +1667,9 @@ export default function QuoteDetail() {
   const currentItemsMigrated = useMemo(() => {
     const _data = data as typeof data & { items?: typeof data extends { items: infer I } ? I : unknown[]; versions?: unknown[] } | undefined;
     const _items: Array<{ quoteVersionId: string; itemData: string; [key: string]: unknown }> = (_data as { items?: Array<{ quoteVersionId: string; itemData: string; [key: string]: unknown }> } | undefined)?.items ?? [];
-    const _versions: Array<{ id: string }> = (_data as { versions?: Array<{ id: string }> } | undefined)?.versions ?? [];
-    const _currentVersionId = _versions[0]?.id;
+    const _versions: Array<{ id: string; status?: string | null }> = (_data as { versions?: Array<{ id: string; status?: string | null }> } | undefined)?.versions ?? [];
+    const _activeVersionId = (_data as { activeVersionId?: string | number } | undefined)?.activeVersionId;
+    const _currentVersionId = _activeVersionId ?? getActiveQuoteVersionId(_versions, _items.map((item) => item.quoteVersionId));
     const _currentItems = _items.filter(i => i.quoteVersionId === _currentVersionId);
     // REGRA COMERCIAL: um orçamento já salvo é um snapshot soberano. Catálogos
     // vigentes não podem trocar driver, módulo, quantidade ou preço ao reabri-lo.
@@ -2096,7 +2098,8 @@ export default function QuoteDetail() {
   const exportRevisionCount = (quote.revisionCount ?? 0) + (hasDraftRevision ? 1 : 0);
 
   // Itens da versão mais recente
-  const currentVersionId = versions[0]?.id;
+  const currentVersionId = (data as typeof data & { activeVersionId?: number | string }).activeVersionId
+    ?? getActiveQuoteVersionId(versions, items.map((item) => item.quoteVersionId));
   const currentItems = items.filter(i => i.quoteVersionId === currentVersionId);
 
   // RT/Margem calc for edit form

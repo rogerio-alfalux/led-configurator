@@ -32,6 +32,7 @@ import { ADMIN_PENDING_LD_STATUSES } from './ldRequestBadgeStatus';
 import { brasiliaDateToUtcSqlTimestamp, getBrasiliaYear2, toBrasiliaSqlTimestamp, toUtcSqlTimestamp } from './timeUtils';
 import { readAdditionalCostsAggregate } from './dashboardAdditionalCosts';
 import { getStateInfo } from '../client/src/lib/difalTable';
+import { getActiveQuoteVersionId } from '../shared/quoteVersionSelection';
 
 /** Mantido para textos e metadados que precisam da hora civil de Brasília. */
 export const nowBrasiliaStr = () => toBrasiliaSqlTimestamp();
@@ -920,10 +921,32 @@ export async function addQuoteRevision(
     }
 
     if (draftVersionId) {
+      let itemsToPersist = input.items;
+      if (itemsToPersist.length === 0) {
+        // Nunca deixe uma edição de cabeçalho apagar as linhas de um orçamento
+        // comercial. Recupera o snapshot mais recente que ainda contém itens;
+        // uma remoção deliberada continua usando os fluxos próprios de itens.
+        const versionsWithItems = await db.select({ id: quoteVersions.id })
+          .from(quoteVersions)
+          .where(eq(quoteVersions.quoteId, quoteId))
+          .orderBy(desc(quoteVersions.createdAt));
+        for (const version of versionsWithItems) {
+          if (version.id === draftVersionId) continue;
+          const preservedItems = await db.select({ itemNumber: quoteItems.itemNumber, itemData: quoteItems.itemData })
+            .from(quoteItems)
+            .where(eq(quoteItems.quoteVersionId, version.id))
+            .orderBy(quoteItems.itemNumber);
+          if (preservedItems.length > 0) {
+            itemsToPersist = preservedItems;
+            console.warn(`[Quote ${quoteId}] Preservando ${preservedItems.length} item(ns) da revisão ${version.id}; a solicitação de rascunho chegou vazia.`);
+            break;
+          }
+        }
+      }
       await db.delete(quoteItems).where(eq(quoteItems.quoteVersionId, draftVersionId));
-      if (input.items.length > 0) {
+      if (itemsToPersist.length > 0) {
         await db.insert(quoteItems).values(
-          input.items.map((it) => ({
+          itemsToPersist.map((it) => ({
             quoteVersionId: draftVersionId,
             quoteId,
             itemNumber: it.itemNumber,
@@ -1197,7 +1220,11 @@ export async function getQuoteById(id: number) {
     .where(eq(quoteItems.quoteId, id))
     .orderBy(quoteItems.itemNumber);
 
-  return { quote: qRows[0], versions, items };
+  // Um rascunho sem linhas pode surgir se uma gravação de cabeçalho for
+  // interrompida. Ele não pode ocultar a última revisão que ainda contém os
+  // itens comerciais do orçamento.
+  const activeVersionId = getActiveQuoteVersionId(versions, items.map((item) => item.quoteVersionId));
+  return { quote: qRows[0], versions, items, activeVersionId };
 }
 
 /** Busca um orçamento pelo número digitado, tolerando o prefixo ORC e separadores. */

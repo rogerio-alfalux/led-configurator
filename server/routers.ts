@@ -1676,8 +1676,7 @@ export const appRouter = router({
         if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
         const canAppend = await canEditQuote(ctx.user.email, existing.quote, ctx.user.role, ctx.user.id);
         if (!canAppend) throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para adicionar itens a este orçamento." });
-        const { quote, versions, items } = existing;
-        const currentVersionId = versions[0]?.id;
+        const { quote, items, activeVersionId: currentVersionId } = existing;
         const currentItems = items
           .filter(i => i.quoteVersionId === currentVersionId)
           .map((i, idx) => ({ itemNumber: i.itemNumber, itemData: i.itemData }));
@@ -1777,8 +1776,7 @@ export const appRouter = router({
         if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
         const canReplace = await canEditQuote(ctx.user.email, existing.quote, ctx.user.role, ctx.user.id);
         if (!canReplace) throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para editar este orçamento." });
-        const { quote, versions, items } = existing;
-        const currentVersionId = versions[0]?.id;
+        const { quote, items, activeVersionId: currentVersionId } = existing;
         const currentItems = items
           .filter(i => i.quoteVersionId === currentVersionId)
           .map((i) => ({ itemNumber: i.itemNumber, itemData: i.itemData }));

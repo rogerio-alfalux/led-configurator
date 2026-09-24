@@ -26,6 +26,15 @@ describe("selectActiveQuoteItems", () => {
     expect(items).toEqual([{ quoteVersionId: 2 }]);
   });
 
+  it("mantém a última revisão com itens se o rascunho estiver vazio", () => {
+    const items = selectActiveQuoteItems(
+      [{ id: 3, status: "draft" }, { id: 2, status: "published" }],
+      [{ quoteVersionId: 2, item: "snapshot publicado" }],
+    );
+
+    expect(items).toEqual([{ quoteVersionId: 2, item: "snapshot publicado" }]);
+  });
+
   it("identifica a revisão ativa usada para gravar ajustes manuais", () => {
     expect(getActiveQuoteVersionId([
       { id: 9, status: "published" },

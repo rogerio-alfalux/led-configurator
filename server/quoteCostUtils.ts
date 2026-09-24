@@ -6,7 +6,11 @@ export function selectActiveQuoteItems<
   Version extends { id: number; status?: string | null },
   Item extends { quoteVersionId: number }
 >(versions: Version[], items: Item[]): Item[] {
-  const activeVersionId = getActiveQuoteVersionId(versions);
+  // Um rascunho sem itens não é uma revisão comercial exibível. Em caso de
+  // gravação interrompida, mantém custo e dashboard ancorados no último
+  // snapshot que efetivamente possui linhas.
+  const activeVersionId = versions.find((version) => items.some((item) => item.quoteVersionId === version.id))?.id
+    ?? getActiveQuoteVersionId(versions);
   if (activeVersionId == null) return [];
   return items.filter((item) => item.quoteVersionId === activeVersionId);
 }
