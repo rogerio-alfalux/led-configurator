@@ -64,6 +64,7 @@ import { buildLdRequestPayload } from "@/lib/ldRequestForm";
 import { buildSplitBodyPricePatch, cloneCartItemData, getEditableBodyUnitPrice } from "@/lib/splitItemPricing";
 import { getLdRequestDeadlineLimits, getLdRequestDeadlineValidationError } from "@shared/ldRequestDeadlines";
 import { isLdGuestUser } from "@/lib/ldGuestAccess";
+import { formatCommercialQuoteNumberInput, isCommercialQuoteNumber } from "@shared/quoteNumberFormat";
 
 /**
  * REGRA INEGOCIÁVEL: Para perfis (com profileSegments), o driverQty total é sempre
@@ -1033,11 +1034,13 @@ function StandardCart() {
     { sellerId: seller1IdNum },
     { enabled: saveDialogOpen, staleTime: 0 }
   );
-  // O número é uma prévia do sequencial do vendedor. O servidor atribui o
-  // número definitivo de forma atômica ao salvar; não há edição manual.
+  // A sugestão sequencial preenche o campo somente enquanto o usuário ainda
+  // não informou um número manual. A edição manual preserva sua escolha.
   useEffect(() => {
     if (saveDialogOpen && suggestQuery.data?.suggested) {
-      setSaveForm(prev => ({ ...prev, quoteNumber: suggestQuery.data!.suggested }));
+      setSaveForm(prev => prev.quoteNumber.trim()
+        ? prev
+        : { ...prev, quoteNumber: suggestQuery.data!.suggested });
     }
   }, [saveDialogOpen, suggestQuery.data?.suggested]);
 
@@ -1282,6 +1285,10 @@ function StandardCart() {
       toast.error("Informe o nome do cliente.");
       return;
     }
+    if (!isCommercialQuoteNumber(saveForm.quoteNumber)) {
+      toast.error("O número do orçamento deve seguir o formato xx.xxxx-xx.");
+      return;
+    }
     if (!saveForm.projectName.trim()) {
       toast.error("Informe o nome da Obra / Projeto.");
       return;
@@ -1304,6 +1311,7 @@ function StandardCart() {
       return;
     }
     saveQuoteMutation.mutate({
+      quoteNumber: saveForm.quoteNumber.trim(),
       clientName: saveForm.clientName,
       clientContact: saveForm.clientContact || undefined,
       clientPhone: saveForm.clientPhone || undefined,
@@ -1805,6 +1813,22 @@ function StandardCart() {
                                 onChange={e => updateSaveForm("clientEmail", e.target.value)}
                               />
                             </div>
+                            <div>
+                              <Label>Número do Orçamento <span className="text-destructive">*</span></Label>
+                              <Input
+                                value={saveForm.quoteNumber}
+                                onChange={e => updateSaveForm("quoteNumber", formatCommercialQuoteNumberInput(e.target.value))}
+                                className={`font-mono ${saveForm.quoteNumber.trim() && !isCommercialQuoteNumber(saveForm.quoteNumber) ? "border-destructive" : ""}`}
+                                inputMode="numeric"
+                                maxLength={10}
+                                placeholder="Ex: 04.0432-26"
+                              />
+                              <p className={`text-xs mt-1 ${saveForm.quoteNumber.trim() && !isCommercialQuoteNumber(saveForm.quoteNumber) ? "text-destructive" : "text-muted-foreground"}`}>
+                                {saveForm.quoteNumber.trim() && !isCommercialQuoteNumber(saveForm.quoteNumber)
+                                  ? "Complete o formato xx.xxxx-xx."
+                                  : "Use somente números; o ponto e o hífen são inseridos automaticamente."}
+                              </p>
+                            </div>
                             {/* Número do Projeto */}
                             <div>
                               <Label>Número do Projeto <span className="text-destructive">*</span></Label>
@@ -1897,14 +1921,14 @@ function StandardCart() {
                                   ))}
                                 </SelectContent>
                               </Select>
-                              {/* Preview do número gerado */}
+                              {/* Sugestão sequencial ou número informado na aba Cliente */}
                               {saveForm.seller1Id && (
                                 <div className="mt-2 flex items-center gap-2 p-2 bg-primary/5 border border-primary/20 rounded-md">
                                   <span className="text-xs text-muted-foreground">Número do orçamento:</span>
                                   {suggestQuery.isLoading ? (
                                     <span className="text-xs text-muted-foreground animate-pulse">Calculando...</span>
                                   ) : (
-                                    <span className="text-sm font-mono font-bold text-primary">{suggestQuery.data?.suggested ?? saveForm.quoteNumber}</span>
+                                    <span className="text-sm font-mono font-bold text-primary">{saveForm.quoteNumber || suggestQuery.data?.suggested}</span>
                                   )}
                                 </div>
                               )}

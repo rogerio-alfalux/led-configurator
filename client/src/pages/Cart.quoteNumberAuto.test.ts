@@ -5,8 +5,8 @@ import { resolve } from "node:path";
 const root = process.cwd();
 const read = (relativePath: string) => readFileSync(resolve(root, relativePath), "utf8");
 
-describe("numeração automática de novos orçamentos", () => {
-  it("não expõe mais o campo editável e envia a criação sem quoteNumber", () => {
+describe("número manual de novos orçamentos", () => {
+  it("expõe o campo na aba Cliente com máscara e validação do formato comercial", () => {
     const source = read("client/src/pages/Cart.tsx");
     const clientTab = source.slice(
       source.indexOf("{/* ─── Aba Cliente ─── */}"),
@@ -14,20 +14,31 @@ describe("numeração automática de novos orçamentos", () => {
     );
     const saveMutation = source.slice(
       source.indexOf("saveQuoteMutation.mutate({"),
-      source.indexOf("saveQuoteMutation.mutate({") + 1_500,
+      source.indexOf("saveQuoteMutation.mutate({") + 1_700,
     );
 
-    expect(clientTab).not.toContain("Número do Orçamento");
-    expect(clientTab).not.toContain("formatCommercialQuoteNumberInput");
-    expect(saveMutation).not.toContain("quoteNumber:");
-    expect(source).toContain("O servidor atribui o");
+    expect(clientTab).toContain("Número do Orçamento");
+    expect(clientTab).toContain("formatCommercialQuoteNumberInput(e.target.value)");
+    expect(clientTab).toContain("inputMode=\"numeric\"");
+    expect(clientTab).toContain("Complete o formato xx.xxxx-xx.");
+    expect(saveMutation).toContain("quoteNumber: saveForm.quoteNumber.trim()");
+    expect(source).toContain("if (!isCommercialQuoteNumber(saveForm.quoteNumber))");
   });
 
-  it("remove o número da entrada pública de quotes.save", () => {
+  it("mantém a sugestão automática somente como preenchimento inicial e preserva a edição manual", () => {
+    const source = read("client/src/pages/Cart.tsx");
+
+    expect(source).toContain("prev.quoteNumber.trim()");
+    expect(source).toContain("saveForm.quoteNumber || suggestQuery.data?.suggested");
+  });
+
+  it("valida formato e duplicidade no servidor antes de criar e protege contra corrida", () => {
     const source = read("server/routers.ts");
     const saveRoute = source.slice(source.indexOf("save: commercialQuoteProcedure"), source.indexOf("addRevision: commercialQuoteProcedure"));
 
-    expect(saveRoute).not.toContain("quoteNumber: z.string().optional()");
-    expect(saveRoute).not.toContain("input.quoteNumber?.trim()");
+    expect(saveRoute).toContain("quoteNumber: z.string().optional()");
+    expect(saveRoute).toContain("!isCommercialQuoteNumber(requestedQuoteNumber)");
+    expect(saveRoute).toContain("await checkDuplicateQuoteNumber(requestedQuoteNumber)");
+    expect(saveRoute).toContain("if (isDuplicateKeyError(error))");
   });
 });
