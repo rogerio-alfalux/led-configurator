@@ -12,6 +12,7 @@ import {
   fetchAcessoriosProducts,
   fetchCustomizadosProducts,
   fetchComponentes,
+  resolveAccessoryCommercialPrice,
   invalidateComponentesCache,
 } from "./alfaluxApiService";
 import {
@@ -746,7 +747,10 @@ export const appRouter = router({
 
     // Acessórios: trilhos, conectores e acessórios CNTRAC
     acessoriosProducts: publicProcedure.query(async ({ ctx }) => {
-      const items = await fetchAcessoriosProducts();
+      const [items, { items: components }] = await Promise.all([
+        fetchAcessoriosProducts(),
+        fetchComponentes(),
+      ]);
       const response = items.map(p => ({
         id: p.id,
         codigo: p.codigo,
@@ -754,7 +758,9 @@ export const appRouter = router({
         produto: p.produto,
         familia: p.familia,
         dimensao: p.dimensao,
-        precoVenda: p.precoVenda,
+        // Drivers que não trazem preço no catálogo de acessórios são vendidos
+        // a partir do custo e markup da mesma API de componentes.
+        precoVenda: resolveAccessoryCommercialPrice(p, components),
         fotoUrl: p.fotoUrl,
         source: p.source ?? null,
         observacoes: p.observacoes ?? null,

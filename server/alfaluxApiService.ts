@@ -915,6 +915,39 @@ export interface ComponenteProduct {
   disponivel: boolean;
 }
 
+/**
+ * Resolve o preço comercial de um driver exibido na categoria Acessórios.
+ * A API de acessórios pode retornar somente a referência técnica; nesse caso,
+ * a API de componentes é a fonte soberana de custo e markup. O fallback de
+ * markup 3 é a mesma regra comercial já aplicada no configurador.
+ */
+export function resolveAccessoryCommercialPrice(
+  accessory: Pick<AcessorioProduct, "codigo" | "precoVenda" | "source">,
+  components: readonly ComponenteProduct[],
+): number | null {
+  const listedPrice = Number(accessory.precoVenda);
+  if (Number.isFinite(listedPrice) && listedPrice > 0) {
+    return Math.round(listedPrice * 100) / 100;
+  }
+
+  if (accessory.source !== "driver" || !accessory.codigo?.trim()) return null;
+
+  const code = accessory.codigo.trim().toUpperCase();
+  const component = components.find((item) => item.codigo?.trim().toUpperCase() === code);
+  if (!component) return null;
+
+  const componentPrice = Number(component.precoVenda);
+  if (Number.isFinite(componentPrice) && componentPrice > 0) {
+    return Math.round(componentPrice * 100) / 100;
+  }
+
+  const cost = Number(component.custoDriver);
+  if (!Number.isFinite(cost) || cost <= 0) return null;
+  const markup = Number(component.mkpPadrao);
+  const effectiveMarkup = Number.isFinite(markup) && markup > 0 ? markup : 3;
+  return Math.round(cost * effectiveMarkup * 100) / 100;
+}
+
 interface ComponentesApiResponse {
   total: number;
   tipos: string[];

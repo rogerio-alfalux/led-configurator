@@ -12,6 +12,7 @@ import {
   mergeRevendaProductsWithOfficialCosts,
   normalizeAlfaluxComponentDescription,
   normalizeRevendaProduct,
+  resolveAccessoryCommercialPrice,
 } from "./alfaluxApiService";
 
 const realAlfaluxApiEmail = ENV.alfaluxApiEmail;
@@ -35,6 +36,35 @@ describe("normalizeAlfaluxComponentDescription", () => {
   it("preserva o conteúdo técnico e remove somente variações de espaços no lookup", () => {
     expect(normalizeAlfaluxComponentDescription("  FITA LED  2835 128LEDS 24V 10W/M  "))
       .toBe("FITA LED 2835 128LEDS 24V 10W/M");
+  });
+});
+
+describe("resolveAccessoryCommercialPrice", () => {
+  const driverAccessory = { codigo: "EQ00932", precoVenda: null, source: "driver" as const };
+
+  it("calcula o preço do driver quando a API de acessórios entrega somente custo no catálogo de componentes", () => {
+    expect(resolveAccessoryCommercialPrice(driverAccessory, [{
+      codigo: "EQ00932",
+      descricao: "LED DRIVER 60W",
+      tipo: "DRIVER_DIM_DALI",
+      familia: "DRIVERS",
+      potencia: "60W",
+      tensaoEntrada: "220V",
+      corrente: "550mA",
+      custoDriver: 92,
+      mkpPadrao: null,
+      precoVenda: null,
+      fotoUrl: null,
+      observacoes: null,
+      disponivel: true,
+    }])).toBe(276);
+  });
+
+  it("prioriza o preço comercial explícito, sem reprecificar acessórios físicos", () => {
+    expect(resolveAccessoryCommercialPrice(
+      { codigo: "AC100", precoVenda: 53.879, source: "accessories" },
+      [],
+    )).toBe(53.88);
   });
 });
 
