@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import {
   ArrowLeft, ClipboardList, CheckCircle, DollarSign, BarChart2, Target,
@@ -21,6 +21,11 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { formatBRL } from "@/lib/cartTypes";
 import { toast } from "sonner";
+import {
+  findDashboardClient,
+  searchDashboardClients,
+  type DashboardClientMetrics,
+} from "@/lib/dashboardClientConsolidation";
 
 const MONTHS = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -143,20 +148,7 @@ const PRODUCT_INSIGHT_OPTIONS = {
 type ProductInsightScope = "produtos" | "familias" | "categorias";
 type ProductInsightMetric = keyof typeof PRODUCT_INSIGHT_OPTIONS;
 
-type EntityInsightRow = {
-  key: string;
-  label: string;
-  quotedAmount: number;
-  quotedQuoteCount: number;
-  quotedAverageTicket: number | null;
-  closedAmount: number;
-  closedQuoteCount: number;
-  closedAverageTicket: number | null;
-  lostAmount: number;
-  lostQuoteCount: number;
-  lostAverageTicket: number | null;
-  duplicateQuoteCount: number;
-};
+type EntityInsightRow = DashboardClientMetrics;
 
 const ENTITY_INSIGHT_OPTIONS = {
   quotedByValue: { label: "Maior valor orçado", icon: ClipboardList, tone: "text-primary" },
@@ -310,6 +302,135 @@ function EntityInsightPanel({ scope, metric, rows }: {
   );
 }
 
+function ClientConsolidatedMetric({
+  title,
+  count,
+  amount,
+  tone,
+}: {
+  title: string;
+  count: number;
+  amount: number;
+  tone: string;
+}) {
+  return (
+    <div className="min-w-0 rounded-xl border bg-background p-4 shadow-sm">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
+      <p className={`mt-2 text-2xl font-bold tabular-nums ${tone}`}>{Number(count ?? 0).toLocaleString("pt-BR")}</p>
+      <p className="mt-0.5 text-xs text-muted-foreground">orçamento{Number(count ?? 0) === 1 ? "" : "s"}</p>
+      <p className={`mt-3 truncate text-sm font-semibold tabular-nums ${tone}`} title={formatBRL(Number(amount ?? 0))}>{formatBRL(Number(amount ?? 0))}</p>
+    </div>
+  );
+}
+
+export function ClientConsolidatedPanel({ rows }: { rows: EntityInsightRow[] }) {
+  const [query, setQuery] = useState("");
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const selectedClient = useMemo(() => findDashboardClient(rows, selectedKey), [rows, selectedKey]);
+  const suggestions = useMemo(() => searchDashboardClients(rows, query), [rows, query]);
+  const isSearching = query.trim().length > 0 && !selectedClient;
+
+  useEffect(() => {
+    if (selectedKey && !selectedClient) {
+      setSelectedKey(null);
+      setQuery("");
+    }
+  }, [selectedClient, selectedKey]);
+
+  const selectClient = (client: EntityInsightRow) => {
+    setSelectedKey(client.key);
+    setQuery(client.label);
+  };
+
+  const clearSelection = () => {
+    setSelectedKey(null);
+    setQuery("");
+  };
+
+  return (
+    <Card className="overflow-visible border-primary/20 shadow-sm">
+      <CardHeader className="border-b bg-muted/20 pb-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-lg"><Users className="h-5 w-5 text-primary" />Visão consolidada por cliente</CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">Pesquise um cliente para apurar os valores e a quantidade de orçamentos dentro do período ativo.</p>
+          </div>
+          <Badge variant="outline" className="text-xs">{rows.length.toLocaleString("pt-BR")} cliente{rows.length === 1 ? "" : "s"} no período</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5 p-4 sm:p-6">
+        <div className="relative max-w-2xl">
+          <Label htmlFor="dashboard-client-search" className="text-xs font-semibold">Buscar cliente</Label>
+          <div className="relative mt-2">
+            <Users className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="dashboard-client-search"
+              aria-label="Buscar cliente no período selecionado"
+              autoComplete="off"
+              className="h-10 pl-10 pr-10"
+              placeholder="Digite o nome do cliente…"
+              value={query}
+              disabled={rows.length === 0}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setSelectedKey(null);
+              }}
+            />
+            {(query || selectedClient) && (
+              <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2" aria-label="Limpar cliente selecionado" onClick={clearSelection}>
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          {isSearching && (
+            <div className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-lg border bg-popover p-1 text-popover-foreground shadow-lg" role="listbox" aria-label="Sugestões de clientes">
+              {suggestions.length > 0 ? suggestions.map((client) => (
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected="false"
+                  key={client.key}
+                  className="flex w-full items-center justify-between gap-3 rounded-md px-3 py-2.5 text-left hover:bg-accent focus:bg-accent focus:outline-none"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => selectClient(client)}
+                >
+                  <span className="min-w-0 truncate text-sm font-medium">{client.label}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">{client.quotedQuoteCount.toLocaleString("pt-BR")} orç.</span>
+                </button>
+              )) : <p className="px-3 py-4 text-sm text-muted-foreground">Nenhum cliente encontrado no período selecionado.</p>}
+            </div>
+          )}
+        </div>
+
+        {selectedClient ? (
+          <div className="space-y-4 rounded-xl border border-primary/15 bg-primary/[0.025] p-4 sm:p-5">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Cliente selecionado</p>
+                <h3 className="mt-1 truncate text-lg font-bold" title={selectedClient.label}>{selectedClient.label}</h3>
+              </div>
+              <p className="text-xs text-muted-foreground">Valores finais dos orçamentos no período filtrado</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <ClientConsolidatedMetric title="Total orçado" count={selectedClient.quotedQuoteCount} amount={selectedClient.quotedAmount} tone="text-primary" />
+              <ClientConsolidatedMetric title="Total fechado" count={selectedClient.closedQuoteCount} amount={selectedClient.closedAmount} tone="text-emerald-700 dark:text-emerald-400" />
+              <ClientConsolidatedMetric title="Total perdido" count={selectedClient.lostQuoteCount} amount={selectedClient.lostAmount} tone="text-red-700 dark:text-red-400" />
+            </div>
+          </div>
+        ) : (
+          <div className="flex min-h-32 items-center justify-center rounded-xl border border-dashed bg-muted/10 px-5 text-center">
+            <div>
+              <Users className="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
+              <p className="text-sm font-medium">Selecione um cliente para visualizar o consolidado.</p>
+              <p className="mt-1 text-xs text-muted-foreground">A busca considera somente os clientes com atividade no período filtrado acima.</p>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Editor de meta ───────────────────────────────────────────────────────────
 function GoalEditor({ year, month, currentValue, onSave }: {
   year: number; month: number | null; currentValue: number; onSave: (v: string) => void;
@@ -429,6 +550,10 @@ export default function Dashboard() {
       : productAnalytics?.entityAnalytics?.works.rankings;
     return (rankings?.[entityInsightMetric] ?? []) as EntityInsightRow[];
   }, [productAnalytics, entityInsightScope, entityInsightMetric]);
+  const clientInsightRows = useMemo(
+    () => (productAnalytics?.entityAnalytics?.clients.rows ?? []) as EntityInsightRow[],
+    [productAnalytics],
+  );
 
   // Dados do próprio vendedor
   const { data: sellerData, isLoading: sellerLoading } = trpc.dashboard.sellerData.useQuery(
@@ -1300,8 +1425,9 @@ export default function Dashboard() {
                           ))}
                           {(["clientes", "obras"] as EntityInsightScope[]).map((scope) => (
                             <TabsContent key={scope} value={scope} className="mt-0 space-y-5">
+                              {scope === "clientes" && <ClientConsolidatedPanel rows={clientInsightRows} />}
                               <div className="rounded-xl border bg-muted/20 p-4 sm:p-5">
-                                <p className="text-sm font-semibold">Escolha o indicador</p>
+                                <p className="text-sm font-semibold">{scope === "clientes" ? "Rankings complementares" : "Escolha o indicador"}</p>
                                 <p className="mt-1 text-xs text-muted-foreground">Explore os resultados por {scope === "clientes" ? "cliente" : "obra"}, sempre dentro do período filtrado acima.</p>
                                 <div className="mt-4 grid gap-4 lg:grid-cols-2">
                                   {ENTITY_INSIGHT_GROUPS[scope].map((group) => <div key={group.label}>

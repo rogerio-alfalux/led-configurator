@@ -2902,8 +2902,8 @@
 - [ ] Solicitar confirmação explícita antes de qualquer restauração que possa afetar dados atuais
 
 ## Investigação: orçamentos de 21/08 possivelmente ausentes
-- [ ] Pesquisar BIOGEN, BRUMANI, AACD HALL RECEPÇÃO, HSTERN RJ, 25.0242-26 e EMBELLEZE RJ em registros atuais e históricos
-- [ ] Verificar vestígios em versões, auditorias, solicitações LD e sequências comerciais
+- [x] Pesquisar BIOGEN, BRUMANI, AACD HALL RECEPÇÃO, HSTERN RJ, 25.0242-26 e EMBELLEZE RJ em registros atuais e históricos (encontrados: BIOGEN 31.0150-26, BRUMANI 32.0101-26 e 32.0100-26, HSTERN RJ 20.0502-26, 25.0242-26 e EMBELLEZE RJ 20.0495-26; AACD HALL RECEPÇÃO não localizado por esse nome)
+- [x] Verificar vestígios em versões, auditorias, solicitações LD e sequências comerciais (versões preservadas para todos os seis registros encontrados; nenhuma solicitação LD vinculada; sequências comerciais existentes e sem indício de exclusão)
 - [ ] Avaliar recuperação exclusivamente a partir de backup posterior a 21/08, sem sobrescrever os dados atuais
 
 ## Ficha de produção: cor, observações e quantidades decimais
