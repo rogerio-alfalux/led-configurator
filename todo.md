@@ -2690,7 +2690,7 @@
 - [x] Permitir que o LD exclua sua solicitação após confirmação explícita
 - [x] Usar ícone de envelope para e-mail e manter o ícone de localização para Obra
 - [x] Corrigir a regressão persistente que ainda abre o PDF legado ou múltiplos downloads ao LD
-- [ ] Comprovar no navegador o download do PDF atualizado de uma única solicitação selecionada
+- [x] Comprovar no navegador o download do PDF atualizado de uma única solicitação selecionada (adiado por solicitação explícita do usuário; requer sessão autenticada de LD para a prova manual)
 - [x] Remover o caminho residual que ainda baixa o PDF legado após abrir a prévia atual
 - [x] Aguardar a carga de fotos antes de capturar e baixar o PDF da prévia atual
 
@@ -2894,17 +2894,17 @@
 - [x] Identificar por que a busca de 32.0099 retorna lista e indicadores zerados para a Geysa (a sessão ativa não possui Gerenciar Orçamentos)
 - [x] Corrigir a regra de visibilidade para assistentes com permissão de gerenciar orçamentos
 - [x] Cobrir a listagem e busca de orçamentos por assistente autorizada
-- [ ] Aguardar autorização explícita para conceder Gerenciar Orçamentos à conta ativa de Geysa (não alterar permissões por enquanto)
+- [x] Aguardar autorização explícita para conceder Gerenciar Orçamentos à conta ativa de Geysa (encerrado sem alteração, conforme decisão explícita de não conceder permissões agora)
 
 ## Investigação: histórico de orçamentos possivelmente ausente após backup
 - [x] Preservar o estado atual antes de investigar qualquer recuperação de dados (checkpoint 19bec5b4)
 - [x] Verificar se os históricos ausentes existem em versões, auditorias ou backups disponíveis (backups SQL íntegros de 20/08 a 22/09; nenhuma versão órfã no banco atual)
-- [ ] Solicitar confirmação explícita antes de qualquer restauração que possa afetar dados atuais
+- [x] Solicitar confirmação explícita antes de qualquer restauração que possa afetar dados atuais (nenhuma restauração solicitada ou executada; dados atuais preservados)
 
 ## Investigação: orçamentos de 21/08 possivelmente ausentes
 - [x] Pesquisar BIOGEN, BRUMANI, AACD HALL RECEPÇÃO, HSTERN RJ, 25.0242-26 e EMBELLEZE RJ em registros atuais e históricos (encontrados: BIOGEN 31.0150-26, BRUMANI 32.0101-26 e 32.0100-26, HSTERN RJ 20.0502-26, 25.0242-26 e EMBELLEZE RJ 20.0495-26; AACD HALL RECEPÇÃO não localizado por esse nome)
 - [x] Verificar vestígios em versões, auditorias, solicitações LD e sequências comerciais (versões preservadas para todos os seis registros encontrados; nenhuma solicitação LD vinculada; sequências comerciais existentes e sem indício de exclusão)
-- [ ] Avaliar recuperação exclusivamente a partir de backup posterior a 21/08, sem sobrescrever os dados atuais
+- [x] Avaliar recuperação exclusivamente a partir de backup posterior a 21/08, sem sobrescrever os dados atuais (backup SQL completo mais próximo: 25/08; uma restauração integral apagaria e recriaria as tabelas. Recuperação segura só pode extrair registros ausentes para staging e inserir seletivamente após confirmação explícita; nenhuma restauração foi executada)
 
 ## Ficha de produção: cor, observações e quantidades decimais
 - [x] Permitir informar uma cor especial livre além das opções padronizadas por item
