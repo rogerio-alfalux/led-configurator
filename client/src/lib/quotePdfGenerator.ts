@@ -383,19 +383,27 @@ async function _generatePdfBlob(
 
     // DIM
     const desc = item.description || "";
-    let dim = "ON/OFF";
-    if (/dim\s*triac\s*220/i.test(desc)) dim = "DIM TRIAC 220V";
-    else if (/dim\s*triac\s*110/i.test(desc)) dim = "DIM TRIAC 110V";
-    else if (/dim\s*triac/i.test(desc)) dim = "DIM TRIAC";
-    else if (/dim\s*dali/i.test(desc)) dim = "DIM DALI";
-    else if (/dim\s*0[-–]?10/i.test(desc)) dim = "DIM 0-10V";
-    else if (/dim\s*1[-–]?10/i.test(desc)) dim = "DIM 1-10V";
-    else if (/dim/i.test(desc)) dim = "DIM";
+    let dim = item.category === "Item Especial" && item.specialDim
+      ? item.specialDim
+      : "ON/OFF";
+    if (!(item.category === "Item Especial" && item.specialDim)) {
+      if (/dim\s*triac\s*220/i.test(desc)) dim = "DIM TRIAC 220V";
+      else if (/dim\s*triac\s*110/i.test(desc)) dim = "DIM TRIAC 110V";
+      else if (/dim\s*triac/i.test(desc)) dim = "DIM TRIAC";
+      else if (/dim\s*dali/i.test(desc)) dim = "DIM DALI";
+      else if (/dim\s*0[-–]?10/i.test(desc)) dim = "DIM 0-10V";
+      else if (/dim\s*1[-–]?10/i.test(desc)) dim = "DIM 1-10V";
+      else if (/dim/i.test(desc)) dim = "DIM";
+    }
 
     // Tensão
-    let tensao = "";
-    if (/bivolt/i.test(desc)) tensao = "BIVOLT";
-    else { const m = desc.match(/(\d{2,3}[Vv])/); if (m) tensao = m[1].toUpperCase(); }
+    let tensao = item.category === "Item Especial" && item.specialVoltage
+      ? item.specialVoltage
+      : "";
+    if (!(item.category === "Item Especial" && item.specialVoltage)) {
+      if (/bivolt/i.test(desc)) tensao = "BIVOLT";
+      else { const m = desc.match(/(\d{2,3}[Vv])/); if (m) tensao = m[1].toUpperCase(); }
+    }
 
     const itemQty = item.qty ?? 1;
     const bodyUnitRaw = item.driverLines?.length
@@ -417,8 +425,8 @@ async function _generatePdfBlob(
       potencia,
       dim,
       tensao,
-      item.corPeca || "",
-      item.cct || "",
+      item.category === "Item Especial" ? (item.specialColor || item.corPeca || "") : (item.corPeca || ""),
+      item.cct || item.specialColorTemp || "",
       String(itemQty),
       ...(showIpi ? [
         itemTotal > 0 ? fmtBRL(getUnitPriceWithoutIpi(originalItemUnit)) : "—",
@@ -501,9 +509,12 @@ async function _generatePdfBlob(
       rowMeta.push({ photoUrl: null, isEquipmentRow: true });
     }
 
-    // Observação do item
-    if (item.itemNote) {
-      tableBody.push(Array.from({ length: showIpi ? 13 : 11 }, (_, index) => index === 2 ? `  Obs: ${item.itemNote}` : ""));
+    // Observação comercial: Não Orçamos sempre exibe o campo próprio quando preenchido.
+    const commercialObservation = item.category === "Não Orçamos"
+      ? item.nonQuotedObservation?.trim()
+      : item.itemNote;
+    if (commercialObservation) {
+      tableBody.push(Array.from({ length: showIpi ? 13 : 11 }, (_, index) => index === 2 ? `  Obs: ${commercialObservation}` : ""));
       rowMeta.push({ photoUrl: null, isObsRow: true });
     }
   }

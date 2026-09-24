@@ -970,12 +970,12 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                             {item.sku && <div style={{ fontFamily: "monospace", fontSize: 10, color: "#666" }}>{item.sku}</div>}
                             <div>{item.description}</div>
                           </td>
-                          <td style={tdStyle}>{item.shapeTotalLengthMm ? `${item.shapeTotalLengthMm}mm total` : extractLength(item.description)}</td>
-                          <td style={tdStyle}>{item.power?.trim() || extractPower(item.description)}</td>
-                          <td style={tdStyle}>{extractDim(item.description)}</td>
-                          <td style={tdStyle}>{extractVoltage(item.description)}</td>
-                          <td style={tdStyle}>{item.corPeca || "-"}</td>
-                          <td style={tdStyle}>{item.cct || "-"}</td>
+                          <td style={tdStyle}>{item.category === "Item Especial" && item.specialDimensions ? item.specialDimensions : item.shapeTotalLengthMm ? `${item.shapeTotalLengthMm}mm total` : extractLength(item.description)}</td>
+                          <td style={tdStyle}>{item.category === "Item Especial" && item.specialPower ? item.specialPower : (item.power?.trim() || extractPower(item.description))}</td>
+                          <td style={tdStyle}>{item.category === "Item Especial" && item.specialDim ? item.specialDim : extractDim(item.description)}</td>
+                          <td style={tdStyle}>{item.category === "Item Especial" && item.specialVoltage ? item.specialVoltage : extractVoltage(item.description)}</td>
+                          <td style={tdStyle}>{item.category === "Item Especial" ? (item.specialColor || item.corPeca || "-") : (item.corPeca || "-")}</td>
+                          <td style={tdStyle}>{item.cct || item.specialColorTemp || "-"}</td>
                           <td style={{ ...tdStyle, fontWeight: "bold" }}>{item.qty}</td>
                           {/* Preço da luminária (sem driver) + diluição proporcional */}
                           {(() => {
@@ -1063,7 +1063,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                           <td style={tdStyle}>{item.category === "Item Especial" && item.specialDim ? item.specialDim : extractDim(item.description)}</td>
                           <td style={tdStyle}>{item.category === "Item Especial" && item.specialVoltage ? item.specialVoltage : extractVoltage(item.description)}</td>
                           <td style={tdStyle}>{item.category === "Item Especial" ? (item.specialColor || item.corPeca || "-") : (item.corPeca || "-")}</td>
-                          <td style={tdStyle}>{item.cct || "-"}</td>
+                          <td style={tdStyle}>{item.cct || item.specialColorTemp || "-"}</td>
                           <td style={{ ...tdStyle, fontWeight: "bold" }}>{item.qty}</td>
                           {(() => {
                             // Diluíção + frete proporcional para itens sem driverLines
@@ -1098,6 +1098,17 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                               <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkupItem(_totalWithDil, item.itemMarginPercent, item.itemDiscountPercent) + _itemDifalFcpTotal) : "-"}</td>
                             </>);
                           })()}
+                        </tr>
+                      )}
+
+                      {/* Observação de Não Orçamos: quando preenchida, é sempre comercial. */}
+                      {isNaoOrcamos && item.nonQuotedObservation?.trim() && (
+                        <tr key={`non-quoted-obs-${idx}`} style={{ background: "#F0FFF4" }}>
+                          <td style={{ ...tdStyle, fontSize: 9 }}></td>
+                          <td style={{ ...tdStyle, fontSize: 9 }}></td>
+                          <td colSpan={previewColumnCount - 2} style={{ ...tdStyle, fontSize: 9, color: "#166534", fontStyle: "italic", textAlign: "left", paddingLeft: 8 }}>
+                            Obs.: {item.nonQuotedObservation.trim()}
+                          </td>
                         </tr>
                       )}
 

@@ -226,6 +226,61 @@ describe("sub-linha comercial de driver de perfil", () => {
     expect(worksheet.getCell(`E${equipmentRow}`).fill.fgColor?.argb).toBe("FFF3E5F5");
   });
 
+  it("leva DIM, tensão e CCT de Item Especial para suas colunas comerciais", async () => {
+    const item: CartItemData = {
+      category: "Item Especial",
+      isSpecialItem: true,
+      sku: "ESP-TEC",
+      description: "LUMINÁRIA ESPECIAL TÉCNICA",
+      qty: 1,
+      unitPrice: 500,
+      totalPrice: 500,
+      photoUrl: null,
+      specialDimensions: "1200 x 100mm",
+      specialPower: "36W",
+      specialDim: "DALI",
+      specialVoltage: "Bivolt",
+      specialColorTemp: "6000K",
+    };
+
+    const buffer = await generateQuoteExcelBuffer([item], form);
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+    const worksheet = workbook.getWorksheet("Alfalux")!;
+    const row = Array.from({ length: worksheet.rowCount }, (_, index) => index + 1)
+      .find((rowNumber) => String(worksheet.getCell(`E${rowNumber}`).value ?? "").includes("LUMINÁRIA ESPECIAL TÉCNICA"));
+
+    expect(row).toBeDefined();
+    expect(worksheet.getCell(`F${row}`).value).toBe("1200 x 100mm");
+    expect(worksheet.getCell(`G${row}`).value).toBe("36W");
+    expect(worksheet.getCell(`H${row}`).value).toBe("DALI");
+    expect(worksheet.getCell(`I${row}`).value).toBe("Bivolt");
+    expect(worksheet.getCell(`K${row}`).value).toBe("6000K");
+  });
+
+  it("sempre imprime a observação comercial de Não Orçamos quando preenchida", async () => {
+    const item: CartItemData = {
+      category: "Não Orçamos",
+      sku: "NAO-TESTE",
+      description: "PRODUTO SEM EQUIVALENTE",
+      qty: 1,
+      unitPrice: 0,
+      totalPrice: 0,
+      photoUrl: null,
+      nonQuotedObservation: "Cliente solicitou equivalência externa.",
+    };
+
+    const buffer = await generateQuoteExcelBuffer([item], form);
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+    const worksheet = workbook.getWorksheet("Alfalux")!;
+    const observationRow = Array.from({ length: worksheet.rowCount }, (_, index) => index + 1)
+      .find((row) => String(worksheet.getCell(`E${row}`).value ?? "").includes("Cliente solicitou equivalência externa."));
+
+    expect(observationRow).toBeDefined();
+    expect(worksheet.getCell(`E${observationRow}`).value).toContain("Obs.:");
+  });
+
   it("respeita a quantidade total do acessório e aplica RT, margem e desconto à sua sublinha", async () => {
     const item: CartItemData = {
       category: "Painéis",

@@ -759,23 +759,45 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
             </div>
             <div>
               <Label className="text-xs">Acionamento / DIM</Label>
-              <Input
-                value={d.specialDim ?? ""}
-                onChange={e => onUpdate(item.id, { specialDim: e.target.value })}
-                placeholder="ex: ON/OFF, DALI, DIM"
-                className="mt-1 h-8 text-sm"
-              />
+              <Select value={d.specialDim || undefined} onValueChange={(specialDim) => onUpdate(item.id, { specialDim })}>
+                <SelectTrigger className="mt-1 h-8 text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ON/OFF">ON/OFF</SelectItem>
+                  <SelectItem value="DALI">DALI</SelectItem>
+                  <SelectItem value="1-10V">1-10V</SelectItem>
+                  <SelectItem value="A Definir">A Definir</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label className="text-xs">Tensão</Label>
-              <Input
-                value={d.specialVoltage ?? ""}
-                onChange={e => onUpdate(item.id, { specialVoltage: e.target.value })}
-                placeholder="ex: BIVOLT, 220V"
-                className="mt-1 h-8 text-sm"
-              />
+              <Select value={d.specialVoltage || undefined} onValueChange={(specialVoltage) => onUpdate(item.id, { specialVoltage })}>
+                <SelectTrigger className="mt-1 h-8 text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="220V">220V</SelectItem>
+                  <SelectItem value="Bivolt">Bivolt</SelectItem>
+                  <SelectItem value="A Definir">A Definir</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-
+            <div>
+              <Label className="text-xs">Temperatura de Cor</Label>
+              <Select value={d.cct || d.specialColorTemp || undefined} onValueChange={(cct) => {
+                onUpdate(item.id, { cct, specialColorTemp: cct });
+              }}>
+                <SelectTrigger className="mt-1 h-8 text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="2700K">2700K</SelectItem>
+                  <SelectItem value="3000K">3000K</SelectItem>
+                  <SelectItem value="3500K">3500K</SelectItem>
+                  <SelectItem value="4000K">4000K</SelectItem>
+                  <SelectItem value="5000K">5000K</SelectItem>
+                  <SelectItem value="6000K">6000K</SelectItem>
+                  <SelectItem value="6500K">6500K</SelectItem>
+                  <SelectItem value="A Definir">A Definir</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <SpecialEquipmentsEditor
             value={d.specialEquipments ?? []}
@@ -855,6 +877,18 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
 
       {/* Observação no Orçamento e Margem por item */}
       <div className="pt-2 border-t space-y-3">
+        {d.category === "Não Orçamos" ? (
+          <div className="space-y-1">
+            <Label className="text-xs">Observação comercial</Label>
+            <Textarea
+              value={d.nonQuotedObservation ?? ""}
+              onChange={e => onUpdate(item.id, { nonQuotedObservation: e.target.value || undefined })}
+              placeholder="Sempre aparece no orçamento quando preenchida"
+              className="mt-1 min-h-[72px] text-sm"
+            />
+            <p className="text-xs text-muted-foreground">Não há opção de ocultar: qualquer texto preenchido é exibido na proposta comercial.</p>
+          </div>
+        ) : (
         <div className="space-y-1">
           <Label className="text-xs">Obs. por Item</Label>
           <Input
@@ -872,6 +906,7 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
             <label htmlFor={`itemObsShowInExcel-${item.id}`} className="text-xs cursor-pointer">Exibir no Excel do orçamento</label>
           </div>
         </div>
+        )}
         <div className="space-y-1">
           <Label className="text-xs">Margem por item (%)</Label>
           <div className="flex items-center gap-2">
@@ -3053,7 +3088,7 @@ export default function QuoteDetail() {
                             setEditableItems(prev => prev.map(it => {
                               if (it.id !== id) return it;
                               let mergedFields = { ...fields };
-                              if (fields.cct !== undefined && fields.cct !== it.parsed.cct) {
+                              if (!it.parsed.isSpecialItem && fields.cct !== undefined && fields.cct !== it.parsed.cct) {
                                 mergedFields = { ...applyCCTChange(it.parsed, fields.cct), ...fields };
                               }
                               const newParsed = { ...it.parsed, ...mergedFields };
@@ -4971,7 +5006,7 @@ export default function QuoteDetail() {
                                   <p className="text-sm font-medium leading-tight">{d.description}</p>
                                  <div className="flex gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
                                    {d.power && <span className="flex items-center gap-0.5"><Zap className="w-3 h-3" />{d.power}</span>}
-                                   {d.cct && <span>{d.cct}</span>}
+                                   {(d.cct || d.specialColorTemp) && <span>{d.cct || d.specialColorTemp}</span>}
                                    {d.category !== "LED BAR" && <span>{d.category}</span>}
                                    {d.itemEmPlanta && (
                                      <span className="inline-flex items-center gap-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded px-1.5 py-0.5 font-medium">
@@ -5020,10 +5055,10 @@ export default function QuoteDetail() {
                                       ))}
                                     </div>
                                   )}
-                                  {d.itemObs && (
+                                  {(d.category === "Não Orçamos" ? d.nonQuotedObservation : d.itemObs) && (
                                     <div className="mt-1.5 flex items-start gap-1 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded px-2 py-1">
                                       <span className="font-medium flex-shrink-0">Obs:</span>
-                                      <span className="break-words">{d.itemObs}</span>
+                                      <span className="break-words">{d.category === "Não Orçamos" ? d.nonQuotedObservation : d.itemObs}</span>
                                     </div>
                                   )}
                                   {d.accessories && (d.accessories as LinkedAccessory[]).length > 0 && (

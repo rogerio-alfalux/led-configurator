@@ -102,4 +102,49 @@ describe("PDF com valores unificados por produto", () => {
     expect(accessoryRow!.textContent).toContain("2");
     expect(accessoryRow!.textContent).toContain(formatBRL(22.2222));
   });
+
+  it("mostra os campos técnicos de Item Especial e a observação obrigatória de Não Orçamos", () => {
+    const specialItem: CartItemData = {
+      category: "Item Especial",
+      isSpecialItem: true,
+      sku: "ESP-PREVIEW",
+      description: "Luminária especial de preview",
+      qty: 1,
+      unitPrice: 500,
+      totalPrice: 500,
+      photoUrl: null,
+      specialDimensions: "1200 x 100mm",
+      specialPower: "36W",
+      specialDim: "DALI",
+      specialVoltage: "Bivolt",
+      specialColorTemp: "6000K",
+    };
+    const nonQuotedItem: CartItemData = {
+      category: "Não Orçamos",
+      sku: "NAO-PREVIEW",
+      description: "Produto não orçado",
+      qty: 1,
+      unitPrice: 0,
+      totalPrice: 0,
+      photoUrl: null,
+      nonQuotedObservation: "Observação que deve aparecer sempre.",
+    };
+
+    render(React.createElement(ExcelPreviewModal, {
+      open: true,
+      onClose: () => undefined,
+      items: [specialItem, nonQuotedItem],
+      formData: baseForm,
+    }));
+
+    const rows = Array.from(document.querySelectorAll<HTMLTableRowElement>(".quote-items-table tbody tr"));
+    const specialRow = rows.find(row => row.textContent?.includes("Luminária especial de preview"));
+    const observationRow = rows.find(row => row.textContent?.includes("Observação que deve aparecer sempre."));
+    expect(specialRow?.textContent).toContain("1200 x 100mm");
+    expect(specialRow?.textContent).toContain("36W");
+    expect(specialRow?.textContent).toContain("DALI");
+    expect(specialRow?.textContent).toContain("Bivolt");
+    expect(specialRow?.textContent).toContain("6000K");
+    expect(observationRow?.textContent).toContain("Obs.:");
+  });
 });

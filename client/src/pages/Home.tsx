@@ -3813,6 +3813,7 @@ export default function Home() {
     }, [czSelectedKey, czSelectedProduct, czSearch, czQty, czUnitPrice, czNotes, customizadosProducts, addItem, appendToQuoteId, handleAddItemOrToQuote, pendingAccessories, globalItemEmPlanta, globalPavimento, globalAmbiente]);
   // ── Estados de Não Orçamos ──────────────────────────────────────────────
   const [noDescription, setNoDescription] = useState<string>("");
+  const [noObservation, setNoObservation] = useState<string>("");
   const handleAddNaoOrcamos = useCallback(() => {
     const item: CartItemData = {
       category: "Não Orçamos",
@@ -3831,6 +3832,7 @@ export default function Home() {
       specialInternalNotes: undefined,
       corPeca: "",
       itemNote: undefined,
+      nonQuotedObservation: noObservation.trim() || undefined,
       itemEmPlanta: globalItemEmPlanta,
     };
     if (appendToQuoteId || replaceInQuoteId) {
@@ -3845,7 +3847,8 @@ export default function Home() {
       toast.success(`Item "Não Orçamos" adicionado ao carrinho!`);
     }
     setNoDescription("");
-  }, [noDescription, addItem, appendToQuoteId, handleAddItemOrToQuote, globalItemEmPlanta, globalPavimento, globalAmbiente]);
+    setNoObservation("");
+  }, [noDescription, noObservation, addItem, appendToQuoteId, handleAddItemOrToQuote, globalItemEmPlanta, globalPavimento, globalAmbiente]);
   // ── Estados de Acessórios ──────────────────────────────────────────────
   const [acSelectedId, setAcSelectedId] = useState<number | null>(null);
   const [acItemQty, setAcItemQty] = useState<number>(1); // quantidade ao adicionar acessório como item independente
@@ -4116,6 +4119,7 @@ export default function Home() {
       specialPower: spPower.trim() || undefined,
       specialDim: spDim.trim() || undefined,
       specialVoltage: spVoltage.trim() || undefined,
+      cct: spColorTemp.trim() || undefined,
       specialColorTemp: spColorTemp.trim() || undefined,
       specialUnitPrice: unitPrice || undefined,
       specialPhotoUrl: spPhotoUrl || undefined,
@@ -8937,34 +8941,51 @@ export default function Home() {
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">DIM</Label>
-                    <Input value={spDim} onChange={(e) => setSpDim(e.target.value)} placeholder="Ex: 1-10V" className="h-10" />
+                    <Select value={spDim || undefined} onValueChange={setSpDim}>
+                      <SelectTrigger className="h-10">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ON/OFF">ON/OFF</SelectItem>
+                        <SelectItem value="DALI">DALI</SelectItem>
+                        <SelectItem value="1-10V">1-10V</SelectItem>
+                        <SelectItem value="A Definir">A Definir</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
-                    <Input value={spVoltage} onChange={(e) => setSpVoltage(e.target.value)} placeholder="Ex: 220V" className="h-10" />
+                    <Select value={spVoltage || undefined} onValueChange={setSpVoltage}>
+                      <SelectTrigger className="h-10">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="220V">220V</SelectItem>
+                        <SelectItem value="Bivolt">Bivolt</SelectItem>
+                        <SelectItem value="A Definir">A Definir</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
                 {/* Temperatura de Cor */}
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Temperatura de Cor</Label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {["", "2700K", "3000K", "3500K", "4000K", "5000K", "6500K"].map((ct) => (
-                      <button
-                        key={ct || "none"}
-                        type="button"
-                        onClick={() => setSpColorTemp(ct)}
-                        className={[
-                          "px-3 py-1.5 rounded-md text-xs font-medium border transition-colors",
-                          spColorTemp === ct
-                            ? "bg-amber-600 border-amber-600 text-white"
-                            : "border-border bg-muted/20 text-muted-foreground hover:border-amber-500/50 hover:bg-amber-50/10",
-                        ].join(" ")}
-                      >
-                        {ct || "N/A"}
-                      </button>
-                    ))}
-                  </div>
+                  <Select value={spColorTemp || undefined} onValueChange={setSpColorTemp}>
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="2700K">2700K</SelectItem>
+                      <SelectItem value="3000K">3000K</SelectItem>
+                      <SelectItem value="3500K">3500K</SelectItem>
+                      <SelectItem value="4000K">4000K</SelectItem>
+                      <SelectItem value="5000K">5000K</SelectItem>
+                      <SelectItem value="6000K">6000K</SelectItem>
+                      <SelectItem value="6500K">6500K</SelectItem>
+                      <SelectItem value="A Definir">A Definir</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 {/* Modo de preço: unitário ou por metro */}
                 <div className="space-y-1.5">
@@ -9067,16 +9088,6 @@ export default function Home() {
                     onChange={(e) => setSpInternalNotes(e.target.value)}
                     placeholder="Anotações internas sobre o item..."
                     className="min-h-[72px] text-sm"
-                  />
-                </div>
-                {/* Item em planta */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Item em Planta</Label>
-                  <Input
-                    value={globalItemEmPlanta}
-                    onChange={(e) => setGlobalItemEmPlanta(e.target.value)}
-                    placeholder="ex: L1, P2..."
-                    className="h-9"
                   />
                 </div>
                 {/* Botão adicionar */}
@@ -9419,6 +9430,17 @@ export default function Home() {
                     value={noDescription}
                     onChange={(e) => setNoDescription(e.target.value)}
                   />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Observação</label>
+                  <textarea
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
+                    rows={2}
+                    placeholder="Esta observação sempre aparecerá no orçamento quando preenchida"
+                    value={noObservation}
+                    onChange={(e) => setNoObservation(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">Quando preenchida, esta observação é exibida automaticamente na proposta comercial.</p>
                 </div>
                 <button
                   type="button"
@@ -13993,8 +14015,14 @@ export default function Home() {
                   <div className="space-y-3">
                     {noDescription.trim() && (
                       <div className="p-3 rounded-lg bg-background border border-border">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Descrição interna</p>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Descrição</p>
                         <p className="text-sm font-semibold leading-tight">{noDescription.trim()}</p>
+                      </div>
+                    )}
+                    {noObservation.trim() && (
+                      <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700/40">
+                        <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium mb-1">Observação comercial</p>
+                        <p className="text-sm leading-tight text-emerald-900 dark:text-emerald-100">{noObservation.trim()}</p>
                       </div>
                     )}
                     <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/40">
@@ -14186,6 +14214,7 @@ export default function Home() {
                         {spPower && <span><span className="font-medium text-foreground">Potência:</span> {spPower}</span>}
                         {spDim && <span><span className="font-medium text-foreground">DIM:</span> {spDim}</span>}
                         {spVoltage && <span><span className="font-medium text-foreground">Tensão:</span> {spVoltage}</span>}
+                        {spColorTemp && <span><span className="font-medium text-foreground">CCT:</span> {spColorTemp}</span>}
 
                         {!isConvidado && spUnitPrice && <span><span className="font-medium text-foreground">Valor unit.:</span> {formatBRL(parseFloat(spUnitPrice.replace(",",".")) || 0)}</span>}
                       </div>

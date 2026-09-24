@@ -283,6 +283,12 @@ export interface CartItemData {
    */
   itemObsShowInExcel?: boolean;
   /**
+   * Observação comercial exclusiva de um item "Não Orçamos".
+   * Quando preenchida, é sempre mostrada na proposta salva, prévia, Excel e PDF,
+   * independentemente da configuração opcional de `itemObsShowInExcel`.
+   */
+  nonQuotedObservation?: string;
+  /**
    * Margem de negociação específica por item (0–100, ex: 10 = 10%).
    * Quando definida, sobrescreve a margem global do orçamento para este item.
    */

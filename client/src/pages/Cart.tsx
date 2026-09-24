@@ -886,7 +886,7 @@ function StandardCart() {
 
   // Edição inline de campos do item
   const [editItemId, setEditItemId] = useState<number | null>(null);
-  const [editFields, setEditFields] = useState<{ cct: string; power: string; corPeca: string; qty: string; unitPrice: string; driverUnitPriceOverride: string; itemNote: string; itemObs: string; itemObsShowInExcel: boolean; withoutEquipment?: boolean; itemMarginPercent: string; floorId: string; floorName: string; ambiente: string; specialColorTemp: string; specialEquipments: SpecialEquipment[]; mkpCustom: string; specialDescription: string; specialDimensions: string; specialPower: string; specialDim: string; specialVoltage: string; specialColor: string; description: string; itemEmPlanta: string; specialCustoUnitario: string; specialMarkup: string }>({ cct: '', power: '', corPeca: '', qty: '', unitPrice: '', driverUnitPriceOverride: '', itemNote: '', itemObs: '', itemObsShowInExcel: false, withoutEquipment: false, itemMarginPercent: '', floorId: '', floorName: '', ambiente: '', specialColorTemp: '', specialEquipments: [], mkpCustom: '', specialDescription: '', specialDimensions: '', specialPower: '', specialDim: '', specialVoltage: '', specialColor: '', description: '', itemEmPlanta: '', specialCustoUnitario: '', specialMarkup: '' });
+  const [editFields, setEditFields] = useState<{ cct: string; power: string; corPeca: string; qty: string; unitPrice: string; driverUnitPriceOverride: string; itemNote: string; itemObs: string; itemObsShowInExcel: boolean; nonQuotedObservation: string; withoutEquipment?: boolean; itemMarginPercent: string; floorId: string; floorName: string; ambiente: string; specialColorTemp: string; specialEquipments: SpecialEquipment[]; mkpCustom: string; specialDescription: string; specialDimensions: string; specialPower: string; specialDim: string; specialVoltage: string; specialColor: string; description: string; itemEmPlanta: string; specialCustoUnitario: string; specialMarkup: string }>({ cct: '', power: '', corPeca: '', qty: '', unitPrice: '', driverUnitPriceOverride: '', itemNote: '', itemObs: '', itemObsShowInExcel: false, nonQuotedObservation: '', withoutEquipment: false, itemMarginPercent: '', floorId: '', floorName: '', ambiente: '', specialColorTemp: '', specialEquipments: [], mkpCustom: '', specialDescription: '', specialDimensions: '', specialPower: '', specialDim: '', specialVoltage: '', specialColor: '', description: '', itemEmPlanta: '', specialCustoUnitario: '', specialMarkup: '' });
   const [shiftModulePriceDrafts, setShiftModulePriceDrafts] = useState<Record<string, string>>({});
   const [driverQuantityDrafts, setDriverQuantityDrafts] = useState<Record<string, string>>({});
   const [accessoryQuantityDrafts, setAccessoryQuantityDrafts] = useState<Record<string, string>>({});
@@ -1565,7 +1565,7 @@ function StandardCart() {
                           onEditClick={(id, data) => {
                             setEditItemId(id);
                                     const editableBodyPrice = getEditableBodyUnitPrice(data);
-                                    setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: editableBodyPrice != null ? String(editableBodyPrice).replace('.', ',') : '', driverUnitPriceOverride: data.driverLines && data.driverLines.length > 0 && data.driverLines[0].driverUnitPrice != null ? String(data.driverLines[0].driverUnitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: (data.itemMarginPercent != null && data.itemMarginPercent > 0) ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '', specialEquipments: data.specialEquipments ?? [], mkpCustom: data.mkpCustom != null ? String(data.mkpCustom) : '', specialDescription: data.specialDescription ?? data.description ?? '', specialDimensions: data.specialDimensions ?? '', specialPower: data.specialPower ?? '', specialDim: data.specialDim ?? '', specialVoltage: data.specialVoltage ?? '', specialColor: data.specialColor ?? '', description: data.description ?? '', itemEmPlanta: data.itemEmPlanta ?? '', specialCustoUnitario: data.specialCustoUnitario != null ? String(data.specialCustoUnitario).replace('.', ',') : '', specialMarkup: data.specialMarkup != null ? String(data.specialMarkup).replace('.', ',') : '' });
+                                    setEditFields({ cct: data.cct ?? data.specialColorTemp ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: editableBodyPrice != null ? String(editableBodyPrice).replace('.', ',') : '', driverUnitPriceOverride: data.driverLines && data.driverLines.length > 0 && data.driverLines[0].driverUnitPrice != null ? String(data.driverLines[0].driverUnitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, nonQuotedObservation: data.nonQuotedObservation ?? '', itemMarginPercent: (data.itemMarginPercent != null && data.itemMarginPercent > 0) ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? data.cct ?? '', specialEquipments: data.specialEquipments ?? [], mkpCustom: data.mkpCustom != null ? String(data.mkpCustom) : '', specialDescription: data.specialDescription ?? data.description ?? '', specialDimensions: data.specialDimensions ?? '', specialPower: data.specialPower ?? '', specialDim: data.specialDim ?? '', specialVoltage: data.specialVoltage ?? '', specialColor: data.specialColor ?? '', description: data.description ?? '', itemEmPlanta: data.itemEmPlanta ?? '', specialCustoUnitario: data.specialCustoUnitario != null ? String(data.specialCustoUnitario).replace('.', ',') : '', specialMarkup: data.specialMarkup != null ? String(data.specialMarkup).replace('.', ',') : '' });
                                                         if (data.isSpecialItem) { setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null); setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null); } else { setEditSpecialPhotoUrl(null); setEditSpecialPhotoPreview(null); }
                           }}
                           applyItemMargin={applyItemMargin}
@@ -1644,7 +1644,7 @@ function StandardCart() {
                                     setDriverQuantityDrafts(Object.fromEntries((data.driverLines ?? []).map((line, lineIndex) => [`${id}:${lineIndex}:${line.driverCode}`, String(line.driverQty ?? 0)])));
                                     setAccessoryQuantityDrafts(Object.fromEntries((data.accessories ?? []).map((accessory, accessoryIndex) => [`${id}:${accessoryIndex}:${accessory.codigo}`, String(accessory.qty ?? 1)])));
                                     const editableBodyPrice = getEditableBodyUnitPrice(data);
-                                    setEditFields({ cct: data.cct ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: editableBodyPrice != null ? String(editableBodyPrice).replace('.', ',') : '', driverUnitPriceOverride: data.driverLines && data.driverLines.length > 0 && data.driverLines[0].driverUnitPrice != null ? String(data.driverLines[0].driverUnitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, itemMarginPercent: (data.itemMarginPercent != null && data.itemMarginPercent > 0) ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? '', specialEquipments: data.specialEquipments ?? [], mkpCustom: data.mkpCustom != null ? String(data.mkpCustom) : '', specialDescription: data.specialDescription ?? data.description ?? '', specialDimensions: data.specialDimensions ?? '', specialPower: data.specialPower ?? '', specialDim: data.specialDim ?? '', specialVoltage: data.specialVoltage ?? '', specialColor: data.specialColor ?? '', description: data.description ?? '', itemEmPlanta: data.itemEmPlanta ?? '', specialCustoUnitario: data.specialCustoUnitario != null ? String(data.specialCustoUnitario).replace('.', ',') : '', specialMarkup: data.specialMarkup != null ? String(data.specialMarkup).replace('.', ',') : '' });
+                                    setEditFields({ cct: data.cct ?? data.specialColorTemp ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: editableBodyPrice != null ? String(editableBodyPrice).replace('.', ',') : '', driverUnitPriceOverride: data.driverLines && data.driverLines.length > 0 && data.driverLines[0].driverUnitPrice != null ? String(data.driverLines[0].driverUnitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, nonQuotedObservation: data.nonQuotedObservation ?? '', itemMarginPercent: (data.itemMarginPercent != null && data.itemMarginPercent > 0) ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? data.cct ?? '', specialEquipments: data.specialEquipments ?? [], mkpCustom: data.mkpCustom != null ? String(data.mkpCustom) : '', specialDescription: data.specialDescription ?? data.description ?? '', specialDimensions: data.specialDimensions ?? '', specialPower: data.specialPower ?? '', specialDim: data.specialDim ?? '', specialVoltage: data.specialVoltage ?? '', specialColor: data.specialColor ?? '', description: data.description ?? '', itemEmPlanta: data.itemEmPlanta ?? '', specialCustoUnitario: data.specialCustoUnitario != null ? String(data.specialCustoUnitario).replace('.', ',') : '', specialMarkup: data.specialMarkup != null ? String(data.specialMarkup).replace('.', ',') : '' });
                                     if (data.isSpecialItem) { setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null); setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null); } else { setEditSpecialPhotoUrl(null); setEditSpecialPhotoPreview(null); }
                                   }}
                                   applyItemMargin={applyItemMargin}
@@ -2811,6 +2811,16 @@ function StandardCart() {
                       placeholder="ex: L1, EF2"
                     />
                   </div>
+                  <div className="space-y-1">
+                    <Label>Observação comercial</Label>
+                    <Textarea
+                      value={editFields.nonQuotedObservation}
+                      onChange={(e) => setEditFields(prev => ({ ...prev, nonQuotedObservation: e.target.value }))}
+                      placeholder="Sempre aparece no orçamento quando preenchida"
+                      className="min-h-[72px]"
+                    />
+                    <p className="text-xs text-muted-foreground">Esta observação é exibida automaticamente na proposta comercial.</p>
+                  </div>
                 </>
               );
               return isRevenda ? (
@@ -2860,7 +2870,7 @@ function StandardCart() {
                 </>
               ) : (
                 <>
-                  <div className="space-y-1">
+                  {!item?.data.isSpecialItem && <div className="space-y-1">
                     <Label>CCT (temperatura de cor)</Label>
                     {(() => {
                       const curItem = orderedEntries.find(e => e.id === editItemId);
@@ -2890,9 +2900,9 @@ function StandardCart() {
                         />
                       );
                     })()}
-                  </div>
+                  </div>}
                   {!item?.data.isSpecialItem && (
-                  <div className="space-y-1">
+                    <div className="space-y-1">
                     <Label>Cor da peça</Label>
                     <Select
                       value={editFields.corPeca || "A Definir"}
@@ -3209,21 +3219,26 @@ function StandardCart() {
                           </div>
                           <div>
                             <Label className="text-xs">Acionamento / DIM</Label>
-                            <Input
-                              value={editFields.specialDim}
-                              onChange={e => setEditFields(prev => ({ ...prev, specialDim: e.target.value }))}
-                              placeholder="ex: ON/OFF, DALI, DIM"
-                              className="mt-1 h-8 text-sm"
-                            />
+                            <Select value={editFields.specialDim || undefined} onValueChange={(specialDim) => setEditFields(prev => ({ ...prev, specialDim }))}>
+                              <SelectTrigger className="mt-1 h-8 text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="ON/OFF">ON/OFF</SelectItem>
+                                <SelectItem value="DALI">DALI</SelectItem>
+                                <SelectItem value="1-10V">1-10V</SelectItem>
+                                <SelectItem value="A Definir">A Definir</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
                           <div>
                             <Label className="text-xs">Tensão</Label>
-                            <Input
-                              value={editFields.specialVoltage}
-                              onChange={e => setEditFields(prev => ({ ...prev, specialVoltage: e.target.value }))}
-                              placeholder="ex: BIVOLT, 220V"
-                              className="mt-1 h-8 text-sm"
-                            />
+                            <Select value={editFields.specialVoltage || undefined} onValueChange={(specialVoltage) => setEditFields(prev => ({ ...prev, specialVoltage }))}>
+                              <SelectTrigger className="mt-1 h-8 text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="220V">220V</SelectItem>
+                                <SelectItem value="Bivolt">Bivolt</SelectItem>
+                                <SelectItem value="A Definir">A Definir</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
 
                         </div>
@@ -3314,23 +3329,21 @@ function StandardCart() {
                   {item?.data.isSpecialItem && (
                     <div className="space-y-1">
                       <Label>Temperatura de Cor</Label>
-                      <div className="flex flex-wrap gap-1.5">
-                        {["", "2700K", "3000K", "3500K", "4000K", "5000K", "6500K"].map((ct) => (
-                          <button
-                            key={ct || "none"}
-                            type="button"
-                            onClick={() => setEditFields(prev => ({ ...prev, specialColorTemp: ct }))}
-                            className={[
-                              "px-2.5 py-1 rounded-md text-xs font-medium border transition-colors",
-                              editFields.specialColorTemp === ct
-                                ? "bg-amber-600 border-amber-600 text-white"
-                                : "border-border bg-muted/20 text-muted-foreground hover:border-amber-500/50",
-                            ].join(" ")}
-                          >
-                            {ct || "N/A"}
-                          </button>
-                        ))}
-                      </div>
+                      <Select value={editFields.specialColorTemp || undefined} onValueChange={(cct) => setEditFields(prev => {
+                        return { ...prev, specialColorTemp: cct, cct };
+                      })}>
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="2700K">2700K</SelectItem>
+                          <SelectItem value="3000K">3000K</SelectItem>
+                          <SelectItem value="3500K">3500K</SelectItem>
+                          <SelectItem value="4000K">4000K</SelectItem>
+                          <SelectItem value="5000K">5000K</SelectItem>
+                          <SelectItem value="6000K">6000K</SelectItem>
+                          <SelectItem value="6500K">6500K</SelectItem>
+                          <SelectItem value="A Definir">A Definir</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
                   {/* Equipamentos do Item Especial */}
@@ -3441,6 +3454,7 @@ function StandardCart() {
                   patch.quoteSummary = editFields.description.trim();
                 }
                 if (editFields.itemEmPlanta !== undefined) patch.itemEmPlanta = editFields.itemEmPlanta;
+                patch.nonQuotedObservation = editFields.nonQuotedObservation.trim() || undefined;
               } else if (isRevenda) {
                 const qty = parseInt(editFields.qty) || 1;
                 const unitPrice = parseFloat(editFields.unitPrice.replace(',', '.')) || 0;
@@ -3571,7 +3585,9 @@ function StandardCart() {
               if (item?.data.isSpecialItem) {
                 patch.specialPhotoUrl = editSpecialPhotoUrl ?? undefined;
                 patch.photoUrl = editSpecialPhotoUrl ?? undefined;
-                patch.specialColorTemp = editFields.specialColorTemp.trim() || undefined;
+                const specialColorTemp = editFields.specialColorTemp.trim() || editFields.cct.trim();
+                patch.specialColorTemp = specialColorTemp || undefined;
+                patch.cct = specialColorTemp || undefined;
                 patch.specialEquipments = editFields.specialEquipments.length > 0 ? editFields.specialEquipments : undefined;
                 if (editFields.specialDescription.trim()) {
                   patch.specialDescription = editFields.specialDescription.trim();

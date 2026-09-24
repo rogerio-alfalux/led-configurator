@@ -42,4 +42,19 @@ describe("Customizados na Home", () => {
     expect(homeSource).toContain("handleAddItemOrToQuote(finalItemWithAcc)");
     expect(homeSource).toContain("addItem(finalItemWithAcc)");
   });
+
+  it("grava o CCT especial no campo canônico e oferece somente as opções técnicas previstas", () => {
+    expect(homeSource).toContain("cct: spColorTemp.trim() || undefined");
+    expect(homeSource).toContain("specialColorTemp: spColorTemp.trim() || undefined");
+    ["ON/OFF", "DALI", "1-10V", "220V", "Bivolt", "2700K", "3500K", "6000K", "6500K", "A Definir"].forEach((option) => {
+      expect(homeSource).toContain(`value=\"${option}\"`);
+    });
+    expect(homeSource).toContain("CCT:</span> {spColorTemp}");
+  });
+
+  it("persiste a observação de Não Orçamos separadamente e sem opção de ocultá-la", () => {
+    expect(homeSource).toContain('const [noObservation, setNoObservation] = useState<string>("")');
+    expect(homeSource).toContain("nonQuotedObservation: noObservation.trim() || undefined");
+    expect(homeSource).toContain("Esta observação sempre aparecerá no orçamento quando preenchida");
+  });
 });

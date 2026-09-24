@@ -718,6 +718,30 @@ async function _generateExcelBuffer(
       ws.getCell(`M${rowNum}`).value = '-'; // preço unitário
       if (showIpi) ws.getCell(`N${rowNum}`).value = '-';
       ws.getCell(`${totalPriceCol}${rowNum}`).value = '-'; // preço total
+      const nonQuotedObservation = item.nonQuotedObservation?.trim();
+      if (nonQuotedObservation) {
+        const obsRowNum = rowNum + 1;
+        ws.spliceRows(obsRowNum, 0, []);
+        const obsRow = ws.getRow(obsRowNum);
+        obsRow.height = 28;
+        const OBS_BG = 'FFF0FFF4';
+        const OBS_COLOR = 'FF166534';
+        const thinGreen: Partial<ExcelJS.Border> = { style: 'thin', color: { argb: 'FF86EFAC' } };
+        const obsBorder = { top: thinGreen, bottom: thinGreen, left: thinGreen, right: thinGreen };
+        for (const col of visibleTableCols) {
+          const cell = ws.getCell(`${col}${obsRowNum}`);
+          cell.value = '';
+          cell.font = { name: 'Calibri', size: 9, italic: true, color: { argb: OBS_COLOR } };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: OBS_BG } };
+          cell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+          cell.border = obsBorder;
+        }
+        ws.mergeCells(`E${obsRowNum}:${visibleEndCol}${obsRowNum}`);
+        const obsCell = ws.getCell(`E${obsRowNum}`);
+        obsCell.value = `⚠ Obs.: ${nonQuotedObservation}`;
+        obsCell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true, indent: 1 };
+        currentRow += 1;
+      }
       continue; // pular o restante do loop para este item
     }
 
@@ -901,7 +925,7 @@ async function _generateExcelBuffer(
       : (item.corPeca || "-");
 
     // K = TEMPERATURA DE COR (K)
-    ws.getCell(`K${rowNum}`).value = item.cct || "-";
+    ws.getCell(`K${rowNum}`).value = item.cct || item.specialColorTemp || "-";
 
     // L = QTD
     const cQty = ws.getCell(`L${rowNum}`);
@@ -1297,8 +1321,15 @@ async function _generateExcelBuffer(
       }
       currentRow += legacyDrvsExcel.length;
     }
-    // ── Sub-linha de observação do item (quando itemObsShowInExcel=true) ──────────────────────────────────────────────────────────────────────────────────────
-    if (item.itemObs && item.itemObsShowInExcel) {
+    // ── Sub-linha de observação do item ───────────────────────────────────────
+    // Não Orçamos sempre exibe sua observação comercial quando informada. Os
+    // demais itens preservam a escolha explícita de exibição do usuário.
+    const commercialObservation = item.category === "Não Orçamos"
+      ? item.nonQuotedObservation?.trim()
+      : item.itemObs && item.itemObsShowInExcel
+        ? item.itemObs
+        : undefined;
+    if (commercialObservation) {
         const obsOffset = accessoryLines.length + (item.driverLines?.length ?? 0) + specialEquipmentLines.length + (legacyDrvsExcel?.length ?? 0);
       const obsRowNum = rowNum + obsOffset + 1;
       ws.spliceRows(obsRowNum, 0, []);
@@ -1320,7 +1351,7 @@ async function _generateExcelBuffer(
       // Mesclar até o fim visível da tabela para a observação
       ws.mergeCells(`E${obsRowNum}:${visibleEndCol}${obsRowNum}`);
       const obsCell = ws.getCell(`E${obsRowNum}`);
-      obsCell.value = `⚠ Obs.: ${item.itemObs}`;
+      obsCell.value = `⚠ Obs.: ${commercialObservation}`;
       obsCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: OBS_COLOR } };
       obsCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: OBS_BG } };
       obsCell.alignment = { horizontal: "left", vertical: "middle", wrapText: true, indent: 1 };
