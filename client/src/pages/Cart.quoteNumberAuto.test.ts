@@ -32,7 +32,7 @@ describe("número manual de novos orçamentos", () => {
     expect(source).toContain("sellerId: seller1IdNum");
     expect(source).toContain("selectedSellerCode");
     expect(source).toContain("suggestedNumberMatchesSelectedSeller");
-    expect(source).toContain("startsWith(`${selectedSellerCode}.`)");
+    expect(source).toContain("isCommercialQuoteNumberForSeller(");
     expect(source).toContain("prev.quoteNumberManuallyEdited");
     expect(source).toContain("quoteNumber: \"\", quoteNumberManuallyEdited: false");
     expect(source).toContain("Selecione o Vendedor 1 na aba Equipe para sugerir o próximo número.");
@@ -41,9 +41,23 @@ describe("número manual de novos orçamentos", () => {
   it("preserva somente o número digitado manualmente ao trocar o vendedor", () => {
     const source = read("client/src/pages/Cart.tsx");
 
-    expect(source).toContain("quoteNumberManuallyEdited: true");
+    expect(source).toContain("quoteNumberManuallyEdited: quoteNumber.length > 0");
     expect(source).toContain("Número manual\n                                    // permanece soberano.");
     expect(source).toContain("saveForm.quoteNumber || (suggestedNumberMatchesSelectedSeller ? suggestQuery.data?.suggested : \"—\")");
+  });
+
+  it("mantém o campo livre para assistentes e permite voltar à sugestão ao apagar o valor", () => {
+    const source = read("client/src/pages/Cart.tsx");
+    const clientTab = source.slice(
+      source.indexOf("{/* ─── Aba Cliente ─── */}"),
+      source.indexOf("{/* ─── Aba Equipe ─── */}"),
+    );
+
+    expect(clientTab).not.toContain("disabled={isAssistantLogin}");
+    expect(clientTab).toContain("quoteNumberManuallyEdited: quoteNumber.length > 0");
+    expect(clientTab).toContain("Ao apagar o");
+    expect(source).toContain("suggestQuery.isError");
+    expect(source).toContain("Informe o número manualmente.");
   });
 
   it("valida formato e duplicidade no servidor antes de criar e protege contra corrida", () => {

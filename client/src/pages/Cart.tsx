@@ -64,7 +64,7 @@ import { buildLdRequestPayload } from "@/lib/ldRequestForm";
 import { buildSplitBodyPricePatch, cloneCartItemData, getEditableBodyUnitPrice } from "@/lib/splitItemPricing";
 import { getLdRequestDeadlineLimits, getLdRequestDeadlineValidationError } from "@shared/ldRequestDeadlines";
 import { isLdGuestUser } from "@/lib/ldGuestAccess";
-import { formatCommercialQuoteNumberInput, isCommercialQuoteNumber } from "@shared/quoteNumberFormat";
+import { formatCommercialQuoteNumberInput, isCommercialQuoteNumber, isCommercialQuoteNumberForSeller } from "@shared/quoteNumberFormat";
 
 /**
  * REGRA INEGOCIÁVEL: Para perfis (com profileSegments), o driverQty total é sempre
@@ -1041,15 +1041,18 @@ function StandardCart() {
   }, [saveForm]);
 
   // Busca sugestão de número ao abrir o diálogo (atualiza quando vendedor muda)
-  const seller1IdNum = saveForm.seller1Id ? parseInt(saveForm.seller1Id) : undefined;
+  const seller1IdCandidate = Number(saveForm.seller1Id);
+  const seller1IdNum = Number.isInteger(seller1IdCandidate) && seller1IdCandidate > 0
+    ? seller1IdCandidate
+    : undefined;
   const selectedSellerCode = sellers.find((seller) => String(seller.id) === saveForm.seller1Id)?.code?.trim() ?? "";
   const suggestQuery = trpc.quotes.suggestNumber.useQuery(
     { sellerId: seller1IdNum },
     { enabled: saveDialogOpen && seller1IdNum != null, staleTime: 0 }
   );
-  const suggestedNumberMatchesSelectedSeller = Boolean(
-    selectedSellerCode
-    && suggestQuery.data?.suggested?.startsWith(`${selectedSellerCode}.`),
+  const suggestedNumberMatchesSelectedSeller = isCommercialQuoteNumberForSeller(
+    suggestQuery.data?.suggested,
+    selectedSellerCode,
   );
   // A sugestão sequencial usa o código do Vendedor 1 e só substitui valores
   // que ainda não foram editados manualmente pelo usuário.
@@ -1834,11 +1837,16 @@ function StandardCart() {
                               <Label>Número do Orçamento <span className="text-destructive">*</span></Label>
                               <Input
                                 value={saveForm.quoteNumber}
-                                onChange={e => setSaveForm(prev => ({
-                                  ...prev,
-                                  quoteNumber: formatCommercialQuoteNumberInput(e.target.value),
-                                  quoteNumberManuallyEdited: true,
-                                }))}
+                                onChange={e => {
+                                  const quoteNumber = formatCommercialQuoteNumberInput(e.target.value);
+                                  setSaveForm(prev => ({
+                                    ...prev,
+                                    quoteNumber,
+                                    // Campo livre para todos os assistentes. Ao apagar o
+                                    // valor, retorna à sugestão do Vendedor 1 selecionado.
+                                    quoteNumberManuallyEdited: quoteNumber.length > 0,
+                                  }));
+                                }}
                                 className={`font-mono ${saveForm.quoteNumber.trim() && !isCommercialQuoteNumber(saveForm.quoteNumber) ? "border-destructive" : ""}`}
                                 inputMode="numeric"
                                 maxLength={10}
@@ -1959,6 +1967,8 @@ function StandardCart() {
                                   <span className="text-xs text-muted-foreground">Número do orçamento:</span>
                                   {suggestQuery.isLoading ? (
                                     <span className="text-xs text-muted-foreground animate-pulse">Calculando...</span>
+                                  ) : suggestQuery.isError ? (
+                                    <span className="text-xs text-destructive">Informe o número manualmente.</span>
                                   ) : (
                                     <span className="text-sm font-mono font-bold text-primary">
                                       {saveForm.quoteNumber || (suggestedNumberMatchesSelectedSeller ? suggestQuery.data?.suggested : "—")}

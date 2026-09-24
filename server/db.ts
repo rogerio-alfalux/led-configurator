@@ -33,6 +33,7 @@ import { brasiliaDateToUtcSqlTimestamp, getBrasiliaYear2, toBrasiliaSqlTimestamp
 import { readAdditionalCostsAggregate } from './dashboardAdditionalCosts';
 import { getStateInfo } from '../client/src/lib/difalTable';
 import { getActiveQuoteVersionId } from '../shared/quoteVersionSelection';
+import { getCommercialQuoteSequence, getCommercialSellerPrefix } from '../shared/quoteNumberFormat';
 
 /** Mantido para textos e metadados que precisam da hora civil de Brasília. */
 export const nowBrasiliaStr = () => toBrasiliaSqlTimestamp();
@@ -486,33 +487,34 @@ export async function updateCartItemData(id: number, userId: number, patch: Reco
 // ─── Quote helpers ────────────────────────────────────────────────────────────
 
 /** Gera o próximo número de orçamento no formato XX.NNNN-AA (código vendedor + sequencial anual + ano) */
-export async function generateQuoteNumber(sellerCode?: string | null): Promise<string> {
+export async function generateQuoteNumber(sellerCode?: string | null, sellerId?: number | null): Promise<string> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const year = nowBrasiliaYear2(); // ex: "26" — usa fuso de Brasília
 
-  // Extrai o prefixo do vendedor: "33.0XXX-26" → "33"
-  let vendorCode: string | null = null;
-  if (sellerCode) {
-    const m = sellerCode.match(/^(\d+)/);
-    if (m) vendorCode = m[1];
-  }
+  // Extrai o prefixo do vendedor: "33.0XXX-26" → "33". Mantido no
+  // helper compartilhado para a sugestão e a reserva usarem o mesmo código.
+  const vendorCode = getCommercialSellerPrefix(sellerCode);
 
   if (vendorCode) {
     return db.transaction(async (tx) => {
-      // O banco pode conter uma sequência antiga (por exemplo, após restauração,
-      // importação ou criação manual histórica). A maior numeração efetivamente
-      // salva é a fonte de segurança para nunca reutilizar um número existente.
+      // A reserva segue a última sequência comercial válida do vendedor. Valores
+      // de teste ou digitação fora do padrão não deslocam o próximo número.
       const pattern = `${vendorCode}.%-${year}`;
       const latestRows = await tx
-        .select({ quoteNumber: quotes.quoteNumber })
+        .select({ quoteNumber: quotes.quoteNumber, createdAt: quotes.createdAt, id: quotes.id })
         .from(quotes)
-        .where(like(quotes.quoteNumber, pattern))
-        .orderBy(desc(quotes.quoteNumber))
-        .limit(1);
-      const exactPattern = new RegExp(`^${vendorCode}\\.(\\d{4})-${year}$`);
-      const latestMatch = latestRows[0]?.quoteNumber.match(exactPattern);
-      const firstAvailableSeq = latestMatch ? Number(latestMatch[1]) + 1 : 1;
+        .where(sellerId
+          ? and(like(quotes.quoteNumber, pattern), or(eq(quotes.seller1Id, sellerId), isNull(quotes.seller1Id)))
+          : like(quotes.quoteNumber, pattern))
+        .orderBy(desc(quotes.createdAt), desc(quotes.id))
+        .limit(100);
+      const lastValidSeq = latestRows.map((row) => getCommercialQuoteSequence(row.quoteNumber, vendorCode, year))
+        .find((sequence): sequence is number => sequence != null);
+      const firstAvailableSeq = lastValidSeq != null ? lastValidSeq + 1 : 1;
+      if (firstAvailableSeq > 9_999) {
+        throw new Error(`Não há mais números disponíveis para o código ${vendorCode} no ano ${year}.`);
+      }
 
       // Reserva o número dentro de uma única transação. O ON DUPLICATE KEY
       // bloqueia a linha vendor/ano e avança a partir do maior valor entre a
@@ -537,6 +539,9 @@ export async function generateQuoteNumber(sellerCode?: string | null): Promise<s
         ))
         .limit(1);
       const reservedSeq = (reservedRows[0]?.nextSeq ?? firstAvailableSeq + 1) - 1;
+      if (reservedSeq > 9_999) {
+        throw new Error(`Não há mais números disponíveis para o código ${vendorCode} no ano ${year}.`);
+      }
       return `${vendorCode}.${String(reservedSeq).padStart(4, "0")}-${year}`;
     });
   }
@@ -676,7 +681,7 @@ export async function createQuote(input: SaveQuoteInput): Promise<{ quoteId: num
       const sellerRows = await db.select({ code: sellers.code }).from(sellers).where(eq(sellers.id, input.seller1Id)).limit(1);
       sellerCodeForNumber = sellerRows[0]?.code ?? null;
     }
-    quoteNumber = await generateQuoteNumber(sellerCodeForNumber);
+    quoteNumber = await generateQuoteNumber(sellerCodeForNumber, input.seller1Id);
   }
   const headerSnapshot = JSON.stringify({
     clientName: input.clientName,
@@ -799,7 +804,7 @@ export async function addQuoteRevision(
   if (bumpVersion && input.seller1Id && input.seller1Id !== quote.seller1Id && !input.quoteNumber) {
     const sellerRows = await db.select({ code: sellers.code }).from(sellers).where(eq(sellers.id, input.seller1Id)).limit(1);
     const newSellerCode = sellerRows[0]?.code ?? null;
-    input = { ...input, quoteNumber: await generateQuoteNumber(newSellerCode) };
+    input = { ...input, quoteNumber: await generateQuoteNumber(newSellerCode, input.seller1Id) };
   }
 
   const headerSnapshot = JSON.stringify({
@@ -1374,38 +1379,45 @@ export async function deleteQuote(id: number): Promise<void> {
  * Apenas consulta o próximo número sem incrementar o contador.
  * Use para exibição no dialog de salvar — o incremento real ocorre em generateQuoteNumber.
  *
- * IMPORTANTE: sempre baseia o número sugerido no maior número EXISTENTE nos orçamentos
- * salvos (não no nextSeq da tabela de sequências), para evitar lacunas quando o usuário
- * abre o modal e cancela sem salvar.
+ * IMPORTANTE: a sugestão usa o último número comercial VÁLIDO do vendedor
+ * selecionado, na ordem de criação. Assim, números de teste antigos, números
+ * manuais de outro vendedor com o mesmo prefixo ou registros legados inválidos
+ * não deslocam a sequência exibida no formulário.
  */
-export async function peekQuoteNumber(sellerCode?: string | null): Promise<string> {
+export async function peekQuoteNumber(sellerCode?: string | null, sellerId?: number | null): Promise<string> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const year = nowBrasiliaYear2();
-  let vendorCode: string | null = null;
-  if (sellerCode) {
-    const m = sellerCode.match(/^(\d+)/);
-    if (m) vendorCode = m[1];
-  }
-  if (vendorCode) {
-    // Sempre varre os orçamentos salvos para encontrar o maior número existente
+  const vendorCode = getCommercialSellerPrefix(sellerCode);
+  if (vendorCode && sellerId) {
+    // Consulta primeiro o histórico do próprio vendedor (e registros legados
+    // sem vendedor), em ordem cronológica, para encontrar o último válido.
     const pattern = `${vendorCode}.%-${year}`;
     const rows = await db
-      .select({ quoteNumber: quotes.quoteNumber })
+      .select({ id: quotes.id, quoteNumber: quotes.quoteNumber, createdAt: quotes.createdAt })
       .from(quotes)
-      .where(like(quotes.quoteNumber, pattern))
-      .orderBy(desc(quotes.quoteNumber))
+      .where(and(
+        like(quotes.quoteNumber, pattern),
+        or(eq(quotes.seller1Id, sellerId), isNull(quotes.seller1Id)),
+      ))
+      .orderBy(desc(quotes.createdAt), desc(quotes.id))
       .limit(100);
-    let maxSeq = 0;
-    const re = new RegExp(`^${vendorCode}\\.(\\d{4})-${year}$`);
-    for (const r of rows) {
-      const m2 = r.quoteNumber.match(re);
-      if (m2) {
-        const n = parseInt(m2[1], 10);
-        if (n > maxSeq) maxSeq = n;
-      }
+    const lastValidSeq = rows.map((row) => getCommercialQuoteSequence(row.quoteNumber, vendorCode, year))
+      .find((sequence): sequence is number => sequence != null);
+    let nextSeq = lastValidSeq != null ? lastValidSeq + 1 : 1;
+
+    // Não reutiliza um número global já existente, mesmo se ele tiver sido
+    // registrado anteriormente com outro vendedor de forma manual.
+    while (nextSeq <= 9_999) {
+      const candidate = `${vendorCode}.${String(nextSeq).padStart(4, "0")}-${year}`;
+      const existing = await db.select({ id: quotes.id })
+        .from(quotes)
+        .where(eq(quotes.quoteNumber, candidate))
+        .limit(1);
+      if (existing.length === 0) return candidate;
+      nextSeq += 1;
     }
-    return `${vendorCode}.${String(maxSeq + 1).padStart(4, "0")}-${year}`;
+    throw new Error(`Não há mais números disponíveis para o código ${vendorCode} no ano ${year}.`);
   }
   // Fallback sem vendedor
   const prefix = `ORC-${year}-`;
@@ -1427,7 +1439,7 @@ export async function suggestQuoteNumber(sellerId?: number | null): Promise<stri
     if (db) {
       const sellerRows = await db.select().from(sellers).where(eq(sellers.id, sellerId)).limit(1);
       const sellerCode = sellerRows[0]?.code ?? null;
-      return peekQuoteNumber(sellerCode);
+      return peekQuoteNumber(sellerCode, sellerId);
     }
   }
   return peekQuoteNumber();
@@ -2948,7 +2960,7 @@ export async function duplicateQuote(
       const sellerRows = await db.select({ code: sellers.code }).from(sellers).where(eq(sellers.id, effectiveSellerId)).limit(1);
       sellerCodeForDup = sellerRows[0]?.code ?? null;
     }
-    finalQuoteNumber = await generateQuoteNumber(sellerCodeForDup);
+    finalQuoteNumber = await generateQuoteNumber(sellerCodeForDup, effectiveSellerId);
   }
   const q = source.quote;
 
