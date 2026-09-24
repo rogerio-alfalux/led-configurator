@@ -21,7 +21,7 @@
 
 import ExcelJS from "exceljs";
 import type { CartItemData, LinkedAccessory, QuoteFormData } from "./cartTypes";
-import { getEffectiveDriverLineQuantity } from "./cartTypes";
+import { getEffectiveDriverLineQuantity, getLinkedAccessoryTotalPrice, getLinkedAccessoryTotalQuantity } from "./cartTypes";
 import { resolveCatalogItemPhoto, type CatalogPhotoCandidate } from "./itemPhoto";
 import { toBrasiliaDate } from "./dateUtils";
 import { getStateInfo } from "./difalTable";
@@ -572,8 +572,10 @@ async function _generateExcelBuffer(
     return getCommercialBodyTotal(it);
   };
   const calcItemAccessoriesTotal = (it: CartItemData): number =>
-    (it.accessories ?? []).reduce((sum, accessory) =>
-      sum + (Number(accessory.unitPrice ?? 0) * Number(accessory.qty ?? 0) * Number(it.qty ?? 1)), 0);
+    (it.accessories ?? []).reduce(
+      (sum, accessory) => sum + getLinkedAccessoryTotalPrice(it, accessory),
+      0,
+    );
   // _totalBaseParaFrete: base para distribuição proporcional do frete por item
   // Para itens com driverLines, usa apenas o preço da luminária (sem drivers) para evitar duplicação
   // Itens "Não Orçamos" são apenas indicativos e não entram na base de cálculo do frete
@@ -947,8 +949,8 @@ async function _generateExcelBuffer(
       const diluicaoItem = _diluicaoParaDiluir > 0 ? _diluicaoParaDiluir * peso : 0;
       return _effectiveUnitPrice + (freteItem + diluicaoItem) / Math.max(it.qty, 1);
     };
-    // Fator de diluição proporcional para este item (luminaria + drivers como base)
-    const _itemTotalRealForDil = calcItemLumTotal(item) + calcItemDrvTotal(item);
+    // Fator de diluição proporcional para este item, inclusive acessórios.
+    const _itemTotalRealForDil = calcItemLumTotal(item) + calcItemDrvTotal(item) + calcItemAccessoriesTotal(item);
     const _diluicaoFatorItem = (_diluicaoParaDiluir > 0 && _totalBaseParaFrete > 0)
       ? _diluicaoParaDiluir * (_itemTotalRealForDil / _totalBaseParaFrete)
       : 0;
@@ -1111,13 +1113,17 @@ async function _generateExcelBuffer(
         for (const col of ["F", "G", "H", "I", "J", "K"]) {
           fillAcc(ws.getCell(`${col}${accRowNum}`), "");
         }
-        const accQty = acc.qty * (item.qty ?? 1);
+        const accQty = getLinkedAccessoryTotalQuantity(item, acc);
         fillAcc(ws.getCell(`L${accRowNum}`), accQty, true);
         if (acc.unitPrice && acc.unitPrice > 0) {
-          const accBaseTotal = Number(acc.unitPrice) * accQty;
+          const accBaseTotal = getLinkedAccessoryTotalPrice(item, acc);
           const accWeight = _itemRawForTax > 0 ? accBaseTotal / _itemRawForTax : 0;
           const accDifalFcpTotal = _itemDifalFcpFator * accWeight;
-          const accUnitAdjusted = Number(acc.unitPrice) + (accQty > 0 ? accDifalFcpTotal / accQty : 0);
+          // Frete, diluição, RT, margens e descontos incidem também sobre o
+          // acessório, exatamente como sobre a luminária e seus drivers.
+          const accDilutedBase = accBaseTotal + ((_diluicaoFatorItem + _freteFatorItem) * accWeight);
+          const accCommercialTotal = applyMarkup(accDilutedBase) + accDifalFcpTotal;
+          const accUnitAdjusted = accQty > 0 ? accCommercialTotal / accQty : 0;
           const mCell = ws.getCell(`M${accRowNum}`);
           mCell.value = showIpi ? getUnitPriceWithoutIpi(accUnitAdjusted) : accUnitAdjusted;
           mCell.numFmt = '"R$"#,##0.00';
@@ -1135,7 +1141,7 @@ async function _generateExcelBuffer(
             ipiCell.border = accBorder;
           }
           const nCell = ws.getCell(`${totalPriceCol}${accRowNum}`);
-          nCell.value = accBaseTotal + accDifalFcpTotal;
+          nCell.value = accCommercialTotal;
           nCell.numFmt = '"R$"#,##0.00';
           nCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: ACC_COLOR } };
           nCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACC_BG } };

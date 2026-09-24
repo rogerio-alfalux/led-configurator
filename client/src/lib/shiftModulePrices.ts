@@ -1,4 +1,4 @@
-import type { CartItemData } from "./cartTypes";
+import { getLinkedAccessoryTotalPrice, type CartItemData } from "./cartTypes";
 
 /** Converte um preço digitado no padrão brasileiro ou decimal para número. */
 export function parseShiftModuleManualPrice(rawValue: string): number | null {
@@ -13,9 +13,8 @@ export function parseShiftModuleManualPrice(rawValue: string): number | null {
 
 /** Total bruto de subitens vinculados para a quantidade configurada do produto pai. */
 export function calculateLinkedAccessoriesTotal(item: Pick<CartItemData, "accessories" | "qty">): number {
-  const itemQty = item.qty ?? 1;
   return (item.accessories ?? []).reduce(
-    (sum, accessory) => sum + (accessory.unitPrice ?? 0) * (accessory.qty ?? 0) * itemQty,
+    (sum, accessory) => sum + getLinkedAccessoryTotalPrice(item, accessory),
     0,
   );
 }

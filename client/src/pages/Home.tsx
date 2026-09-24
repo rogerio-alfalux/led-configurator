@@ -3571,6 +3571,8 @@ export default function Home() {
   const [spUnitPrice, setSpUnitPrice] = useState<string>("");
   const [spPriceMode, setSpPriceMode] = useState<"unit" | "meter">("unit");
   const [spLength, setSpLength] = useState<string>(""); // comprimento em metros (modo por metro)
+  const [spQty, setSpQty] = useState<string>("1");
+  const [spItemEmPlanta, setSpItemEmPlanta] = useState<string>("");
   const [spInternalNotes, setSpInternalNotes] = useState<string>("");
   const [spPhotoUrl, setSpPhotoUrl] = useState<string>("");
   const [spPhotoPreview, setSpPhotoPreview] = useState<string>("");
@@ -3945,6 +3947,9 @@ export default function Home() {
       fotoUrl: product.fotoUrl ?? null,
       familia: product.familia ?? undefined,
       dimensao: product.dimensao ?? undefined,
+      // Quantidade selecionada no modal pertence ao pedido inteiro; não deve
+      // ser multiplicada pela quantidade de luminárias nas etapas seguintes.
+      quantityScope: "order_total",
     };
     setPendingAccessories(prev => {
       // Evita duplicata pelo código
@@ -3995,6 +4000,7 @@ export default function Home() {
         fotoUrl: product.fotoUrl ?? null,
         familia: product.familia ?? undefined,
         dimensao: product.dimensao ?? undefined,
+        quantityScope: "order_total",
       };
       setPendingAccessories(prev => {
         const exists = prev.some(a => a.codigo === linked.codigo);
@@ -4093,15 +4099,16 @@ export default function Home() {
     }
     const rawPrice = parseFloat(spUnitPrice.replace(",", ".")) || 0;
     const lengthMeters = parseFloat(spLength.replace(",", ".")) || 1;
+    const effectiveQty = Math.max(1, parseInt(spQty, 10) || 1);
     // No modo "por metro", o unitPrice é o preço por metro; o total = preço/m × comprimento
     const unitPrice = spPriceMode === "meter" ? rawPrice * lengthMeters : rawPrice;
     const item: CartItemData = {
       category: "Item Especial",
       sku: "ESPECIAL",
       description: spDescription.trim(),
-      qty: 1,
+      qty: effectiveQty,
       unitPrice,
-      totalPrice: unitPrice,
+      totalPrice: unitPrice * effectiveQty,
       photoUrl: spPhotoUrl || "",
       isSpecialItem: true,
       specialDescription: spDescription.trim(),
@@ -4113,31 +4120,26 @@ export default function Home() {
       specialUnitPrice: unitPrice || undefined,
       specialPhotoUrl: spPhotoUrl || undefined,
       specialInternalNotes: spInternalNotes.trim() || undefined,
-      itemEmPlanta: globalItemEmPlanta,
+      itemEmPlanta: spItemEmPlanta.trim() || undefined,
     };
-    // Aplicar globalQty em ambos os fluxos (carrinho e orçamento)
-    const effectiveQty = globalQty > 0 ? globalQty : 1;
     const finalItem: CartItemData = {
       ...item,
-      qty: effectiveQty,
-      totalPrice: unitPrice * effectiveQty,
-      itemEmPlanta: globalItemEmPlanta,
       ...(globalPavimento ? { floorId: globalPavimento, floorName: globalPavimento } : {}),
       ...(globalAmbiente ? { ambiente: globalAmbiente } : {}),
     };
+    const finalItemWithAcc: CartItemData = pendingAccessories.length > 0
+      ? { ...finalItem, accessories: [...pendingAccessories] }
+      : finalItem;
+    if (pendingAccessories.length > 0) setPendingAccessories([]);
     if (appendToQuoteId || replaceInQuoteId) {
-      handleAddItemOrToQuote(finalItem);
+      handleAddItemOrToQuote(finalItemWithAcc);
     } else {
       // Item Especial vai direto ao carrinho — cor já está no formulário, não precisa do seletor de cor
-      const itemWithAcc: CartItemData = pendingAccessories.length > 0
-        ? { ...finalItem, accessories: [...pendingAccessories] }
-        : finalItem;
-      if (pendingAccessories.length > 0) setPendingAccessories([]);
-      addItem(itemWithAcc);
-      setGlobalItemEmPlanta("");
-      setGlobalQty(1);
+      addItem(finalItemWithAcc);
     }
-  }, [spDescription, spDimensions, spPower, spDim, spVoltage, spColorTemp, spUnitPrice, spPhotoUrl, spInternalNotes, appendToQuoteId, handleAddItemOrToQuote, globalItemEmPlanta, globalQty, globalPavimento, globalAmbiente, pendingAccessories, addItem]);
+    setSpQty("1");
+    setSpItemEmPlanta("");
+  }, [spDescription, spDimensions, spPower, spDim, spVoltage, spColorTemp, spUnitPrice, spLength, spPriceMode, spQty, spItemEmPlanta, spPhotoUrl, spInternalNotes, appendToQuoteId, replaceInQuoteId, handleAddItemOrToQuote, globalPavimento, globalAmbiente, pendingAccessories, addItem]);
 
   const handleAddService = useCallback(() => {
     if (!svDescription.trim()) {
@@ -8903,6 +8905,29 @@ export default function Home() {
                     placeholder="Ex: 1200 x 80 x 50mm"
                     className="h-10"
                   />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Quantidade</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={spQty}
+                      onChange={(e) => setSpQty(String(Math.max(1, parseInt(e.target.value, 10) || 1)))}
+                      className="h-10"
+                      inputMode="numeric"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Item em Planta</Label>
+                    <Input
+                      value={spItemEmPlanta}
+                      onChange={(e) => setSpItemEmPlanta(e.target.value)}
+                      placeholder="Ex: L-01"
+                      className="h-10"
+                    />
+                  </div>
                 </div>
                 {/* Potência / DIM / Tensão em linha */}
                 <div className="grid grid-cols-3 gap-2">
@@ -14155,6 +14180,8 @@ export default function Home() {
                     <div className="space-y-2">
                       <p className="text-sm font-semibold text-foreground">{spDescription}</p>
                       <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <span><span className="font-medium text-foreground">Quantidade:</span> {Math.max(1, parseInt(spQty, 10) || 1)}</span>
+                        {spItemEmPlanta.trim() && <span><span className="font-medium text-foreground">Item em planta:</span> {spItemEmPlanta.trim()}</span>}
                         {spDimensions && <span><span className="font-medium text-foreground">Dimensões:</span> {spDimensions}</span>}
                         {spPower && <span><span className="font-medium text-foreground">Potência:</span> {spPower}</span>}
                         {spDim && <span><span className="font-medium text-foreground">DIM:</span> {spDim}</span>}

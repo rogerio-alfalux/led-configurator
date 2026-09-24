@@ -477,6 +477,33 @@ export interface LinkedAccessory {
 }
 
 /**
+ * Retorna a quantidade comercial e documental efetiva de um acessório
+ * vinculado. A quantidade escolhida manualmente no configurador é total do
+ * pedido (`order_total`) e, por isso, jamais é multiplicada pela quantidade
+ * da luminária. Registros legados e componentes vindos da estrutura da API
+ * continuam sendo interpretados por unidade do item.
+ */
+export function getLinkedAccessoryTotalQuantity(
+  item: Pick<CartItemData, "qty">,
+  accessory: Pick<LinkedAccessory, "qty" | "quantityScope">,
+): number {
+  const accessoryQty = Math.max(0, Number(accessory.qty) || 0);
+  if (accessory.quantityScope === "order_total") return accessoryQty;
+
+  const itemQty = Math.max(1, Number(item.qty) || 1);
+  return accessoryQty * itemQty;
+}
+
+/** Retorna o valor bruto total do acessório respeitando seu escopo de quantidade. */
+export function getLinkedAccessoryTotalPrice(
+  item: Pick<CartItemData, "qty">,
+  accessory: Pick<LinkedAccessory, "qty" | "quantityScope" | "unitPrice">,
+): number {
+  const unitPrice = Math.max(0, Number(accessory.unitPrice) || 0);
+  return unitPrice * getLinkedAccessoryTotalQuantity(item, accessory);
+}
+
+/**
  * Componente de material interno de um perfil. Não é uma sublinha comercial
  * nem uma linha da ficha de produção, mas segue salvo no orçamento para
  * alimentar a requisição de materiais.

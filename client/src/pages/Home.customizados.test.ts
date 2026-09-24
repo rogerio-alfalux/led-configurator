@@ -32,4 +32,14 @@ describe("Customizados na Home", () => {
     expect(homeSource).toContain("setPendingAccessories([])");
     expect(homeSource).toContain("dispatchItemDirect(itemWithPendingAccessories, \"A Definir\")");
   });
+
+  it("mantém quantidade, Item em Planta e acessórios também no fluxo de Item Especial", () => {
+    expect(homeSource).toContain('const [spQty, setSpQty] = useState<string>("1")');
+    expect(homeSource).toContain('const [spItemEmPlanta, setSpItemEmPlanta] = useState<string>("")');
+    expect(homeSource).toContain('itemEmPlanta: spItemEmPlanta.trim() || undefined');
+    expect(homeSource).toContain('qty: effectiveQty');
+    expect(homeSource).toContain("const finalItemWithAcc: CartItemData = pendingAccessories.length > 0");
+    expect(homeSource).toContain("handleAddItemOrToQuote(finalItemWithAcc)");
+    expect(homeSource).toContain("addItem(finalItemWithAcc)");
+  });
 });

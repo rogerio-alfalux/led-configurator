@@ -73,4 +73,33 @@ describe("PDF com valores unificados por produto", () => {
     expect(productRow.textContent).toContain(formatBRL(360.48));
     expect(driverRow.textContent).toContain("incl.");
   });
+
+  it("preserva a quantidade total do acessório e aplica RT, margem e desconto em sua sublinha", () => {
+    const accessoryItem: CartItemData = {
+      ...item,
+      qty: 3,
+      unitPrice: 100,
+      totalPrice: 300,
+      driverLines: undefined,
+      accessories: [{
+        codigo: "CP-TESTE",
+        descricao: "Acessório teste",
+        qty: 2,
+        unitPrice: 10,
+        quantityScope: "order_total",
+      }],
+    };
+    render(React.createElement(ExcelPreviewModal, {
+      open: true,
+      onClose: () => undefined,
+      items: [accessoryItem],
+      formData: { ...baseForm, rtPercent: 0.1, marginPercent: 0.1, discountPercent: 0.1 },
+    }));
+
+    const accessoryRow = Array.from(document.querySelectorAll<HTMLTableRowElement>(".quote-items-table tbody tr"))
+      .find(row => row.textContent?.includes("Acessório teste"));
+    expect(accessoryRow).toBeDefined();
+    expect(accessoryRow!.textContent).toContain("2");
+    expect(accessoryRow!.textContent).toContain(formatBRL(22.2222));
+  });
 });

@@ -3596,7 +3596,13 @@ function StandardCart() {
                   const nextQuantity = quantityDraft != null && quantityDraft.trim() !== ''
                     ? Math.max(0, Number(quantityDraft.replace(',', '.')) || 0)
                     : accessory.qty;
-                  const nextAccessory = { ...accessory, qty: nextQuantity };
+                  const nextAccessory = {
+                    ...accessory,
+                    qty: nextQuantity,
+                    // Uma quantidade digitada manualmente no editor representa
+                    // o total do pedido, nunca uma quantidade por luminária.
+                    ...(quantityDraft != null && quantityDraft.trim() !== '' ? { quantityScope: "order_total" as const } : {}),
+                  };
                   if (!Object.prototype.hasOwnProperty.call(shiftModulePriceDrafts, draftKey)) return nextAccessory;
                   const canEditModulePrice = (user as any)?.role !== "convidado" && (accessory.unitPrice == null || canOverrideApiPriceSave);
                   if (!canEditModulePrice) return nextAccessory;

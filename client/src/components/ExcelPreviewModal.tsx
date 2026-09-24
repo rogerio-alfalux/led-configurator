@@ -12,7 +12,7 @@ import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import { capturePreviewPagePdf, downloadPdfBlob } from "@/lib/pdfVisualCapture";
 import type { CartItemData, QuoteFormData } from "@/lib/cartTypes";
-import { formatBRL, getEffectiveDriverLineQuantity } from "@/lib/cartTypes";
+import { formatBRL, getEffectiveDriverLineQuantity, getLinkedAccessoryTotalPrice, getLinkedAccessoryTotalQuantity } from "@/lib/cartTypes";
 import { getStateInfo } from "@/lib/difalTable";
 import { toBrasiliaDate } from "@/lib/dateUtils";
 import { getQuotePreviewColumnCount, getQuotePreviewColumnWidths, QUOTE_PREVIEW_SUBITEM_BLANK_COLUMN_COUNT } from "@/lib/quotePreviewLayout";
@@ -453,8 +453,10 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
     return p > 0 ? base * (1 - p) : base;
   };
   const getAccessoriesTotal = (it: CartItemData): number =>
-    (it.accessories ?? []).reduce((sum, accessory) =>
-      sum + (Number(accessory.unitPrice ?? 0) * Number(accessory.qty ?? 0) * Number(it.qty ?? 1)), 0);
+    (it.accessories ?? []).reduce(
+      (sum, accessory) => sum + getLinkedAccessoryTotalPrice(it, accessory),
+      0,
+    );
   const totalBaseBeforeItemDiscount = useMemo(() => sortedItems.reduce((s, it) => {
     const drvT = (it.driverLines && it.driverLines.length > 0)
       ? it.driverLines.reduce((sd, d) => {
@@ -1101,12 +1103,23 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
 
                       {/* Sub-linhas de acessórios não-rabicho */}
                       {accessoryLines.map((acc, accIdx) => {
-                        const accQty = acc.qty * (item.qty ?? 1);
+                        const accQty = getLinkedAccessoryTotalQuantity(item, acc);
+                        const accRaw = getLinkedAccessoryTotalPrice(item, acc);
                         const itemRawTotal = getItemTotalReal(item);
-                        const accTaxTotal = itemRawTotal > 0
-                          ? getItemDifalFcp(item) * ((Number(acc.unitPrice ?? 0) * accQty) / itemRawTotal)
+                        const accWeight = itemRawTotal > 0 ? accRaw / itemRawTotal : 0;
+                        const accFrete = getFreteItem(item) * accWeight;
+                        const accDiluicao = (diluicaoParaDiluir > 0 && totalBase > 0)
+                          ? diluicaoParaDiluir * (itemRawTotal / totalBase) * accWeight
                           : 0;
-                        const accUnitWithTax = Number(acc.unitPrice ?? 0) + (accQty > 0 ? accTaxTotal / accQty : 0);
+                        const accTaxTotal = itemRawTotal > 0
+                          ? getItemDifalFcp(item) * accWeight
+                          : 0;
+                        const accCommercialTotal = applyMarkupItem(
+                          accRaw + accFrete + accDiluicao,
+                          item.itemMarginPercent,
+                          item.itemDiscountPercent,
+                        ) + accTaxTotal;
+                        const accUnitWithTax = accQty > 0 ? accCommercialTotal / accQty : 0;
                         return (
                         <tr key={`acc-${idx}-${accIdx}`} style={{ background: "#E0F7FA" }}>
                           <td style={{ ...tdStyle, fontSize: 9 }}></td>
@@ -1126,7 +1139,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                           <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold" }}>{accQty}</td>
                           <td style={{ ...tdStyle, fontSize: 9 }}>{unifyItemValues ? "incl." : acc.unitPrice && acc.unitPrice > 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(accUnitWithTax) : accUnitWithTax) : "-"}</td>
                           {showIpi && <td style={{ ...tdStyle, fontSize: 9 }}>{unifyItemValues ? "incl." : acc.unitPrice && acc.unitPrice > 0 ? formatBRL(accUnitWithTax) : "-"}</td>}
-                          <td style={{ ...tdStyle, fontSize: 9 }}>{unifyItemValues ? "incl." : acc.unitPrice && acc.unitPrice > 0 ? formatBRL(acc.unitPrice * accQty + accTaxTotal) : "-"}</td>
+                          <td style={{ ...tdStyle, fontSize: 9 }}>{unifyItemValues ? "incl." : acc.unitPrice && acc.unitPrice > 0 ? formatBRL(accCommercialTotal) : "-"}</td>
                         </tr>
                         );
                       })}

@@ -1,5 +1,5 @@
 import type { CartItemData } from "./cartTypes";
-import { getEffectiveDriverLineQuantity } from "./cartTypes";
+import { getEffectiveDriverLineQuantity, getLinkedAccessoryTotalPrice } from "./cartTypes";
 import { getCommercialBodyTotal } from "./splitItemPricing";
 import { getUnitPriceWithoutIpi } from "./quoteIpi";
 
@@ -21,12 +21,10 @@ export function getUnifiedPdfRawItemTotal(item: CartItemData): number {
     const unitPrice = Number(line.driverUnitPrice ?? 0);
     return sum + unitPrice * getEffectiveDriverLineQuantity(item, line);
   }, 0);
-  const accessoryTotal = (item.accessories ?? []).reduce((sum, accessory) => (
-    sum
-      + Number(accessory.unitPrice ?? 0)
-      * Number(accessory.qty ?? 0)
-      * Math.max(1, Number(item.qty ?? 1))
-  ), 0);
+  const accessoryTotal = (item.accessories ?? []).reduce(
+    (sum, accessory) => sum + getLinkedAccessoryTotalPrice(item, accessory),
+    0,
+  );
 
   return bodyTotal + driverTotal + accessoryTotal;
 }

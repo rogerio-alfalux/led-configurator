@@ -12,6 +12,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { CartItemData, QuoteFormData } from "./cartTypes";
+import { getLinkedAccessoryTotalPrice, getLinkedAccessoryTotalQuantity } from "./cartTypes";
 import { getPersistedItemPhotoUrl } from "./itemPhoto";
 import { toBrasiliaDate } from "./dateUtils";
 import { getStateInfo } from "./difalTable";
@@ -139,8 +140,10 @@ async function _generatePdfBlob(
     }, 0);
   };
   const _pdfCalcItemAccessoriesTotal = (it: CartItemData): number =>
-    (it.accessories ?? []).reduce((sum, accessory) =>
-      sum + (Number(accessory.unitPrice ?? 0) * Number(accessory.qty ?? 0) * Number(it.qty ?? 1)), 0);
+    (it.accessories ?? []).reduce(
+      (sum, accessory) => sum + getLinkedAccessoryTotalPrice(it, accessory),
+      0,
+    );
   const _pdfApplyItemMgn = (base: number, it: CartItemData): number => {
     const p = it.itemMarginPercent != null ? Math.min(Math.max(it.itemMarginPercent / 100, 0), 0.99) : 0;
     return p > 0 ? base / (1 - p) : base;
@@ -461,8 +464,8 @@ async function _generatePdfBlob(
     // Módulos comerciais vinculados (SHIFT) e demais subitens de produto.
     const accessoryLines = item.accessories ?? [];
     for (const acc of accessoryLines) {
-      const accQty = (acc.qty ?? 0) * (item.qty ?? 1);
-      const accRaw = (acc.unitPrice ?? 0) * accQty;
+      const accQty = getLinkedAccessoryTotalQuantity(item, acc);
+      const accRaw = getLinkedAccessoryTotalPrice(item, acc);
       const accWeight = itemRaw > 0 ? accRaw / itemRaw : 0;
       const accFrete = _pdfFreteFatorItem * accWeight;
       const accDifalFcp = itemDifalFcp * accWeight;

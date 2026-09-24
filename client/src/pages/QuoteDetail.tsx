@@ -41,7 +41,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ShapeAssemblyGuide } from "@/components/ShapeAssemblyGuide";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { CartItemData, formatBRL, parseCartItemData, normalizeStoredQuoteSnapshot, extractPowerLabelFromName, toPowerLabel, enrichDriverCurrentsFromApi, enrichShiftAccessoryTechnicalComponents, migrateItemDrivers, migrateLegacyGlowCommercialItem, type QuoteFormData } from "@/lib/cartTypes";
+import { CartItemData, formatBRL, getLinkedAccessoryTotalPrice, getLinkedAccessoryTotalQuantity, parseCartItemData, normalizeStoredQuoteSnapshot, extractPowerLabelFromName, toPowerLabel, enrichDriverCurrentsFromApi, enrichShiftAccessoryTechnicalComponents, migrateItemDrivers, migrateLegacyGlowCommercialItem, type QuoteFormData } from "@/lib/cartTypes";
 import { buildUnambiguousCatalogPhotoMap, resolveCatalogItemPhoto } from "@/lib/itemPhoto";
 import { formatLinkedCommercialQuote } from "@/lib/sampleLinkPresentation";
 import { isLdRequestLinkedToQuote } from "@/lib/ldRequestUtils";
@@ -613,7 +613,7 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
           </div>
           {linkedAccessories.map(({ accessory, index }) => {
             const canEditModulePrice = accessory.unitPrice == null || canOverrideApiPrice;
-            const totalQty = (accessory.qty ?? 0) * (d.qty ?? 1);
+            const totalQty = getLinkedAccessoryTotalQuantity(d, accessory);
             return (
               <div key={`${accessory.codigo}-${index}`} className="flex items-center justify-between gap-2 text-xs bg-cyan-50/70 dark:bg-cyan-950/20 rounded px-2 py-1.5">
                 <div className="flex-1 min-w-0">
@@ -635,7 +635,7 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
                         const value = Number(event.target.value.replace(',', '.'));
                         if (!Number.isFinite(value) || value < 0 || value === (accessory.qty ?? 1)) return;
                         const accessories = (d.accessories ?? []).map((current, currentIndex) =>
-                          currentIndex === index ? { ...current, qty: value } : current,
+                          currentIndex === index ? { ...current, qty: value, quantityScope: "order_total" as const } : current,
                         );
                         onUpdate(item.id, { accessories });
                       }}
@@ -662,7 +662,7 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
                       }}
                     />
                   </div>
-                  <span className="min-w-28 text-right font-semibold text-primary">{accessory.unitPrice != null && accessory.unitPrice > 0 ? formatBRL(accessory.unitPrice * totalQty) : "—"}</span>
+                  <span className="min-w-28 text-right font-semibold text-primary">{accessory.unitPrice != null && accessory.unitPrice > 0 ? formatBRL(getLinkedAccessoryTotalPrice(d, accessory)) : "—"}</span>
                 </div>
               </div>
             );
@@ -5029,8 +5029,8 @@ export default function QuoteDetail() {
                                   {d.accessories && (d.accessories as LinkedAccessory[]).length > 0 && (
                                     <div className="mt-1.5 border-l-2 border-cyan-500/40 pl-2 space-y-0.5">
                                       {(d.accessories as LinkedAccessory[]).map((acc, i) => {
-                                        const accessoryQty = (acc.qty ?? 0) * (d.qty ?? 1);
-                                        const accessoryTotal = (acc.unitPrice ?? 0) * accessoryQty;
+                                        const accessoryQty = getLinkedAccessoryTotalQuantity(d, acc);
+                                        const accessoryTotal = getLinkedAccessoryTotalPrice(d, acc);
                                         return (
                                         <div key={i} className="flex items-center gap-1.5 text-xs">
                                           {resolveAccPhoto(acc.codigo, acc.fotoUrl) ? (

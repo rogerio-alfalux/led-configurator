@@ -1,5 +1,21 @@
 import { describe, it, expect } from "vitest";
-import { enrichDriverCurrentsFromApi, enrichShiftAccessoryTechnicalComponents, migrateItemDrivers, migrateLegacyGlowCommercialItem, normalizeRv00064TechnicalConfiguration, normalizeSplitCommercialPricing, parseCartItemData, selectApiTechnicalVariantForItem } from "./cartTypes";
+import { enrichDriverCurrentsFromApi, enrichShiftAccessoryTechnicalComponents, getLinkedAccessoryTotalPrice, getLinkedAccessoryTotalQuantity, migrateItemDrivers, migrateLegacyGlowCommercialItem, normalizeRv00064TechnicalConfiguration, normalizeSplitCommercialPricing, parseCartItemData, selectApiTechnicalVariantForItem } from "./cartTypes";
+
+describe("quantidade de acessórios vinculados", () => {
+  const item = { qty: 4 };
+
+  it("mantém soberana a quantidade total escolhida pelo usuário", () => {
+    const accessory = { qty: 3, unitPrice: 12.5, quantityScope: "order_total" as const };
+    expect(getLinkedAccessoryTotalQuantity(item, accessory)).toBe(3);
+    expect(getLinkedAccessoryTotalPrice(item, accessory)).toBe(37.5);
+  });
+
+  it("preserva a semântica por luminária de registros legados e da API", () => {
+    const accessory = { qty: 3, unitPrice: 12.5, quantityScope: "per_unit" as const };
+    expect(getLinkedAccessoryTotalQuantity(item, accessory)).toBe(12);
+    expect(getLinkedAccessoryTotalPrice(item, accessory)).toBe(150);
+  });
+});
 
 describe("parseCartItemData - correção de driverQty para perfis", () => {
   it("recupera o preço do corpo sem subtrair novamente o driver e limita valores a duas casas", () => {

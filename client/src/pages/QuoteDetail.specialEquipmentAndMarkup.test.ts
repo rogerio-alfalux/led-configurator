@@ -29,4 +29,14 @@ describe("Editar Itens: equipamentos especiais e markup", () => {
     expect(pdf).toContain("↳ Equipamento:");
     expect(pdf).toContain("incluído no preço");
   });
+
+  it("trata a quantidade manual de acessórios como total do pedido em todas as edições", () => {
+    const detail = read("client/src/pages/QuoteDetail.tsx");
+    const cart = read("client/src/pages/Cart.tsx");
+
+    expect(detail).toContain("getLinkedAccessoryTotalQuantity(d, accessory)");
+    expect(detail).toContain('quantityScope: "order_total" as const');
+    expect(detail).toContain("getLinkedAccessoryTotalPrice(d, accessory)");
+    expect(cart).toContain('quantityScope: "order_total" as const');
+  });
 });

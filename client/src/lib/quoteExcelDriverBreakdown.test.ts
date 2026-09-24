@@ -226,6 +226,42 @@ describe("sub-linha comercial de driver de perfil", () => {
     expect(worksheet.getCell(`E${equipmentRow}`).fill.fgColor?.argb).toBe("FFF3E5F5");
   });
 
+  it("respeita a quantidade total do acessório e aplica RT, margem e desconto à sua sublinha", async () => {
+    const item: CartItemData = {
+      category: "Painéis",
+      sku: "ACC-TESTE",
+      description: "LUMINÁRIA COM ACESSÓRIO TESTE",
+      qty: 3,
+      unitPrice: 100,
+      totalPrice: 300,
+      photoUrl: null,
+      accessories: [{
+        codigo: "CP-TESTE",
+        descricao: "ACESSÓRIO TESTE",
+        qty: 2,
+        unitPrice: 10,
+        quantityScope: "order_total",
+      }],
+    };
+
+    const buffer = await generateQuoteExcelBuffer([item], {
+      ...form,
+      rtPercent: 0.1,
+      marginPercent: 0.1,
+      discountPercent: 0.1,
+    });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+    const worksheet = workbook.getWorksheet("Alfalux")!;
+    const accessoryRow = Array.from({ length: worksheet.rowCount }, (_, index) => index + 1)
+      .find((row) => String(worksheet.getCell(`E${row}`).value ?? "").includes("↳ Acessório: ACESSÓRIO TESTE"));
+
+    expect(accessoryRow).toBeDefined();
+    expect(worksheet.getCell(`L${accessoryRow}`).value).toBe(2);
+    // 20 / (1 - 10% RT) / (1 - 10% margem) × (1 - 10% desconto)
+    expect(Number(worksheet.getCell(`N${accessoryRow}`).value)).toBeCloseTo(22.2222, 3);
+  });
+
   it("mantém no rodapé o total final soberano da revisão histórica", async () => {
     const item: CartItemData = {
       category: "Painéis",
