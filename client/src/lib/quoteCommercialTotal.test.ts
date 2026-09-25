@@ -36,6 +36,22 @@ describe("calculateCommercialQuoteTotal", () => {
     expect(totals.totalFinal).toBe(1540);
   });
 
+  it("aplica a margem individual somente ao corpo da luminária, não aos drivers e acessórios", () => {
+    const totals = calculateCommercialQuoteTotal({}, [{
+      category: "Painéis",
+      qty: 1,
+      totalPrice: 120,
+      priceWithoutDriver: 100,
+      unitPriceLuminaria: 100,
+      driverLines: [{ driverQty: 1, driverUnitPrice: 20, driverTotalPrice: 20 }],
+      accessories: [{ unitPrice: 10, qty: 1 }],
+      itemMarginPercent: 20,
+    }]);
+
+    // Corpo: 100 ÷ (1 − 20%) = 125; driver (20) e acessório (10) não mudam.
+    expect(totals.totalFinal).toBe(155);
+  });
+
   it("preserva preço e quantidade editados de acessórios como total do pedido", () => {
     const totals = calculateCommercialQuoteTotal({}, [{
       category: "Perfis",

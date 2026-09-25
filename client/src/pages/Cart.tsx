@@ -61,7 +61,7 @@ import { getQuoteTeamValidationError, isSellerRequiredForQuote } from "@/lib/quo
 import { LdGuestCartItemCard } from "@/components/LdGuestCards";
 import { ShapeAssemblyGuide } from "@/components/ShapeAssemblyGuide";
 import { buildLdRequestPayload } from "@/lib/ldRequestForm";
-import { buildSplitBodyPricePatch, cloneCartItemData, getEditableBodyUnitPrice } from "@/lib/splitItemPricing";
+import { buildSplitBodyPricePatch, cloneCartItemData, getCommercialBodyTotal, getEditableBodyUnitPrice } from "@/lib/splitItemPricing";
 import { getLdRequestDeadlineLimits, getLdRequestDeadlineValidationError } from "@shared/ldRequestDeadlines";
 import { isLdGuestUser } from "@/lib/ldGuestAccess";
 import {
@@ -193,14 +193,15 @@ interface SortableCartItemProps {
   driverPriceByCode: ReadonlyMap<string, number>;
   /** Callback para reordenar: move o item da posição atual para a nova posição (1-based global) */
   onReorderToSeq: (itemId: number, newSeq: number) => void;
-  /** Função para aplicar margem individual do item sobre um valor base */
-  applyItemMargin: (base: number, itemMarginPercent?: number | null) => number;
+  /** Total comercial com margem individual aplicada apenas à luminária. */
+  getItemTotalWithMargin: (item: CartItemData) => number;
+  applyBodyItemMargin: (base: number, itemMarginPercent?: number | null) => number;
 }
 
 function SortableCartItem({
   entry, idx, globalSeq, totalItems, itemEmPlantaMap, setItemEmPlantaMap, updateItemField,
   handleUpdateQty, handleQtyInput, removeItem, updateQtyMutation, isRemoving, onEditClick, onDuplicate,
-  acessorioPhotoMap, driverPriceByCode, onReorderToSeq, applyItemMargin,
+  acessorioPhotoMap, driverPriceByCode, onReorderToSeq, getItemTotalWithMargin, applyBodyItemMargin,
 }: SortableCartItemProps) {
   const [seqInputVal, setSeqInputVal] = React.useState<string>("");
   const driverDetails = getCartDriverDisplayDetails(entry.data, driverPriceByCode);
@@ -474,7 +475,7 @@ function SortableCartItem({
                       })()}
                       {/* Total geral */}
                       {entry.data.totalPrice != null && entry.data.totalPrice > 0 ? (
-                        <p className="font-bold text-primary text-base">{formatBRL(applyItemMargin(entry.data.totalPrice, entry.data.itemMarginPercent))}</p>
+                        <p className="font-bold text-primary text-base">{formatBRL(getItemTotalWithMargin(entry.data))}</p>
                       ) : (
                         <p className="text-xs text-muted-foreground italic">Total a calcular</p>
                       )}
@@ -485,10 +486,10 @@ function SortableCartItem({
                   ) : (
                     <>
                       {entry.data.unitPrice != null && entry.data.unitPrice > 0 && (
-                        <p className="text-xs text-muted-foreground">{formatBRL(applyItemMargin(entry.data.unitPrice, entry.data.itemMarginPercent))} / un</p>
+                        <p className="text-xs text-muted-foreground">{formatBRL(applyBodyItemMargin(entry.data.unitPrice, entry.data.itemMarginPercent))} / un</p>
                       )}
                       {entry.data.totalPrice != null && entry.data.totalPrice > 0 ? (
-                        <p className="font-bold text-primary text-base">{formatBRL(applyItemMargin(entry.data.totalPrice, entry.data.itemMarginPercent))}</p>
+                        <p className="font-bold text-primary text-base">{formatBRL(getItemTotalWithMargin(entry.data))}</p>
                       ) : !entry.data.priceFromApi ? (
                         <p className="text-xs text-amber-600 italic cursor-pointer hover:underline" onClick={() => onEditClick(entry.id, entry.data)}>Definir preço →</p>
                       ) : (
@@ -1151,41 +1152,27 @@ function StandardCart() {
     );
   }
 
-  // Helper: aplica margem individual do item (itemMarginPercent em %) sobre um valor base
+  // A margem individual é aplicada exclusivamente ao corpo da luminária.
   const applyItemMargin = (base: number, itemMarginPercent?: number | null): number => {
     if (itemMarginPercent == null || itemMarginPercent <= 0) return base;
     const pct = Math.min(Math.max(itemMarginPercent / 100, 0), 0.99);
     return base / (1 - pct);
+  };
+  const getItemTotalWithMargin = (item: CartItemData): number => {
+    const luminaire = getCommercialBodyTotal(item);
+    const drivers = item.driverLines?.length ? getEffectiveDrvTotal(item) : 0;
+    const accessories = (item.accessories ?? []).reduce(
+      (sum, accessory) => sum + getLinkedAccessoryTotalPrice(item, accessory),
+      0,
+    );
+    return applyItemMargin(luminaire, item.itemMarginPercent) + drivers + accessories;
   };
   // Acessórios vinculados acompanham a quantidade da luminária e entram na
   // base comercial do item, recebendo margem e RT como o restante do orçamento.
   const totalGeral = entries.reduce((acc, e) => {
     // Itens "Não Orçamos" são apenas indicativos e não entram no total
     if (e.data.category === 'Não Orçamos') return acc;
-    let itemTotal = 0;
-    if (e.data.driverLines && e.data.driverLines.length > 0) {
-      // Calcular total da luminária corretamente
-      const lumTotal = (() => {
-        if (e.data.priceWithoutDriver != null) {
-          const isUnitOnly = e.data.unitPriceLuminaria != null &&
-            Math.abs(e.data.priceWithoutDriver - e.data.unitPriceLuminaria) < 0.02 &&
-            (e.data.qty ?? 1) > 1;
-          return isUnitOnly ? e.data.unitPriceLuminaria! * (e.data.qty ?? 1) : e.data.priceWithoutDriver;
-        }
-        const unitLum = e.data.unitPriceLuminaria ?? e.data.unitPrice ?? null;
-        return unitLum != null ? unitLum * (e.data.qty ?? 1) : (e.data.totalPrice ?? 0);
-      })();
-      // REGRA INEGOCIÁVEL: usar getEffectiveDrvTotal para recalcular corretamente para perfis
-      const drvTotal = getEffectiveDrvTotal(e.data);
-      itemTotal = lumTotal + drvTotal;
-    } else {
-      itemTotal = e.data.totalPrice ?? 0;
-    }
-    const accessoryTotal = (e.data.accessories ?? []).reduce(
-      (sum, accessory) => sum + getLinkedAccessoryTotalPrice(e.data, accessory),
-      0,
-    );
-    return acc + applyItemMargin(itemTotal + accessoryTotal, e.data.itemMarginPercent);
+    return acc + getItemTotalWithMargin(e.data);
   }, 0);
 
   // Cálculo de RT e Margem
@@ -1639,7 +1626,8 @@ function StandardCart() {
                                     setEditFields({ cct: data.cct ?? data.specialColorTemp ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: editableBodyPrice != null ? String(editableBodyPrice).replace('.', ',') : '', driverUnitPriceOverride: data.driverLines && data.driverLines.length > 0 && data.driverLines[0].driverUnitPrice != null ? String(data.driverLines[0].driverUnitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, nonQuotedObservation: data.nonQuotedObservation ?? '', itemMarginPercent: (data.itemMarginPercent != null && data.itemMarginPercent > 0) ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? data.cct ?? '', specialEquipments: data.specialEquipments ?? [], mkpCustom: data.mkpCustom != null ? String(data.mkpCustom) : '', specialDescription: data.specialDescription ?? data.description ?? '', specialDimensions: data.specialDimensions ?? '', specialPower: data.specialPower ?? '', specialDim: data.specialDim ?? '', specialVoltage: data.specialVoltage ?? '', specialColor: data.specialColor ?? '', description: data.description ?? '', itemEmPlanta: data.itemEmPlanta ?? '', specialCustoUnitario: data.specialCustoUnitario != null ? String(data.specialCustoUnitario).replace('.', ',') : '', specialMarkup: data.specialMarkup != null ? String(data.specialMarkup).replace('.', ',') : '' });
                                                         if (data.isSpecialItem) { setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null); setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null); } else { setEditSpecialPhotoUrl(null); setEditSpecialPhotoPreview(null); }
                           }}
-                          applyItemMargin={applyItemMargin}
+                          getItemTotalWithMargin={getItemTotalWithMargin}
+                          applyBodyItemMargin={applyItemMargin}
                         />
                       ))}
                     </div>
@@ -1718,7 +1706,8 @@ function StandardCart() {
                                     setEditFields({ cct: data.cct ?? data.specialColorTemp ?? '', power: data.power ?? '', corPeca: data.corPeca ?? '', qty: String(data.qty ?? 1), unitPrice: editableBodyPrice != null ? String(editableBodyPrice).replace('.', ',') : '', driverUnitPriceOverride: data.driverLines && data.driverLines.length > 0 && data.driverLines[0].driverUnitPrice != null ? String(data.driverLines[0].driverUnitPrice).replace('.', ',') : '', itemNote: data.itemNote ?? '', itemObs: data.itemObs ?? '', itemObsShowInExcel: data.itemObsShowInExcel ?? false, nonQuotedObservation: data.nonQuotedObservation ?? '', itemMarginPercent: (data.itemMarginPercent != null && data.itemMarginPercent > 0) ? String(data.itemMarginPercent) : '', floorId: data.floorId ?? '', floorName: data.floorName ?? '', ambiente: data.ambiente ?? '', specialColorTemp: data.specialColorTemp ?? data.cct ?? '', specialEquipments: data.specialEquipments ?? [], mkpCustom: data.mkpCustom != null ? String(data.mkpCustom) : '', specialDescription: data.specialDescription ?? data.description ?? '', specialDimensions: data.specialDimensions ?? '', specialPower: data.specialPower ?? '', specialDim: data.specialDim ?? '', specialVoltage: data.specialVoltage ?? '', specialColor: data.specialColor ?? '', description: data.description ?? '', itemEmPlanta: data.itemEmPlanta ?? '', specialCustoUnitario: data.specialCustoUnitario != null ? String(data.specialCustoUnitario).replace('.', ',') : '', specialMarkup: data.specialMarkup != null ? String(data.specialMarkup).replace('.', ',') : '' });
                                     if (data.isSpecialItem) { setEditSpecialPhotoUrl(data.specialPhotoUrl ?? data.photoUrl ?? null); setEditSpecialPhotoPreview(data.specialPhotoUrl ?? data.photoUrl ?? null); } else { setEditSpecialPhotoUrl(null); setEditSpecialPhotoPreview(null); }
                                   }}
-                                  applyItemMargin={applyItemMargin}
+                                  getItemTotalWithMargin={getItemTotalWithMargin}
+                                  applyBodyItemMargin={applyItemMargin}
                                 />
                                 );
                               })}

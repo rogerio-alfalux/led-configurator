@@ -615,14 +615,19 @@ async function _generateExcelBuffer(
   const _rtPctForTaxDilution = Math.min(Math.max(formData.rtPercent ?? 0, 0), 0.99);
   const _marginPctForTaxDilution = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
   const _discountPctForTaxDilution = Math.min(Math.max(formData.discountPercent ?? 0, 0), 0.99);
-  const _applyItemAdjustmentsForTax = (base: number, item: CartItemData) => {
+  const _applyItemAdjustmentsForTax = (luminaire: number, nonLuminaire: number, item: CartItemData) => {
     const itemMargin = item.itemMarginPercent != null ? Math.min(Math.max(item.itemMarginPercent / 100, 0), 0.99) : 0;
     const itemDiscount = item.itemDiscountPercent != null ? Math.min(Math.max(item.itemDiscountPercent / 100, 0), 0.99) : 0;
-    const withItemMargin = itemMargin > 0 ? base / (1 - itemMargin) : base;
-    return itemDiscount > 0 ? withItemMargin * (1 - itemDiscount) : withItemMargin;
+    const withItemMargin = itemMargin > 0 ? luminaire / (1 - itemMargin) : luminaire;
+    const combined = withItemMargin + nonLuminaire;
+    return itemDiscount > 0 ? combined * (1 - itemDiscount) : combined;
   };
   const _itemsBaseForTaxDilution = items.reduce((sum, item) =>
-    sum + _applyItemAdjustmentsForTax(calcItemLumTotal(item) + calcItemDrvTotal(item) + calcItemAccessoriesTotal(item), item), 0)
+    sum + _applyItemAdjustmentsForTax(
+      calcItemLumTotal(item),
+      calcItemDrvTotal(item) + calcItemAccessoriesTotal(item),
+      item,
+    ), 0)
     + _freteParaDiluir + _diluicaoParaDiluir;
   const _itemsWithRtForTaxDilution = _rtPctForTaxDilution > 0
     ? _itemsBaseForTaxDilution / (1 - _rtPctForTaxDilution)
@@ -945,11 +950,19 @@ async function _generateExcelBuffer(
     const _itemDiscPct = item.itemDiscountPercent != null
       ? Math.min(Math.max(item.itemDiscountPercent / 100, 0), 0.99)
       : 0;
+    // Margem individual somente no corpo da luminária. Subitens recebem RT,
+    // margem/desconto globais e desconto individual, sem o acréscimo próprio.
     const applyMarkup = (base: number) => {
       const comRT  = _rtPct    > 0 ? base   / (1 - _rtPct)    : base;
       const comMargem = _marginPct > 0 ? comRT  / (1 - _marginPct) : comRT;
       const comItemMargem = _itemMarginPct > 0 ? comMargem / (1 - _itemMarginPct) : comMargem;
       const comDiscount = _discPct > 0 ? comItemMargem * (1 - _discPct) : comItemMargem;
+      return _itemDiscPct > 0 ? comDiscount * (1 - _itemDiscPct) : comDiscount;
+    };
+    const applySubitemMarkup = (base: number) => {
+      const comRT = _rtPct > 0 ? base / (1 - _rtPct) : base;
+      const comMargem = _marginPct > 0 ? comRT / (1 - _marginPct) : comRT;
+      const comDiscount = _discPct > 0 ? comMargem * (1 - _discPct) : comMargem;
       return _itemDiscPct > 0 ? comDiscount * (1 - _itemDiscPct) : comDiscount;
     };
     const hasDriverBreakdownItem = item.driverLines && item.driverLines.length > 0;
@@ -982,8 +995,13 @@ async function _generateExcelBuffer(
     const _freteFatorItem = (_freteParaDiluir > 0 && _totalBaseParaFrete > 0)
       ? _freteParaDiluir * (_itemTotalRealForDil / _totalBaseParaFrete)
       : 0;
-    const _itemRawForTax = _itemTotalRealForDil + calcItemAccessoriesTotal(item);
-    const _itemPreTaxFinal = applyMarkup(_itemRawForTax + _diluicaoFatorItem + _freteFatorItem);
+    const _itemRawForTax = _itemTotalRealForDil;
+    const _lumTotalForTax = calcItemLumTotal(item);
+    const _lumWeightForTax = _itemRawForTax > 0 ? _lumTotalForTax / _itemRawForTax : 1;
+    const _itemPreTaxFinal = applyMarkup(_lumTotalForTax + (_diluicaoFatorItem + _freteFatorItem) * _lumWeightForTax)
+      + applySubitemMarkup(
+        _itemRawForTax - _lumTotalForTax + (_diluicaoFatorItem + _freteFatorItem) * (1 - _lumWeightForTax),
+      );
     const _itemDifalFcpFator = allocateDilutedAmount(_difalFcpToDilute, _itemPreTaxFinal, _productsFinalForTaxDilution);
     // Aplica diluição + frete ao preço unitário da luminária (proporcional ao peso da luminária no item)
     const _lumTotalReal = calcItemLumTotal(item);
@@ -1146,7 +1164,7 @@ async function _generateExcelBuffer(
           // Frete, diluição, RT, margens e descontos incidem também sobre o
           // acessório, exatamente como sobre a luminária e seus drivers.
           const accDilutedBase = accBaseTotal + ((_diluicaoFatorItem + _freteFatorItem) * accWeight);
-          const accCommercialTotal = applyMarkup(accDilutedBase) + accDifalFcpTotal;
+          const accCommercialTotal = applySubitemMarkup(accDilutedBase) + accDifalFcpTotal;
           const accUnitAdjusted = accQty > 0 ? accCommercialTotal / accQty : 0;
           const mCell = ws.getCell(`M${accRowNum}`);
           mCell.value = showIpi ? getUnitPriceWithoutIpi(accUnitAdjusted) : accUnitAdjusted;
@@ -1220,7 +1238,7 @@ async function _generateExcelBuffer(
           const _drvDiluicaoUnit = _effectiveDrvQty > 0 ? (_diluicaoFatorItem + _freteFatorItem) * _drvPeso / _effectiveDrvQty : 0;
           const _drvDifalFcpTotal = _itemDifalFcpFator * _drvPeso;
           const _drvDifalFcpUnit = _effectiveDrvQty > 0 ? _drvDifalFcpTotal / _effectiveDrvQty : 0;
-          const drvUnitAdjusted = applyMarkup(drv.driverUnitPrice + _drvDiluicaoUnit) + _drvDifalFcpUnit;
+          const drvUnitAdjusted = applySubitemMarkup(drv.driverUnitPrice + _drvDiluicaoUnit) + _drvDifalFcpUnit;
           const mCell = ws.getCell(`M${drvRowNum}`);
           mCell.value = showIpi ? getUnitPriceWithoutIpi(drvUnitAdjusted) : drvUnitAdjusted;
           mCell.numFmt = '"R$"#,##0.00';
@@ -1238,7 +1256,7 @@ async function _generateExcelBuffer(
             ipiCell.border = drvBorder;
           }
           const nCell = ws.getCell(`${totalPriceCol}${drvRowNum}`);
-          nCell.value = applyMarkup((drv.driverUnitPrice + _drvDiluicaoUnit) * _effectiveDrvQty) + _drvDifalFcpTotal;
+          nCell.value = applySubitemMarkup((drv.driverUnitPrice + _drvDiluicaoUnit) * _effectiveDrvQty) + _drvDifalFcpTotal;
           nCell.numFmt = '"R$"#,##0.00';
           nCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: DRV_COLOR } };
           nCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: DRV_BG } };
@@ -1398,7 +1416,7 @@ async function _generateExcelBuffer(
             : (storedQty <= 1 ? iqty : storedQty);
           return s + Math.round((d.driverUnitPrice ?? 0) * effectiveQty * 100) / 100;
         }, 0) ?? 0;
-        return sum + _applyItemDisc(_applyItemMgn(drvBruto, it), it);
+        return sum + _applyItemDisc(drvBruto, it);
       }, 0)
     : 0;
   const totalSemDriverRaw = hasDriverBreakdown ? (totalBase - _freteParaDiluir - _diluicaoParaDiluir - totalDriverRaw) : 0;

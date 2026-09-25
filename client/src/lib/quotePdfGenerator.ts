@@ -152,6 +152,11 @@ async function _generatePdfBlob(
     const d = (it as any).itemDiscountPercent != null ? Math.min(Math.max((it as any).itemDiscountPercent / 100, 0), 0.99) : 0;
     return d > 0 ? base * (1 - d) : base;
   };
+  // A margem individual pertence exclusivamente ao corpo da luminária.
+  // Drivers e acessórios continuam recebendo RT, margem global e descontos,
+  // mas não o percentual individual do item.
+  const _pdfApplyItemComponents = (luminaire: number, nonLuminaire: number, it: CartItemData): number =>
+    _pdfApplyItemDiscount(_pdfApplyItemMgn(luminaire, it) + nonLuminaire, it);
   const _pdfDiluicaoParaDiluir = formData.diluicaoValor && formData.diluicaoValor > 0 ? formData.diluicaoValor : 0;
   const _pdfHasItemDiscount = items.some(it => Number(it.itemDiscountPercent) > 0);
   const _pdfTotalBaseBeforeItemDiscount = items
@@ -159,14 +164,14 @@ async function _generatePdfBlob(
     .reduce((sum, it) => {
       const lum = _pdfCalcItemLumTotal(it);
       const drv = _pdfCalcItemDrvTotal(it);
-      return sum + _pdfApplyItemMgn(lum + drv + _pdfCalcItemAccessoriesTotal(it), it);
+      return sum + _pdfApplyItemMgn(lum, it) + drv + _pdfCalcItemAccessoriesTotal(it);
     }, 0) + _pdfDiluicaoParaDiluir;
   const totalBase = items
     .filter(it => it.category !== 'Não Orçamos')
     .reduce((sum, it) => {
       const lum = _pdfCalcItemLumTotal(it);
       const drv = _pdfCalcItemDrvTotal(it);
-      return sum + _pdfApplyItemDiscount(_pdfApplyItemMgn(lum + drv + _pdfCalcItemAccessoriesTotal(it), it), it);
+      return sum + _pdfApplyItemComponents(lum, drv + _pdfCalcItemAccessoriesTotal(it), it);
     }, 0) + _pdfDiluicaoParaDiluir;
   const rtPct     = Math.min(Math.max(formData.rtPercent    ?? 0, 0), 0.99);
   const marginPct = Math.min(Math.max(formData.marginPercent ?? 0, 0), 0.99);
@@ -203,7 +208,7 @@ async function _generatePdfBlob(
     .reduce((sum, it) => {
       const lum = _pdfCalcItemLumTotal(it);
       const drv = _pdfCalcItemDrvTotal(it);
-      return sum + _pdfApplyItemMgn(lum + drv + _pdfCalcItemAccessoriesTotal(it), it);
+      return sum + _pdfApplyItemMgn(lum, it) + drv + _pdfCalcItemAccessoriesTotal(it);
     }, 0);
   const _pdfApplyGlobalMarkupGlobal = (base: number) => {
     const comRT = rtPct > 0 ? base / (1 - rtPct) : base;
@@ -347,7 +352,7 @@ async function _generatePdfBlob(
     const lumRaw = _pdfCalcItemLumTotal(item);
     const drvRaw = _pdfCalcItemDrvTotal(item);
     const accessoryRaw = _pdfCalcItemAccessoriesTotal(item);
-    const itemRaw = _pdfApplyItemMgn(lumRaw + drvRaw + accessoryRaw, item);
+    const itemRaw = _pdfApplyItemMgn(lumRaw, item) + drvRaw + accessoryRaw;
     // Frete diluído proporcional a este item
     const _pdfFreteFatorItem = (_pdfFreteParaDiluirGlobal > 0 && _pdfTotalBaseForFreteGlobal > 0)
       ? _pdfFreteParaDiluirGlobal * (itemRaw / _pdfTotalBaseForFreteGlobal)
@@ -452,7 +457,7 @@ async function _generatePdfBlob(
         const _drvPeso = itemRaw > 0 ? _drvTotalRaw / itemRaw : 0;
         const _drvFreteFrac = _pdfFreteFatorItem * _drvPeso;
         const drvDifalFcp = itemDifalFcp * _drvPeso;
-        const drvTotal2 = _pdfApplyItemDiscount(_pdfApplyGlobalMarkupGlobal(_pdfApplyItemMgn(_drvTotalRaw + _drvFreteFrac, item)), item) + drvDifalFcp;
+        const drvTotal2 = _pdfApplyItemDiscount(_pdfApplyGlobalMarkupGlobal(_drvTotalRaw + _drvFreteFrac), item) + drvDifalFcp;
         const originalDriverUnit = drvQty > 0 ? drvTotal2 / drvQty : 0;
         tableBody.push([
           "", "",
@@ -477,7 +482,7 @@ async function _generatePdfBlob(
       const accWeight = itemRaw > 0 ? accRaw / itemRaw : 0;
       const accFrete = _pdfFreteFatorItem * accWeight;
       const accDifalFcp = itemDifalFcp * accWeight;
-      const accTotal = _pdfApplyItemDiscount(_pdfApplyGlobalMarkupGlobal(_pdfApplyItemMgn(accRaw + accFrete, item)), item) + accDifalFcp;
+      const accTotal = _pdfApplyItemDiscount(_pdfApplyGlobalMarkupGlobal(accRaw + accFrete), item) + accDifalFcp;
       const originalAccessoryUnit = accQty > 0 ? accTotal / accQty : 0;
       tableBody.push([
         "", "",

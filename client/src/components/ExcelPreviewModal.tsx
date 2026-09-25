@@ -413,7 +413,8 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
     const comMargem = marginPct > 0 ? comRT / (1 - marginPct) : comRT;
     return discountPct > 0 ? comMargem * (1 - discountPct) : comMargem;
   };
-  // applyMarkupItem — aplica margem global + margem individual do item + desconto global
+  // applyMarkupItem aplica a margem individual apenas à luminária. Drivers e
+  // acessórios devem usar applyMarkupSubitem, sem o percentual individual.
   const applyMarkupItem = (base: number, itemMarginPercent?: number | null, itemDiscountPercent?: number | null) => {
     const itemMPct = itemMarginPercent != null ? Math.min(Math.max(itemMarginPercent / 100, 0), 0.99) : 0;
     const itemDPct = itemDiscountPercent != null ? Math.min(Math.max(itemDiscountPercent / 100, 0), 0.99) : 0;
@@ -423,6 +424,15 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
     const comDiscount = discountPct > 0 ? comItemMargem * (1 - discountPct) : comItemMargem;
     return itemDPct > 0 ? comDiscount * (1 - itemDPct) : comDiscount;
   };
+  const applyMarkupSubitem = (base: number, itemDiscountPercent?: number | null) =>
+    applyMarkupItem(base, undefined, itemDiscountPercent);
+  const applyMarkupItemComponents = (
+    luminaire: number,
+    nonLuminaire: number,
+    itemMarginPercent?: number | null,
+    itemDiscountPercent?: number | null,
+  ) => applyMarkupItem(luminaire, itemMarginPercent, itemDiscountPercent)
+    + applyMarkupSubitem(nonLuminaire, itemDiscountPercent);
 
   // Ordenar itens por pavimento (mesma logica do gerador Excel)
   // Garante que itens do mesmo pavimento ficam consecutivos na pre-visualizacao
@@ -443,7 +453,8 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
   // totalBase inclui luminária + drivers.
   // IMPORTANTE: Para itens com driverLines, totalPrice = luminária + driver (ambos já incluídos).
   // Usamos priceWithoutDriver (apenas luminária) + drivers separados para evitar duplicação.
-  // Aplica itemMarginPercent por item (RT e margem global são aplicados globalmente depois).
+  // Aplica itemMarginPercent somente ao corpo; drivers e acessórios permanecem
+  // fora do acréscimo individual e recebem os encargos globais normalmente.
   const _applyItemMgnPreview = (base: number, it: CartItemData) => {
     const p = it.itemMarginPercent != null ? Math.min(Math.max(it.itemMarginPercent / 100, 0), 0.99) : 0;
     return p > 0 ? base / (1 - p) : base;
@@ -473,7 +484,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
         }, 0)
       : 0;
     const lumT = getCommercialBodyTotal(it);
-    return s + _applyItemMgnPreview(lumT + drvT + getAccessoriesTotal(it), it);
+    return s + _applyItemMgnPreview(lumT, it) + drvT + getAccessoriesTotal(it);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, 0), [sortedItems]);
   const totalBase = useMemo(() => sortedItems.reduce((s, it) => {
@@ -481,7 +492,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
       ? it.driverLines.reduce((sd, d) => sd + (d.driverTotalPrice ?? 0), 0)
       : 0;
     const lumT = getCommercialBodyTotal(it);
-    return s + _applyItemDiscPreview(_applyItemMgnPreview(lumT + drvT + getAccessoriesTotal(it), it), it);
+    return s + _applyItemDiscPreview(_applyItemMgnPreview(lumT, it) + drvT + getAccessoriesTotal(it), it);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, 0), [sortedItems]);
 
@@ -586,7 +597,15 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
     const itemInternalDilution = diluicaoParaDiluir > 0 && totalBase > 0
       ? diluicaoParaDiluir * (itemRaw / totalBase)
       : 0;
-    return applyMarkupItem(itemRaw + itemFrete + itemInternalDilution, item.itemMarginPercent, item.itemDiscountPercent);
+    const luminaireRaw = getCommercialBodyTotal(item);
+    const luminaireWeight = itemRaw > 0 ? luminaireRaw / itemRaw : 1;
+    const luminaireCharges = (itemFrete + itemInternalDilution) * luminaireWeight;
+    return applyMarkupItemComponents(
+      luminaireRaw + luminaireCharges,
+      itemRaw - luminaireRaw + itemFrete + itemInternalDilution - luminaireCharges,
+      item.itemMarginPercent,
+      item.itemDiscountPercent,
+    );
   };
   const getItemDifalFcp = (item: CartItemData): number =>
     allocateDilutedAmount(difalFcpToDilute, getItemPreTaxFinal(item), totalFinal);
@@ -986,8 +1005,12 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                               const _itemDilution = diluicaoParaDiluir > 0 && totalBase > 0
                                 ? diluicaoParaDiluir * (_itemRawTotal / totalBase)
                                 : 0;
-                              const _unifiedFinalTotal = applyMarkupItem(
-                                _itemRawTotal + getFreteItem(item) + _itemDilution,
+                              const _bodyRaw = getCommercialBodyTotal(item);
+                              const _bodyWeight = _itemRawTotal > 0 ? _bodyRaw / _itemRawTotal : 1;
+                              const _charges = getFreteItem(item) + _itemDilution;
+                              const _unifiedFinalTotal = applyMarkupItemComponents(
+                                _bodyRaw + _charges * _bodyWeight,
+                                _itemRawTotal - _bodyRaw + _charges * (1 - _bodyWeight),
                                 item.itemMarginPercent,
                                 item.itemDiscountPercent,
                               ) + getItemDifalFcp(item);
@@ -1080,8 +1103,12 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                             const _itemDifalFcpTotal = getItemDifalFcp(item);
                             const _itemDifalFcpUnit = _qty > 0 ? _itemDifalFcpTotal / _qty : 0;
                             if (unifyItemValues && hasUnifiedPdfComponents(item)) {
-                              const _unifiedFinalTotal = applyMarkupItem(
-                                _itemTotalRealSimple + getFreteItem(item) + _diluicaoFatorSimple,
+                              const _bodyRaw = getCommercialBodyTotal(item);
+                              const _bodyWeight = _itemTotalRealSimple > 0 ? _bodyRaw / _itemTotalRealSimple : 1;
+                              const _charges = getFreteItem(item) + _diluicaoFatorSimple;
+                              const _unifiedFinalTotal = applyMarkupItemComponents(
+                                _bodyRaw + _charges * _bodyWeight,
+                                _itemTotalRealSimple - _bodyRaw + _charges * (1 - _bodyWeight),
                                 item.itemMarginPercent,
                                 item.itemDiscountPercent,
                               ) + _itemDifalFcpTotal;
@@ -1125,9 +1152,8 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                         const accTaxTotal = itemRawTotal > 0
                           ? getItemDifalFcp(item) * accWeight
                           : 0;
-                        const accCommercialTotal = applyMarkupItem(
+                        const accCommercialTotal = applyMarkupSubitem(
                           accRaw + accFrete + accDiluicao,
-                          item.itemMarginPercent,
                           item.itemDiscountPercent,
                         ) + accTaxTotal;
                         const accUnitWithTax = accQty > 0 ? accCommercialTotal / accQty : 0;
@@ -1223,13 +1249,13 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                           ))}
                           <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold", color: "#E65100" }}>{_effectiveDrvQty}</td>
                           <td style={{ ...tdStyle, fontSize: 9, color: "#E65100" }}>
-                            {unifyItemValues ? "incl." : drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(applyMarkupItem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent) + _drvDifalFcpUnit) : applyMarkupItem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent) + _drvDifalFcpUnit) : "-"}
+                            {unifyItemValues ? "incl." : drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(applyMarkupSubitem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemDiscountPercent) + _drvDifalFcpUnit) : applyMarkupSubitem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemDiscountPercent) + _drvDifalFcpUnit) : "-"}
                           </td>
                           {showIpi && <td style={{ ...tdStyle, fontSize: 9, color: "#E65100" }}>
-                            {unifyItemValues ? "incl." : drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupItem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent) + _drvDifalFcpUnit) : "-"}
+                            {unifyItemValues ? "incl." : drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupSubitem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemDiscountPercent) + _drvDifalFcpUnit) : "-"}
                           </td>}
                           <td style={{ ...tdStyle, fontSize: 9, color: "#E65100" }}>
-                            {unifyItemValues ? "incl." : drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupItem(_drvTotalPrice + _drvDilTotal + _drvFreteFrac, item.itemMarginPercent, item.itemDiscountPercent) + _drvDifalFcpTotal) : "-"}
+                            {unifyItemValues ? "incl." : drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupSubitem(_drvTotalPrice + _drvDilTotal + _drvFreteFrac, item.itemDiscountPercent) + _drvDifalFcpTotal) : "-"}
                           </td>
                         </tr>
                         );

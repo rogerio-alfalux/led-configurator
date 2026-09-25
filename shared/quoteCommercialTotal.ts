@@ -46,13 +46,30 @@ const numberOrZero = (value: unknown): number => {
 const rate = (value: unknown, divideBy = 1): number =>
   Math.min(Math.max(numberOrZero(value) / divideBy, 0), 0.99);
 
-const applyItemMargin = (amount: number, itemMarginPercent: unknown): number => {
+/**
+ * A margem individual é uma condição comercial da luminária. Drivers e
+ * acessórios mantêm seus próprios preços e recebem apenas os encargos globais
+ * do orçamento, nunca o percentual individual do corpo.
+ */
+export const applyItemMarginToLuminaire = (amount: number, itemMarginPercent: unknown): number => {
   const itemRate = rate(itemMarginPercent, 100);
   return itemRate > 0 ? amount / (1 - itemRate) : amount;
 };
 
-const applyItemDiscount = (amount: number, itemDiscountPercent: unknown): number =>
+export const applyItemDiscount = (amount: number, itemDiscountPercent: unknown): number =>
   amount * (1 - rate(itemDiscountPercent, 100));
+
+/** Aplica margem individual somente ao corpo e desconto individual ao conjunto comercial. */
+export const calculateItemCommercialBase = (
+  luminaireTotal: number,
+  nonLuminaireTotal: number,
+  itemMarginPercent: unknown,
+  itemDiscountPercent: unknown,
+): number => applyItemDiscount(
+  applyItemMarginToLuminaire(Math.max(0, luminaireTotal), itemMarginPercent)
+    + Math.max(0, nonLuminaireTotal),
+  itemDiscountPercent,
+);
 
 const parseItem = (item: CommercialQuoteItem | string | null | undefined): CommercialQuoteItem | null => {
   if (!item) return null;
@@ -137,8 +154,10 @@ export function calculateCommercialQuoteTotal(
         : accessoryQty * qty;
       return accessorySum + numberOrZero(accessory.unitPrice) * totalAccessoryQty;
     }, 0);
-    return sum + applyItemDiscount(
-      applyItemMargin(bodyTotal + driversTotal + accessoriesTotal, item.itemMarginPercent),
+    return sum + calculateItemCommercialBase(
+      bodyTotal,
+      driversTotal + accessoriesTotal,
+      item.itemMarginPercent,
       item.itemDiscountPercent,
     );
   }, 0);
