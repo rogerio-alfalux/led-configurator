@@ -4,6 +4,8 @@ export type DashboardClientMetrics = {
   quotedAmount: number;
   quotedQuoteCount: number;
   quotedAverageTicket: number | null;
+  openAmount: number;
+  openQuoteCount: number;
   closedAmount: number;
   closedQuoteCount: number;
   closedAverageTicket: number | null;

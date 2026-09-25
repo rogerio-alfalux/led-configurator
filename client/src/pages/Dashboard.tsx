@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import {
   ArrowLeft, ClipboardList, CheckCircle, DollarSign, BarChart2, Target,
@@ -229,7 +229,7 @@ function ProductInsightPanel({ scope, metric, rows }: {
     <Card className="overflow-hidden border-primary/20 shadow-sm">
       <CardHeader className="border-b bg-muted/20 pb-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div><CardTitle className={`flex items-center gap-2 text-lg ${option.tone}`}><Icon className="h-5 w-5" />{option.label}</CardTitle><p className="mt-1 text-sm text-muted-foreground">Ranking de {entityLabel.toLowerCase()} no período selecionado.</p></div>
+          <div><CardTitle className={`flex items-center gap-2 text-lg ${option.tone}`}><Icon className="h-5 w-5" />{option.label}</CardTitle><p className="mt-1 text-sm text-muted-foreground">Ranking de {entityLabel.toLowerCase()} no período da Inteligência de Produtos.</p></div>
           <Badge variant="outline" className="text-xs">Top {Math.min(rows.length, 10)} de {rows.length}</Badge>
         </div>
       </CardHeader>
@@ -285,7 +285,7 @@ function EntityInsightPanel({ scope, metric, rows }: {
     <Card className="overflow-hidden border-primary/20 shadow-sm">
       <CardHeader className="border-b bg-muted/20 pb-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div><CardTitle className={`flex items-center gap-2 text-lg ${option.tone}`}><Icon className="h-5 w-5" />{option.label}</CardTitle><p className="mt-1 text-sm text-muted-foreground">Ranking de {entityLabel} no período selecionado.</p></div>
+          <div><CardTitle className={`flex items-center gap-2 text-lg ${option.tone}`}><Icon className="h-5 w-5" />{option.label}</CardTitle><p className="mt-1 text-sm text-muted-foreground">Ranking de {entityLabel} no período da Inteligência de Produtos.</p></div>
           <Badge variant="outline" className="text-xs">Top {Math.min(rows.length, 10)} de {rows.length}</Badge>
         </div>
       </CardHeader>
@@ -353,7 +353,7 @@ export function ClientConsolidatedPanel({ rows }: { rows: EntityInsightRow[] }) 
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <CardTitle className="flex items-center gap-2 text-lg"><Users className="h-5 w-5 text-primary" />Visão consolidada por cliente</CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">Pesquise um cliente para apurar os valores e a quantidade de orçamentos dentro do período ativo.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Pesquise um cliente para apurar os valores e a quantidade de orçamentos no período desta seção.</p>
           </div>
           <Badge variant="outline" className="text-xs">{rows.length.toLocaleString("pt-BR")} cliente{rows.length === 1 ? "" : "s"} no período</Badge>
         </div>
@@ -411,8 +411,9 @@ export function ClientConsolidatedPanel({ rows }: { rows: EntityInsightRow[] }) 
               </div>
               <p className="text-xs text-muted-foreground">Valores finais dos orçamentos no período filtrado</p>
             </div>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <ClientConsolidatedMetric title="Total orçado" count={selectedClient.quotedQuoteCount} amount={selectedClient.quotedAmount} tone="text-primary" />
+              <ClientConsolidatedMetric title="Em aberto" count={selectedClient.openQuoteCount} amount={selectedClient.openAmount} tone="text-amber-700 dark:text-amber-400" />
               <ClientConsolidatedMetric title="Total fechado" count={selectedClient.closedQuoteCount} amount={selectedClient.closedAmount} tone="text-emerald-700 dark:text-emerald-400" />
               <ClientConsolidatedMetric title="Total perdido" count={selectedClient.lostQuoteCount} amount={selectedClient.lostAmount} tone="text-red-700 dark:text-red-400" />
             </div>
@@ -422,7 +423,7 @@ export function ClientConsolidatedPanel({ rows }: { rows: EntityInsightRow[] }) 
             <div>
               <Users className="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
               <p className="text-sm font-medium">Selecione um cliente para visualizar o consolidado.</p>
-              <p className="mt-1 text-xs text-muted-foreground">A busca considera somente os clientes com atividade no período filtrado acima.</p>
+              <p className="mt-1 text-xs text-muted-foreground">A busca considera somente os clientes com atividade no período desta seção.</p>
             </div>
           </div>
         )}
@@ -488,6 +489,10 @@ export default function Dashboard() {
   const [showAllRt, setShowAllRt] = useState(false);
   const [exportingReport, setExportingReport] = useState(false);
   const [reportMonth, setReportMonth] = useState(currentMonth);
+  const [productInsightYear, setProductInsightYear] = useState(currentYear);
+  const [productInsightMonth, setProductInsightMonth] = useState<number | undefined>(undefined);
+  const [productInsightDateFrom, setProductInsightDateFrom] = useState("");
+  const [productInsightDateTo, setProductInsightDateTo] = useState("");
   const [productInsightScope, setProductInsightScope] = useState<ProductInsightScope>("produtos");
   const [productInsightMetric, setProductInsightMetric] = useState<ProductInsightMetric>("quotedByValue");
   const [entityInsightScope, setEntityInsightScope] = useState<EntityInsightScope>("clientes");
@@ -505,6 +510,15 @@ export default function Dashboard() {
   const queryInput = useMemo(
     () => hasDateRange ? { year, dateFrom, dateTo } : { year, month },
     [hasDateRange, year, month, dateFrom, dateTo],
+  );
+  // O recorte analítico é deliberadamente independente do filtro operacional
+  // no topo: começa na Inteligência de Produtos e vale para todas as suas abas.
+  const hasProductInsightDateRange = !!(productInsightDateFrom && productInsightDateTo);
+  const productInsightQueryInput = useMemo(
+    () => hasProductInsightDateRange
+      ? { year: productInsightYear, dateFrom: productInsightDateFrom, dateTo: productInsightDateTo }
+      : { year: productInsightYear, month: productInsightMonth },
+    [hasProductInsightDateRange, productInsightYear, productInsightMonth, productInsightDateFrom, productInsightDateTo],
   );
 
   // Dados para gerentes/admins
@@ -528,7 +542,7 @@ export default function Dashboard() {
     error: productAnalyticsError,
     refetch: refetchProductAnalytics,
   } = trpc.dashboard.productAnalytics.useQuery(
-    queryInput,
+    productInsightQueryInput,
     {
       enabled: !!user && isAdmin,
       staleTime: 60_000,
@@ -1367,9 +1381,82 @@ export default function Dashboard() {
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div>
                           <CardTitle className="flex items-center gap-2 text-base"><Package className="h-4 w-4 text-primary" />Inteligência de Produtos</CardTitle>
-                          <p className="mt-1 text-xs text-muted-foreground">Análise comercial e financeira conforme o período filtrado acima.</p>
+                          <p className="mt-1 text-xs text-muted-foreground">Análise comercial e financeira com período próprio, independente do filtro operacional do topo.</p>
                         </div>
                         <Badge variant="outline" className="border-primary/30 text-xs text-primary">Exclusivo para administradores</Badge>
+                      </div>
+                      <div className="mt-4 rounded-lg border bg-muted/20 p-3 sm:p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold">Período da Inteligência de Produtos</p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">Aplica-se somente a Produtos, Famílias, Categorias, Clientes e Obras desta seção.</p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="flex items-center gap-1">
+                              <Label htmlFor="product-insight-date-from" className="text-xs text-muted-foreground">De</Label>
+                              <Input
+                                id="product-insight-date-from"
+                                aria-label="Data inicial da Inteligência de Produtos"
+                                type="date"
+                                value={productInsightDateFrom}
+                                onChange={(event) => {
+                                  setProductInsightDateFrom(event.target.value);
+                                  if (event.target.value) setProductInsightMonth(undefined);
+                                }}
+                                className="h-8 w-[145px] text-sm"
+                              />
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Label htmlFor="product-insight-date-to" className="text-xs text-muted-foreground">Até</Label>
+                              <Input
+                                id="product-insight-date-to"
+                                aria-label="Data final da Inteligência de Produtos"
+                                type="date"
+                                value={productInsightDateTo}
+                                onChange={(event) => {
+                                  setProductInsightDateTo(event.target.value);
+                                  if (event.target.value) setProductInsightMonth(undefined);
+                                }}
+                                className="h-8 w-[145px] text-sm"
+                              />
+                            </div>
+                            {hasProductInsightDateRange ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-8 text-xs"
+                                onClick={() => { setProductInsightDateFrom(""); setProductInsightDateTo(""); }}
+                              >
+                                Limpar datas
+                              </Button>
+                            ) : (
+                              <>
+                                <Select value={String(productInsightYear)} onValueChange={(value) => setProductInsightYear(Number(value))}>
+                                  <SelectTrigger className="h-8 w-24 text-sm" aria-label="Ano da Inteligência de Produtos">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {[currentYear - 1, currentYear, currentYear + 1].map((optionYear) => (
+                                      <SelectItem key={optionYear} value={String(optionYear)}>{optionYear}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <Select value={productInsightMonth ? String(productInsightMonth) : "all"} onValueChange={(value) => setProductInsightMonth(value === "all" ? undefined : Number(value))}>
+                                  <SelectTrigger className="h-8 w-36 text-sm" aria-label="Mês da Inteligência de Produtos">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="all">Ano todo</SelectItem>
+                                    {MONTHS.map((monthLabel, index) => (
+                                      <SelectItem key={index + 1} value={String(index + 1)}>{monthLabel}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent>

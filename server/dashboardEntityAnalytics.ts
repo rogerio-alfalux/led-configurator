@@ -4,6 +4,8 @@ export type EntityAnalyticsQuote = {
   projectName?: string | null;
   totalFinal?: unknown;
   createdInPeriod: boolean;
+  /** Aberto usa a data de criação, mesma base temporal dos orçamentos. */
+  openInPeriod: boolean;
   closedInPeriod: boolean;
   lostInPeriod: boolean;
   isManuallyDuplicate?: boolean | null;
@@ -16,6 +18,8 @@ export type EntityMetric = {
   quotedAmount: number;
   quotedQuoteCount: number;
   quotedAverageTicket: number | null;
+  openAmount: number;
+  openQuoteCount: number;
   closedAmount: number;
   closedQuoteCount: number;
   closedAverageTicket: number | null;
@@ -46,6 +50,8 @@ function createMetric(key: string, label: string): MutableMetric {
     label,
     quotedAmount: 0,
     quotedQuoteCount: 0,
+    openAmount: 0,
+    openQuoteCount: 0,
     closedAmount: 0,
     closedQuoteCount: 0,
     lostAmount: 0,
@@ -58,6 +64,7 @@ function toResult(metric: MutableMetric): EntityMetric {
   return {
     ...metric,
     quotedAmount: rounded(metric.quotedAmount),
+    openAmount: rounded(metric.openAmount),
     closedAmount: rounded(metric.closedAmount),
     lostAmount: rounded(metric.lostAmount),
     quotedAverageTicket: metric.quotedQuoteCount > 0 ? rounded(metric.quotedAmount / metric.quotedQuoteCount) : null,
@@ -103,6 +110,10 @@ function aggregateBy(quotes: EntityAnalyticsQuote[], getLabel: (quote: EntityAna
       metric.quotedQuoteCount += 1;
       if (quote.isManuallyDuplicate || quote.duplicatedFromQuoteId != null) metric.duplicateQuoteCount += 1;
     }
+    if (quote.openInPeriod) {
+      metric.openAmount += total;
+      metric.openQuoteCount += 1;
+    }
     if (quote.closedInPeriod) {
       metric.closedAmount += total;
       metric.closedQuoteCount += 1;
@@ -118,7 +129,8 @@ function aggregateBy(quotes: EntityAnalyticsQuote[], getLabel: (quote: EntityAna
 
 /**
  * Agregação de clientes e obras do período ativo. Orçados usam a data de
- * criação, fechados a aprovação e perdas a atualização, conforme o Dashboard.
+ * criação, abertos também a criação, fechados a aprovação e perdas a atualização,
+ * conforme o Dashboard.
  * Duplicações são atribuídas à criação porque não existe data própria do evento.
  */
 export function buildDashboardEntityAnalytics(quotes: EntityAnalyticsQuote[]) {
