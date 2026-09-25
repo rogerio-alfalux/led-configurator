@@ -35,7 +35,7 @@ describe("ClientConsolidatedPanel", () => {
     expect(screen.getByText("R$ 50.000,00")).toBeTruthy();
     expect(screen.getByText("R$ 5.000,00")).toBeTruthy();
     expect(screen.getByText("R$ 30.000,00")).toBeTruthy();
-    expect(screen.getByText("50% conv.")).toBeTruthy();
+    expect(screen.getByText("60% conv.")).toBeTruthy();
     expect(screen.getByText("R$ 20.000,00")).toBeTruthy();
   });
 });

@@ -334,8 +334,8 @@ export function ClientConsolidatedPanel({ rows }: { rows: EntityInsightRow[] }) 
   const selectedClient = useMemo(() => findDashboardClient(rows, selectedKey), [rows, selectedKey]);
   const suggestions = useMemo(() => searchDashboardClients(rows, query), [rows, query]);
   const isSearching = query.trim().length > 0 && !selectedClient;
-  const selectedClientConversionRate = selectedClient && selectedClient.quotedQuoteCount > 0
-    ? (selectedClient.closedQuoteCount / selectedClient.quotedQuoteCount) * 100
+  const selectedClientConversionRate = selectedClient && selectedClient.quotedAmount > 0
+    ? (selectedClient.closedAmount / selectedClient.quotedAmount) * 100
     : null;
   const selectedClientConversionLabel = selectedClientConversionRate === null
     ? undefined
