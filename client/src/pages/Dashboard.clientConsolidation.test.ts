@@ -20,7 +20,7 @@ const rows = [
 ];
 
 describe("ClientConsolidatedPanel", () => {
-  it("seleciona um cliente pelo autocomplete e exibe os quatro consolidados do período", () => {
+  it("seleciona um cliente pelo autocomplete e exibe os quatro consolidados e a conversão do período", () => {
     render(React.createElement(ClientConsolidatedPanel, { rows }));
 
     fireEvent.change(screen.getByRole("textbox", { name: "Buscar cliente no período selecionado" }), { target: { value: "alfa" } });
@@ -35,6 +35,7 @@ describe("ClientConsolidatedPanel", () => {
     expect(screen.getByText("R$ 50.000,00")).toBeTruthy();
     expect(screen.getByText("R$ 5.000,00")).toBeTruthy();
     expect(screen.getByText("R$ 30.000,00")).toBeTruthy();
+    expect(screen.getByText("50% conv.")).toBeTruthy();
     expect(screen.getByText("R$ 20.000,00")).toBeTruthy();
   });
 });

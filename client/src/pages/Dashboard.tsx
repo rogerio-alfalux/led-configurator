@@ -307,18 +307,23 @@ function ClientConsolidatedMetric({
   count,
   amount,
   tone,
+  amountDetail,
 }: {
   title: string;
   count: number;
   amount: number;
   tone: string;
+  amountDetail?: string;
 }) {
   return (
     <div className="min-w-0 rounded-xl border bg-background p-4 shadow-sm">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
       <p className={`mt-2 text-2xl font-bold tabular-nums ${tone}`}>{Number(count ?? 0).toLocaleString("pt-BR")}</p>
       <p className="mt-0.5 text-xs text-muted-foreground">orçamento{Number(count ?? 0) === 1 ? "" : "s"}</p>
-      <p className={`mt-3 truncate text-sm font-semibold tabular-nums ${tone}`} title={formatBRL(Number(amount ?? 0))}>{formatBRL(Number(amount ?? 0))}</p>
+      <div className="mt-3 flex min-w-0 items-baseline gap-1.5">
+        <p className={`min-w-0 truncate text-sm font-semibold tabular-nums ${tone}`} title={formatBRL(Number(amount ?? 0))}>{formatBRL(Number(amount ?? 0))}</p>
+        {amountDetail && <span className="shrink-0 text-[11px] font-medium text-muted-foreground">{amountDetail}</span>}
+      </div>
     </div>
   );
 }
@@ -329,6 +334,12 @@ export function ClientConsolidatedPanel({ rows }: { rows: EntityInsightRow[] }) 
   const selectedClient = useMemo(() => findDashboardClient(rows, selectedKey), [rows, selectedKey]);
   const suggestions = useMemo(() => searchDashboardClients(rows, query), [rows, query]);
   const isSearching = query.trim().length > 0 && !selectedClient;
+  const selectedClientConversionRate = selectedClient && selectedClient.quotedQuoteCount > 0
+    ? (selectedClient.closedQuoteCount / selectedClient.quotedQuoteCount) * 100
+    : null;
+  const selectedClientConversionLabel = selectedClientConversionRate === null
+    ? undefined
+    : `${selectedClientConversionRate.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% conv.`;
 
   useEffect(() => {
     if (selectedKey && !selectedClient) {
@@ -414,7 +425,7 @@ export function ClientConsolidatedPanel({ rows }: { rows: EntityInsightRow[] }) 
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <ClientConsolidatedMetric title="Total orçado" count={selectedClient.quotedQuoteCount} amount={selectedClient.quotedAmount} tone="text-primary" />
               <ClientConsolidatedMetric title="Em aberto" count={selectedClient.openQuoteCount} amount={selectedClient.openAmount} tone="text-amber-700 dark:text-amber-400" />
-              <ClientConsolidatedMetric title="Total fechado" count={selectedClient.closedQuoteCount} amount={selectedClient.closedAmount} tone="text-emerald-700 dark:text-emerald-400" />
+              <ClientConsolidatedMetric title="Total fechado" count={selectedClient.closedQuoteCount} amount={selectedClient.closedAmount} amountDetail={selectedClientConversionLabel} tone="text-emerald-700 dark:text-emerald-400" />
               <ClientConsolidatedMetric title="Total perdido" count={selectedClient.lostQuoteCount} amount={selectedClient.lostAmount} tone="text-red-700 dark:text-red-400" />
             </div>
           </div>
