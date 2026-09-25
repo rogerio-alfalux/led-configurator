@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 import { getQuoteTeamValidationError, isSellerRequiredForQuote } from "./quoteTeamValidation";
 
 describe("validação da equipe comercial no salvamento", () => {
-  it("permite assistente salvar com seu próprio cadastro, mesmo sem vendedor selecionado", () => {
+  it("exige vendedor também quando o orçamento é elaborado por assistente", () => {
     expect(getQuoteTeamValidationError({
       role: "assistente",
       sellerId: "",
       assistantId: "5",
-    })).toBeNull();
-    expect(isSellerRequiredForQuote("assistente")).toBe(false);
+    })).toBe("Selecione o Vendedor 1.");
+    expect(isSellerRequiredForQuote("assistente")).toBe(true);
   });
 
   it("mantém o vendedor obrigatório para os demais perfis", () => {
@@ -23,7 +23,7 @@ describe("validação da equipe comercial no salvamento", () => {
   it("mantém o assistente comercial obrigatório para todo perfil", () => {
     expect(getQuoteTeamValidationError({
       role: "assistente",
-      sellerId: "",
+      sellerId: "5",
       assistantId: "",
     })).toBe("Selecione o Assistente Comercial.");
   });

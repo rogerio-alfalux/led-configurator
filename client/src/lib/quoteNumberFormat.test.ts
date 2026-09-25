@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildCommercialQuoteNumber,
+  formatCommercialQuoteSequenceInput,
   formatCommercialQuoteNumberInput,
   getCommercialQuoteSequence,
+  getCommercialQuoteSequenceDraft,
   getCommercialSellerPrefix,
   isCommercialQuoteNumber,
   isCommercialQuoteNumberForSeller,
@@ -39,5 +42,14 @@ describe("formato comercial do número de orçamento", () => {
     expect(getCommercialQuoteSequence("33.10000-26", "33.0XXX-26", "26")).toBeNull();
     expect(getCommercialQuoteSequence("04.0483-26", "33.0XXX-26", "26")).toBeNull();
     expect(getCommercialQuoteSequence("33.0087-25", "33.0XXX-26", "26")).toBeNull();
+  });
+
+  it("mantém prefixo e ano fixos enquanto a sequência central é editada", () => {
+    expect(formatCommercialQuoteSequenceInput("0088")).toBe("0088");
+    expect(formatCommercialQuoteSequenceInput("33.0088-26")).toBe("0088");
+    expect(buildCommercialQuoteNumber("34.0XXX-26", "0088", "26")).toBe("34.0088-26");
+    expect(buildCommercialQuoteNumber("33.0XXX-26", "88", "26")).toBe("33.88");
+    expect(getCommercialQuoteSequenceDraft("34.88", "34.0XXX-26", "26")).toBe("88");
+    expect(getCommercialQuoteSequenceDraft("04.0433-26", "34.0XXX-26", "26")).toBe("");
   });
 });

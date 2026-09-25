@@ -64,7 +64,15 @@ import { buildLdRequestPayload } from "@/lib/ldRequestForm";
 import { buildSplitBodyPricePatch, cloneCartItemData, getEditableBodyUnitPrice } from "@/lib/splitItemPricing";
 import { getLdRequestDeadlineLimits, getLdRequestDeadlineValidationError } from "@shared/ldRequestDeadlines";
 import { isLdGuestUser } from "@/lib/ldGuestAccess";
-import { formatCommercialQuoteNumberInput, isCommercialQuoteNumber, isCommercialQuoteNumberForSeller } from "@shared/quoteNumberFormat";
+import {
+  buildCommercialQuoteNumber,
+  formatCommercialQuoteSequenceInput,
+  getCommercialQuoteSequence,
+  getCommercialQuoteSequenceDraft,
+  getCommercialSellerPrefix,
+  isCommercialQuoteNumber,
+  isCommercialQuoteNumberForSeller,
+} from "@shared/quoteNumberFormat";
 
 /**
  * REGRA INEGOCIÁVEL: Para perfis (com profileSegments), o driverQty total é sempre
@@ -1046,6 +1054,21 @@ function StandardCart() {
     ? seller1IdCandidate
     : undefined;
   const selectedSellerCode = sellers.find((seller) => String(seller.id) === saveForm.seller1Id)?.code?.trim() ?? "";
+  const selectedSellerPrefix = getCommercialSellerPrefix(selectedSellerCode);
+  const commercialQuoteYear = useMemo(() => new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo",
+    year: "2-digit",
+  }).format(new Date()), []);
+  const selectedQuoteSequence = getCommercialQuoteSequence(
+    saveForm.quoteNumber,
+    selectedSellerCode,
+    commercialQuoteYear,
+  );
+  const selectedQuoteSequenceDraft = getCommercialQuoteSequenceDraft(
+    saveForm.quoteNumber,
+    selectedSellerCode,
+    commercialQuoteYear,
+  );
   const suggestQuery = trpc.quotes.suggestNumber.useQuery(
     { sellerId: seller1IdNum },
     { enabled: saveDialogOpen && seller1IdNum != null, staleTime: 0 }
@@ -1063,6 +1086,18 @@ function StandardCart() {
         : { ...prev, quoteNumber: suggestQuery.data!.suggested, quoteNumberManuallyEdited: false });
     }
   }, [saveDialogOpen, seller1IdNum, suggestedNumberMatchesSelectedSeller, suggestQuery.data?.suggested]);
+
+  // Um rascunho pode conter um número digitado quando outro vendedor estava
+  // selecionado. Ao abrir/trocar a equipe, ele nunca pode preservar o prefixo
+  // anterior: a nova sugestão deve ser calculada para o Vendedor 1 atual.
+  useEffect(() => {
+    if (!saveDialogOpen || !selectedSellerPrefix) return;
+    setSaveForm((previous) => (
+      previous.quoteNumber && !isCommercialQuoteNumberForSeller(previous.quoteNumber, selectedSellerCode)
+        ? { ...previous, quoteNumber: "", quoteNumberManuallyEdited: false }
+        : previous
+    ));
+  }, [saveDialogOpen, selectedSellerPrefix, selectedSellerCode]);
 
   // Auto-preenche o estado da aba Frete quando o estado da aba Comercial muda
   // (apenas se o usuário ainda não escolheu um estado diferente na aba Frete)
@@ -1305,8 +1340,25 @@ function StandardCart() {
       toast.error("Informe o nome do cliente.");
       return;
     }
+    const teamValidationError = getQuoteTeamValidationError({
+      role: userRole,
+      sellerId: saveForm.seller1Id,
+      assistantId: saveForm.assistantId,
+    });
+    if (teamValidationError) {
+      toast.error(teamValidationError);
+      return;
+    }
+    if (!selectedSellerPrefix) {
+      toast.error("O Vendedor 1 selecionado não possui um código comercial válido.");
+      return;
+    }
     if (!isCommercialQuoteNumber(saveForm.quoteNumber)) {
       toast.error("O número do orçamento deve seguir o formato xx.xxxx-xx.");
+      return;
+    }
+    if (!isCommercialQuoteNumberForSeller(saveForm.quoteNumber, selectedSellerCode)) {
+      toast.error(`O número deve iniciar com ${selectedSellerPrefix}. para o Vendedor 1 selecionado.`);
       return;
     }
     if (!saveForm.projectName.trim()) {
@@ -1315,15 +1367,6 @@ function StandardCart() {
     }
     if (!saveForm.projectNumber.trim()) {
       toast.error("Informe o Número do Projeto ou marque \"Sem Projeto\".");
-      return;
-    }
-    const teamValidationError = getQuoteTeamValidationError({
-      role: userRole,
-      sellerId: saveForm.seller1Id,
-      assistantId: saveForm.assistantId,
-    });
-    if (teamValidationError) {
-      toast.error(teamValidationError);
       return;
     }
     if (entries.length === 0) {
@@ -1835,29 +1878,47 @@ function StandardCart() {
                             </div>
                             <div>
                               <Label>Número do Orçamento <span className="text-destructive">*</span></Label>
-                              <Input
-                                value={saveForm.quoteNumber}
-                                onChange={e => {
-                                  const quoteNumber = formatCommercialQuoteNumberInput(e.target.value);
-                                  setSaveForm(prev => ({
-                                    ...prev,
-                                    quoteNumber,
-                                    // Campo livre para todos os assistentes. Ao apagar o
-                                    // valor, retorna à sugestão do Vendedor 1 selecionado.
-                                    quoteNumberManuallyEdited: quoteNumber.length > 0,
-                                  }));
-                                }}
-                                className={`font-mono ${saveForm.quoteNumber.trim() && !isCommercialQuoteNumber(saveForm.quoteNumber) ? "border-destructive" : ""}`}
-                                inputMode="numeric"
-                                maxLength={10}
-                                placeholder="Ex: 04.0432-26"
-                              />
+                              <div className="mt-1 flex items-stretch">
+                                <span className="inline-flex min-w-14 items-center justify-center rounded-l-md border border-r-0 border-input bg-muted px-2 font-mono text-sm font-semibold text-foreground">
+                                  {selectedSellerPrefix ?? "—"}.
+                                </span>
+                                <Input
+                                  aria-label="Sequência do número do orçamento"
+                                  value={selectedQuoteSequence != null
+                                    ? String(selectedQuoteSequence).padStart(4, "0")
+                                    : selectedQuoteSequenceDraft}
+                                  disabled={!selectedSellerPrefix}
+                                  onChange={e => {
+                                    const sequence = formatCommercialQuoteSequenceInput(e.target.value);
+                                    const quoteNumber = buildCommercialQuoteNumber(
+                                      selectedSellerCode,
+                                      sequence,
+                                      commercialQuoteYear,
+                                    );
+                                    setSaveForm(prev => ({
+                                      ...prev,
+                                      quoteNumber,
+                                      // Ao apagar a sequência, a sugestão do Vendedor 1 volta a preencher o campo.
+                                      quoteNumberManuallyEdited: sequence.length > 0,
+                                    }));
+                                  }}
+                                  className={`rounded-none font-mono text-center ${saveForm.quoteNumber.trim() && !isCommercialQuoteNumber(saveForm.quoteNumber) ? "border-destructive" : ""}`}
+                                  inputMode="numeric"
+                                  maxLength={4}
+                                  placeholder="0001"
+                                />
+                                <span className="inline-flex min-w-12 items-center justify-center rounded-r-md border border-l-0 border-input bg-muted px-2 font-mono text-sm font-semibold text-foreground">
+                                  -{commercialQuoteYear}
+                                </span>
+                              </div>
                               <p className={`text-xs mt-1 ${saveForm.quoteNumber.trim() && !isCommercialQuoteNumber(saveForm.quoteNumber) ? "text-destructive" : "text-muted-foreground"}`}>
                                 {!saveForm.seller1Id
-                                  ? "Selecione o Vendedor 1 na aba Equipe para sugerir o próximo número."
-                                  : saveForm.quoteNumber.trim() && !isCommercialQuoteNumber(saveForm.quoteNumber)
-                                    ? "Complete o formato xx.xxxx-xx."
-                                    : "Sugestão baseada no código do vendedor; você pode editá-la manualmente."}
+                                  ? "Selecione o Vendedor 1 na aba Equipe para liberar a sequência."
+                                  : !selectedSellerPrefix
+                                    ? "O vendedor selecionado não possui um código comercial válido."
+                                    : saveForm.quoteNumber.trim() && !isCommercialQuoteNumber(saveForm.quoteNumber)
+                                      ? "Informe os quatro dígitos da sequência."
+                                      : `Prefixo ${selectedSellerPrefix} e ano ${commercialQuoteYear} são definidos pelo Vendedor 1; edite somente a sequência.`}
                               </p>
                             </div>
                             {/* Número do Projeto */}
@@ -1930,12 +1991,11 @@ function StandardCart() {
                                     ...prev,
                                     seller1Id: v,
                                     seller1Name: sel?.name ?? "",
-                                    // Ao trocar o vendedor, a próxima consulta preenche o
-                                    // próximo número do código comercial dele. Número manual
-                                    // permanece soberano.
-                                    ...(!prev.quoteNumberManuallyEdited
-                                      ? { quoteNumber: "", quoteNumberManuallyEdited: false }
-                                      : {}),
+                                    // O prefixo é exclusivo do Vendedor 1. Uma troca de
+                                    // vendedor sempre limpa a sequência anterior para evitar
+                                    // carregar, por exemplo, um 04 para um vendedor 34.
+                                    quoteNumber: "",
+                                    quoteNumberManuallyEdited: false,
                                   }));
                                   // Comissão padrão: 10% para Gatti, 5% para demais
                                   const isGatti1 = (sel?.name ?? "").toLowerCase().includes("gatti");

@@ -1,13 +1,14 @@
 /**
  * Define os campos comerciais obrigatórios conforme o papel autenticado.
- * Assistentes são a autoria do orçamento e podem salvar sem vendedor vinculado.
+ * O Vendedor 1 define o prefixo obrigatório do número comercial, inclusive
+ * quando um assistente é a pessoa que está elaborando o orçamento.
  */
 export function getQuoteTeamValidationError(input: {
   role: string | null | undefined;
   sellerId: string | null | undefined;
   assistantId: string | null | undefined;
 }): string | null {
-  if (input.role !== "assistente" && !input.sellerId) {
+  if (!input.sellerId) {
     return "Selecione o Vendedor 1.";
   }
 
@@ -19,5 +20,6 @@ export function getQuoteTeamValidationError(input: {
 }
 
 export function isSellerRequiredForQuote(role: string | null | undefined): boolean {
-  return role !== "assistente";
+  void role;
+  return true;
 }

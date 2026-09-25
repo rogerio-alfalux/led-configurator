@@ -98,10 +98,30 @@ import { generateAndStoreCompleteBackup } from "./backupService";
 import { getQuoteStatusAuthorizationError } from "./quoteStatusPolicy";
 import { getUserCreationRoleAuthorizationError } from "../shared/userCreationAccess";
 import { isCostDepartmentEligibleForManualCost, isCostDepartmentRole, isSpecialOrResaleEligibleForManualCost } from "../shared/costDepartmentAccess";
-import { isCommercialQuoteNumber } from "../shared/quoteNumberFormat";
+import { getCommercialSellerPrefix, isCommercialQuoteNumber, isCommercialQuoteNumberForSeller } from "../shared/quoteNumberFormat";
 import { isFactoryOrderReadOnlyForQuoteStatus } from "../shared/factoryOrderReadOnly";
 import { calculateCommercialQuoteTotal } from "../shared/quoteCommercialTotal";
 import { isDuplicateKeyError } from "./databaseErrors";
+
+async function assertQuoteNumberUsesSellerPrefix(quoteNumber: string, sellerId?: number): Promise<void> {
+  if (!sellerId) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Selecione o Vendedor 1 para definir o prefixo do orçamento." });
+  }
+  const db = await getDb();
+  if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Banco de dados indisponível." });
+  const seller = (await db.select({ code: sellers.code, name: sellers.name })
+    .from(sellers).where(eq(sellers.id, sellerId)).limit(1))[0];
+  const sellerPrefix = getCommercialSellerPrefix(seller?.code);
+  if (!sellerPrefix) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "O Vendedor 1 selecionado não possui um código comercial válido." });
+  }
+  if (!isCommercialQuoteNumberForSeller(quoteNumber, seller?.code)) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `O número do orçamento deve iniciar com ${sellerPrefix}. para o vendedor ${seller?.name ?? "selecionado"}.`,
+    });
+  }
+}
 
 async function assertFactoryOrderQuoteMutable(quoteId: number) {
   const quoteData = await getQuoteById(quoteId);
@@ -1044,13 +1064,6 @@ export const appRouter = router({
         if (!requestedQuoteNumber || !isCommercialQuoteNumber(requestedQuoteNumber)) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "O número do orçamento deve seguir o formato xx.xxxx-xx." });
         }
-        const duplicateNumber = await checkDuplicateQuoteNumber(requestedQuoteNumber);
-        if (duplicateNumber) {
-          throw new TRPCError({
-            code: "CONFLICT",
-            message: `O número ${requestedQuoteNumber} já está em uso no orçamento de ${duplicateNumber.clientName}. Informe outro número.`,
-          });
-        }
         const identityTeam = await getIdentityBoundTeam(ctx.user);
         const boundInput = { ...input, quoteNumber: requestedQuoteNumber, ...identityTeam };
         const saveInput = {
@@ -1062,6 +1075,14 @@ export const appRouter = router({
           assistantId: boundInput.assistantId ?? undefined,
           assistantName: boundInput.assistantName ?? undefined,
         };
+        await assertQuoteNumberUsesSellerPrefix(requestedQuoteNumber, saveInput.seller1Id);
+        const duplicateNumber = await checkDuplicateQuoteNumber(requestedQuoteNumber);
+        if (duplicateNumber) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: `O número ${requestedQuoteNumber} já está em uso no orçamento de ${duplicateNumber.clientName}. Informe outro número.`,
+          });
+        }
         // Verificar obra duplicada — BLOQUEIA a criação se já existir obra com mesmo nome
         if (input.projectName?.trim()) {
           const dup = await checkDuplicateProject(input.projectName.trim());
@@ -1265,6 +1286,9 @@ export const appRouter = router({
           assistantId: boundRest.assistantId ?? undefined,
           assistantName: boundRest.assistantName ?? undefined,
         };
+        if (saveRevisionInput.quoteNumber) {
+          await assertQuoteNumberUsesSellerPrefix(saveRevisionInput.quoteNumber, saveRevisionInput.seller1Id);
+        }
         // Verificar cap de comissão — gestores e admins ficam isentos
         // Gustavo tem cap de 10%; demais vendedores cap de 5% (soma das duas comissões)
         const userEmailRev = ctx.user.email?.toLowerCase().trim() ?? "";

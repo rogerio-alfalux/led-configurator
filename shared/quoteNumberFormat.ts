@@ -45,6 +45,45 @@ export function getCommercialQuoteSequence(
   return /^\d{4}$/.test(sequenceText) ? Number(sequenceText) : null;
 }
 
+/** Mantém os quatro dígitos centrais editáveis no número comercial. */
+export function formatCommercialQuoteSequenceInput(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  // Se um número completo for colado, conserva apenas seus quatro dígitos
+  // centrais; o prefixo exibido continuará sendo o do Vendedor 1 selecionado.
+  return (digits.length > 4 ? digits.slice(2, 6) : digits).slice(0, 4);
+}
+
+/** Monta o número exibido mantendo o prefixo e o ano fora da edição manual. */
+export function buildCommercialQuoteNumber(
+  sellerCode: string | null | undefined,
+  sequence: string,
+  year: string,
+): string {
+  const prefix = getCommercialSellerPrefix(sellerCode);
+  const normalizedSequence = formatCommercialQuoteSequenceInput(sequence);
+  if (!prefix) return "";
+  if (normalizedSequence.length === 0) return "";
+  return normalizedSequence.length === 4
+    ? `${prefix}.${normalizedSequence}-${year}`
+    : `${prefix}.${normalizedSequence}`;
+}
+
+/** Lê a sequência parcial do campo que já possui prefixo e ano controlados pela interface. */
+export function getCommercialQuoteSequenceDraft(
+  quoteNumber: string | null | undefined,
+  sellerCode: string | null | undefined,
+  year: string,
+): string {
+  const prefix = getCommercialSellerPrefix(sellerCode);
+  const normalizedNumber = (quoteNumber ?? "").trim();
+  if (!prefix || !normalizedNumber.startsWith(`${prefix}.`)) return "";
+
+  const rest = normalizedNumber.slice(prefix.length + 1);
+  const suffix = `-${year}`;
+  const sequence = rest.endsWith(suffix) ? rest.slice(0, -suffix.length) : rest;
+  return /^\d{0,4}$/.test(sequence) ? sequence : "";
+}
+
 /**
  * Mantém somente dígitos e insere os separadores do formato XX.NNNN-AA durante
  * a digitação. Não altera números já armazenados: é uma ajuda de entrada.
