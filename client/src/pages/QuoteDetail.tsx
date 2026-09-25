@@ -1100,6 +1100,8 @@ export default function QuoteDetail() {
   const [ldPdfCaptureOpen, setLdPdfCaptureOpen] = useState(false);
   const [pdfShowIpi, setPdfShowIpi] = useState(false);
   const [pdfUnifyItemValues, setPdfUnifyItemValues] = useState(false);
+  /** Revisão efetivamente arquivada no instante em que o PDF foi solicitado. */
+  const [pdfRevisionCount, setPdfRevisionCount] = useState<number | null>(null);
   const [exportOptions, setExportOptions] = useState<{
     format: "PDF" | "Excel";
     run: (showIpi: boolean, unifyItemValues: boolean) => void | Promise<void>;
@@ -2262,16 +2264,23 @@ export default function QuoteDetail() {
   };
 
   const handleGeneratePdf = async (showIpi = false, unifyItemValues = false) => {
+    // O PDF é uma ação local de leitura. A tentativa de arquivar um rascunho
+    // não pode bloquear o download de quem já tem acesso ao orçamento.
+    let revisionForPdf = exportRevisionCount;
     if (hasDraftRevision) {
       try {
-        await bumpRevisionMutation.mutateAsync({ id: Number(id) });
-        await utils.quotes.getById.invalidate({ id: Number(id) });
-        await utils.quotes.list.invalidate();
+        const published = await bumpRevisionMutation.mutateAsync({ id: Number(id) });
+        revisionForPdf = published.revisionCount;
+        // Atualização de cache é complementar: nunca deve impedir a abertura
+        // do documento já preparado para o usuário.
+        void utils.quotes.getById.invalidate({ id: Number(id) });
+        void utils.quotes.list.invalidate();
       } catch (err) {
-        toast.error("Não foi possível arquivar a revisão antes de gerar o PDF.");
-        return;
+        console.error("Não foi possível arquivar a revisão antes de gerar o PDF:", err);
+        toast.warning("PDF gerado. A revisão atual permanece como rascunho e deverá ser arquivada por quem tiver permissão.");
       }
     }
+    setPdfRevisionCount(revisionForPdf);
     setPdfShowIpi(showIpi);
     setPdfUnifyItemValues(unifyItemValues);
     setPdfPrintOpen(true);
@@ -5606,7 +5615,12 @@ export default function QuoteDetail() {
       {/* Prévia compartilhada: impressão direta para admin e captura interna para o LD. */}
       <ExcelPreviewModal
         open={pdfPrintOpen || ldPdfCaptureOpen}
-        onClose={() => { setPdfPrintOpen(false); setLdPdfCaptureOpen(false); if (ldPdfCaptureOpen) setIsGenerating(false); }}
+        onClose={() => {
+          setPdfPrintOpen(false);
+          setPdfRevisionCount(null);
+          setLdPdfCaptureOpen(false);
+          if (ldPdfCaptureOpen) setIsGenerating(false);
+        }}
         autoPrint={pdfPrintOpen}
         onCapturePdf={ldPdfCaptureOpen ? handleOfficialPdfCapturedForLd : undefined}
         onCapturePdfError={ldPdfCaptureOpen ? (error) => { console.error("Falha na captura interna do PDF LD:", error); toast.error("Não foi possível gerar o PDF oficial para o LD."); setLdPdfCaptureOpen(false); setIsGenerating(false); } : undefined}
@@ -5644,7 +5658,7 @@ export default function QuoteDetail() {
           freteState: (quote as any).freteState ?? undefined,
           freteValue: (quote as any).freteValue ? parseFloat(String((quote as any).freteValue)) : undefined,
           freteIncluded: (quote as any).freteIncluded ?? false,
-          revisionCount: exportRevisionCount,
+          revisionCount: pdfRevisionCount ?? exportRevisionCount,
           totalFinalOverride: totalRecalculado,
           deliveryDays: quote.deliveryDays ?? 20,
           paymentTerm: quote.paymentTerm ?? undefined,
