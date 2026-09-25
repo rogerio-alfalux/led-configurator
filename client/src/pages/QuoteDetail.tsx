@@ -41,7 +41,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ShapeAssemblyGuide } from "@/components/ShapeAssemblyGuide";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { CartItemData, formatBRL, getLinkedAccessoryTotalPrice, getLinkedAccessoryTotalQuantity, parseCartItemData, normalizeStoredQuoteSnapshot, extractPowerLabelFromName, toPowerLabel, enrichDriverCurrentsFromApi, enrichShiftAccessoryTechnicalComponents, migrateItemDrivers, migrateLegacyGlowCommercialItem, type QuoteFormData } from "@/lib/cartTypes";
+import { CartItemData, formatBRL, getLinkedAccessoryTotalPrice, getLinkedAccessoryTotalQuantity, parseCartItemData, normalizeStoredQuoteSnapshot, extractPowerLabelFromName, toPowerLabel, enrichDriverProgrammingFromProductApi, enrichShiftAccessoryTechnicalComponents, migrateItemDrivers, migrateLegacyGlowCommercialItem, type QuoteFormData } from "@/lib/cartTypes";
 import { buildUnambiguousCatalogPhotoMap, resolveCatalogItemPhoto } from "@/lib/itemPhoto";
 import { formatLinkedCommercialQuote } from "@/lib/sampleLinkPresentation";
 import { isLdRequestLinkedToQuote } from "@/lib/ldRequestUtils";
@@ -1246,14 +1246,6 @@ export default function QuoteDetail() {
     }
     return map;
   }, [componentesQuery.data]);
-  /** Mapa código EQ -> corrente de programação (Migração 6) */
-  const componenteCorrenteMap = useMemo(() => {
-    const map = new Map<string, string | null>();
-    for (const c of componentesQuery.data?.items ?? []) {
-      if (c.codigo) map.set(c.codigo, (c as unknown as { corrente?: string | null }).corrente ?? null);
-    }
-    return map;
-  }, [componentesQuery.data]);
   /** Mapa descrição (UPPER) -> código EQ — busca reversa para Migração 7 */
   const componenteReverseDescMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -1687,7 +1679,7 @@ export default function QuoteDetail() {
     // Mapa sku -> produto da API (para fallback de driver na Migração 3 e resolução de ledModuleCode na Migração 4)
     const productSkuMap = new Map<string, ApiProductDriverInfo>();
     const productVariantsBySku = new Map<string, ApiProductDriverInfo[]>();
-    for (const p of (productsQuery.data ?? []) as Array<{ sku: string; name?: string; categoria?: string; driverBivolt?: { model: string; code: string | null } | null; driver220?: { model: string; code: string | null } | null; driverDimDali?: { model: string; code: string | null } | null; driverDim110v?: { model: string; code: string | null } | null; driverQtdBivolt?: number | null; driverQtd220?: number | null; driverQtdDimDali?: number | null; driverQtdDim110v?: number | null; custoCorpoOnoff220v?: number | null; custoCorpoOnoffBivolt?: number | null; custoCorpoDim110v?: number | null; custoCorpoDimDali?: number | null; custoDriver220?: number | null; custoDriverBivolt?: number | null; custoDriverDim110v?: number | null; custoDriverDimDali?: number | null; markupPadraoOnoff220v?: number | null; markupPadraoOnoffBivolt?: number | null; markupPadraoDim110v?: number | null; markupPadraoDimDali?: number | null; markupPadraoDriverOnoff220v?: number | null; markupPadraoDriverOnoffBivolt?: number | null; markupPadraoDriverDim110v?: number | null; markupPadraoDriverDimDali?: number | null; markupMinimoDriver?: number | null; ledModuleEq2700?: string | null; ledModuleEq3000?: string | null; ledModuleEq4000?: string | null; ledModuleEq5000?: string | null; ledModuleEq?: string | null; ledModuleQtd?: number | null; ledModuleQtd2700?: number | null; ledModuleQtd3000?: number |null; ledModuleQtd4000?: number | null; ledModuleQtd5000?: number | null; composicaoD1D2?: ApiProductDriverInfo["composicaoD1D2"] }>) {
+    for (const p of (productsQuery.data ?? []) as Array<{ sku: string; name?: string; categoria?: string; driverBivolt?: { model: string; code: string | null } | null; driver220?: { model: string; code: string | null } | null; driverDimDali?: { model: string; code: string | null } | null; driverDim110v?: { model: string; code: string | null } | null; driverQtdBivolt?: number | null; driverQtd220?: number | null; driverQtdDimDali?: number | null; driverQtdDim110v?: number | null; correnteDriver?: string | null; custoCorpoOnoff220v?: number | null; custoCorpoOnoffBivolt?: number | null; custoCorpoDim110v?: number | null; custoCorpoDimDali?: number | null; custoDriver220?: number | null; custoDriverBivolt?: number | null; custoDriverDim110v?: number | null; custoDriverDimDali?: number | null; markupPadraoOnoff220v?: number | null; markupPadraoOnoffBivolt?: number | null; markupPadraoDim110v?: number | null; markupPadraoDimDali?: number | null; markupPadraoDriverOnoff220v?: number | null; markupPadraoDriverOnoffBivolt?: number | null; markupPadraoDriverDim110v?: number | null; markupPadraoDriverDimDali?: number | null; markupMinimoDriver?: number | null; ledModuleEq2700?: string | null; ledModuleEq3000?: string | null; ledModuleEq4000?: string | null; ledModuleEq5000?: string | null; ledModuleEq?: string | null; ledModuleQtd?: number | null; ledModuleQtd2700?: number | null; ledModuleQtd3000?: number |null; ledModuleQtd4000?: number | null; ledModuleQtd5000?: number | null; composicaoD1D2?: ApiProductDriverInfo["composicaoD1D2"] }>) {
       if (!p.sku) continue;
       const entry: ApiProductDriverInfo = {
         sku: p.sku,
@@ -1699,6 +1691,7 @@ export default function QuoteDetail() {
         driverQtdBivolt: p.driverQtdBivolt ?? null,
         driverQtdDimDali: p.driverQtdDimDali ?? null,
         driverQtdDim110v: p.driverQtdDim110v ?? null,
+        correnteDriver: p.correnteDriver ?? null,
         custoCorpoOnoff220v: p.custoCorpoOnoff220v ?? null,
         custoCorpoOnoffBivolt: p.custoCorpoOnoffBivolt ?? null,
         custoCorpoDim110v: p.custoCorpoDim110v ?? null,
@@ -1774,14 +1767,19 @@ export default function QuoteDetail() {
     return _currentItems.map(item => {
       const parsedFromStorage = parseCartItemData(item.itemData as string);
       if (!parsedFromStorage) return item;
-      let parsed = enrichDriverCurrentsFromApi(parsedFromStorage, componenteCorrenteMap);
+      let parsed = enrichDriverProgrammingFromProductApi(parsedFromStorage, productSkuMap);
       // A reidratação da API deve alcançar todos os itens técnicos, não só o
       // perfil SHIFT: ela restaura custos, módulos e drivers da variante exata
       // por SKU + descrição, preservando os preços de venda já gravados.
-      parsed = migrateItemDrivers(parsed, componentePriceMap, componenteDescMap, productSkuMap, componenteCorrenteMap);
-      parsed = migrateLegacyGlowCommercialItem(parsed, componentePriceMap, componenteDescMap, productSkuMap, componenteCorrenteMap);
+      parsed = migrateItemDrivers(parsed, componentePriceMap, componenteDescMap, productSkuMap);
+      parsed = migrateLegacyGlowCommercialItem(parsed, componentePriceMap, componenteDescMap, productSkuMap);
       parsed = enrichShiftAccessoryTechnicalComponents(parsed, productSkuMap);
+      parsed = enrichDriverProgrammingFromProductApi(parsed, productSkuMap);
       const currentEnriched = parsed !== parsedFromStorage;
+      const getProductProgramming = () => {
+        const value = selectApiVariantForStoredItem(parsed)?.correnteDriver;
+        return typeof value === "string" ? value.trim() || null : null;
+      };
       // ── Migração 4: Corrigir ledModuleCode nos profileSegments ──
       // Busca o produto correto da API pelo SKU do perfil + potência + stripMethod
       if (parsed.profileSegments && parsed.profileSegments.length > 0 && parsed.power && parsed.cct) {
@@ -1807,41 +1805,13 @@ export default function QuoteDetail() {
           }
         }
       }
-      // Normalização 0 + Migração 6: itens que já têm driverLines
-      // Normalizar driverModel E enriquecer corrente via componenteCorrenteMap quando ausente
+      // Normalização 0: o modelo pode vir do componente, mas a programação
+      // vem exclusivamente da variante da luminária/perfil na API.
       if (parsed.driverLines && parsed.driverLines.length > 0) {
         let enrichedParsed: CartItemData = parsed;
         const driverQtyPerUnit = deriveDriverQuantityPerUnit(parsed.driverLines, parsed.qty);
         if (driverQtyPerUnit != null && Number(parsed.driverQtyPerUnit ?? 0) !== driverQtyPerUnit) {
           enrichedParsed = { ...enrichedParsed, driverQtyPerUnit };
-        }
-        // Migração 6: preencher corrente ausente nas driverLines
-        const needsCorrenteEnrich = parsed.driverLines.some(
-          dl => dl.driverCode && (dl.corrente == null || dl.corrente === "") && componenteCorrenteMap.has(dl.driverCode) && componenteCorrenteMap.get(dl.driverCode) != null
-        );
-        if (needsCorrenteEnrich) {
-          const enrichedLines = parsed.driverLines.map(dl => {
-            if (!dl.driverCode || (dl.corrente != null && dl.corrente !== "")) return dl;
-            const corrente = componenteCorrenteMap.get(dl.driverCode);
-            if (corrente == null) return dl;
-            return { ...dl, corrente };
-          });
-          enrichedParsed = { ...enrichedParsed, driverLines: enrichedLines };
-        }
-        // Migração 6: preencher corrente ausente nos profileSegments
-        if (enrichedParsed.profileSegments && enrichedParsed.profileSegments.length > 0) {
-          const needsSegCorrenteEnrich = enrichedParsed.profileSegments.some(
-            seg => seg.driverCode && (seg.corrente == null || seg.corrente === "") && componenteCorrenteMap.has(seg.driverCode) && componenteCorrenteMap.get(seg.driverCode) != null
-          );
-          if (needsSegCorrenteEnrich) {
-            const enrichedSegs = enrichedParsed.profileSegments.map(seg => {
-              if (!seg.driverCode || (seg.corrente != null && seg.corrente !== "")) return seg;
-              const corrente = componenteCorrenteMap.get(seg.driverCode);
-              if (corrente == null) return seg;
-              return { ...seg, corrente };
-            });
-            enrichedParsed = { ...enrichedParsed, profileSegments: enrichedSegs };
-          }
         }
         // Migração 7: resolver moduloLedCode via busca reversa no componenteDescMap
         if (!enrichedParsed.moduloLedCode && enrichedParsed.moduloLed) {
@@ -1907,7 +1877,7 @@ export default function QuoteDetail() {
           const unitPrice = componentePriceMap.get(drv.driverCode) ?? null;
           const totalPrice = unitPrice != null ? unitPrice * totalQty : null;
           if (totalPrice != null) totalDriverCost += totalPrice;
-          const corrente = componenteCorrenteMap.get(drv.driverCode) ?? null;
+          const corrente = getProductProgramming();
           return { driverCode: drv.driverCode, driverModel: componenteDescMap.get(drv.driverCode) ?? drv.driverModel, driverQty: totalQty, driverUnitPrice: unitPrice, driverTotalPrice: totalPrice, ...(corrente ? { corrente } : {}) };
         });
         const totalPrice = parsed.totalPrice ?? 0;
@@ -1934,7 +1904,7 @@ export default function QuoteDetail() {
           const unitPrice = componentePriceMap.get(acc.codigo)!;
           const totalQty = (acc.qty ?? 1) * itemQty;
           const totalPrice = unitPrice * totalQty;
-          const corrente = componenteCorrenteMap.get(acc.codigo) ?? null;
+          const corrente = getProductProgramming();
           return {
             driverCode: acc.codigo,
             driverModel: componenteDescMap.get(acc.codigo) ?? acc.descricao,
@@ -2003,7 +1973,7 @@ export default function QuoteDetail() {
           const totalQty = resolvedDrvQtyPerUnit * itemQty;
           const unitPrice = componentePriceMap.get(resolvedEqCode) ?? null;
           const totalPrice = unitPrice != null ? unitPrice * totalQty : null;
-          const corrente3 = componenteCorrenteMap.get(resolvedEqCode) ?? null;
+          const corrente3 = getProductProgramming();
           const driverLines: import("@/lib/cartTypes").DriverLine[] = [{
             driverCode: resolvedEqCode,
             driverModel: resolvedDriverModel,
@@ -2032,7 +2002,7 @@ export default function QuoteDetail() {
       }
       return currentEnriched ? { ...item, itemData: JSON.stringify(parsed) } : item;
     });
-  }, [data, componentePriceMap, componenteDescMap, componenteCorrenteMap, componenteReverseDescMap, productsQuery.data]);
+  }, [data, componentePriceMap, componenteDescMap, componenteReverseDescMap, productsQuery.data]);
 
   const sampleCommercialProjection = useMemo(() => buildSampleCommercialProjection({
     links: (sampleCommercialAdjustmentsQuery.data ?? []).map((link) => ({

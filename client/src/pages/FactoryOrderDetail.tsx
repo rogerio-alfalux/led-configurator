@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { trpc } from "@/lib/trpc";
-import { CartItemData, LinkedAccessory, SpecialEquipment, parseCartItemData, formatBRL, normalizeDriverModels, normalizeStoredQuoteSnapshot, ApiProductDriverInfo, extractPowerLabelFromName, enrichDriverCurrentsFromApi, enrichShiftAccessoryTechnicalComponents, migrateItemDrivers } from "@/lib/cartTypes";
+import { CartItemData, LinkedAccessory, SpecialEquipment, parseCartItemData, formatBRL, normalizeDriverModels, normalizeStoredQuoteSnapshot, ApiProductDriverInfo, extractPowerLabelFromName, enrichDriverProgrammingFromProductApi, enrichShiftAccessoryTechnicalComponents, migrateItemDrivers } from "@/lib/cartTypes";
 import { SpecialEquipmentsEditor } from "@/components/SpecialEquipmentsEditor";
 import { ShapeAssemblyGuide } from "@/components/ShapeAssemblyGuide";
 import { ComponentSearchField } from "@/components/ComponentSearchField";
@@ -192,31 +192,6 @@ function buildEquipamentosText(item: CartItemData): string {
   return linhas.join("\n");
 }
 
-/** Preenche a programação oficial do componente sem substituir uma edição manual já salva. */
-function enrichItemProgramming(item: CartItemData, correnteMap: Map<string, string | null>): CartItemData {
-  const driverLines = item.driverLines?.map(line => {
-    if (line.corrente || !line.driverCode) return line;
-    const corrente = correnteMap.get(line.driverCode);
-    return corrente ? { ...line, corrente } : line;
-  });
-  const profileSegments = item.profileSegments?.map(segment => {
-    if (segment.corrente || !segment.driverCode) return segment;
-    const corrente = correnteMap.get(segment.driverCode);
-    return corrente ? { ...segment, corrente } : segment;
-  });
-  const next: CartItemData = { ...item };
-  if (driverLines) next.driverLines = driverLines;
-  if (profileSegments) next.profileSegments = profileSegments;
-  if ((!driverLines || driverLines.length === 0) && item.drivers) {
-    const code = item.drivers.match(/\(([A-Z]{2}\d+)\)/)?.[1];
-    const corrente = code ? correnteMap.get(code) : null;
-    if (corrente && !item.drivers.toUpperCase().includes("PROGRAMAÇÃO:")) {
-      next.drivers = `${item.drivers}\nPROGRAMAÇÃO: ${corrente}`;
-    }
-  }
-  return next;
-}
-
 /**
  * Verifica se um item tem equipamentos/drivers definidos (para warnings).
  * Considera driverLines, profileSegments, ledBarDriverModel e drivers.
@@ -251,8 +226,6 @@ interface EditableItemProps {
   onRemove: (itemId: number) => void;
   /** Mapa código EQ -> descrição canônica da API (para normalizar módulos LED) */
   descMap?: Map<string, string>;
-  /** Mapa código EQ -> corrente de programação (para Migração 6) */
-  correnteMap?: Map<string, string | null>;
   /** Mapa descrição UPPER -> código EQ (para Migração 7) */
   reverseDescMap?: Map<string, string>;
   /** Lista de componentes da API para autocomplete */
@@ -265,7 +238,7 @@ interface EditableItemProps {
 const EMPTY_DRIVERS: EditableItemProps["drivers"] = [];
 const EMPTY_COMPONENT_OPTIONS: ComponentOption[] = [];
 
-function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, descMap, priceMap, productSkuMap, correnteMap, reverseDescMap, componentesData = EMPTY_COMPONENT_OPTIONS, componentesLoading = false, readOnly = false }: EditableItemProps) {
+function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, descMap, priceMap, productSkuMap, reverseDescMap, componentesData = EMPTY_COMPONENT_OPTIONS, componentesLoading = false, readOnly = false }: EditableItemProps) {
   const [expanded, setExpanded] = useState(true);
   const [showAcessorioModal, setShowAcessorioModal] = useState(false);
   const [acessorioSearch, setAcessorioSearch] = useState("");
@@ -275,8 +248,11 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
 
   const parsed = useMemo(() => {
     const raw = parseCartItemData(item.itemData);
-    return raw ? normalizeStoredQuoteSnapshot(raw) : raw;
-  }, [item.itemData]);
+    if (!raw) return raw;
+    // A programação exibida pertence à variante da luminária/perfil na API.
+    // Apenas uma edição manual persistida pela ficha pode sobrepô-la.
+    return enrichDriverProgrammingFromProductApi(normalizeStoredQuoteSnapshot(raw), productSkuMap);
+  }, [item.itemData, productSkuMap]);
 
   useEffect(() => {
     setQtyDraft(String(parsed?.qty ?? 1).replace(".", ","));
@@ -401,7 +377,12 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
   // Handler para atualizar ledBarDriverModel e ledBarDriverCode
   const handleLedBarDriverChange = (descricao: string, codigo: string) => {
     const newVal = descricao ? (codigo ? `${descricao} (${codigo})` : descricao) : "";
-    update({ ledBarDriverModel: newVal, ledBarDriverCode: codigo || undefined });
+    update({
+      ledBarDriverModel: newVal,
+      ledBarDriverCode: codigo || undefined,
+      ledBarDriverCorrente: null,
+      ledBarDriverProgramacaoManual: false,
+    });
   };
 
   // Handler para atualizar profileSegment moduloLed
@@ -419,7 +400,14 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
   const handleSegmentDriverChange = (segIdx: number, descricao: string, codigo: string) => {
     if (!parsed.profileSegments) return;
     const newSegs = parsed.profileSegments.map((s, i) =>
-      i === segIdx ? { ...s, driverModel: descricao, driverCode: codigo, driverManual: true } : s
+      i === segIdx ? {
+        ...s,
+        driverModel: descricao,
+        driverCode: codigo,
+        driverManual: true,
+        corrente: null,
+        programacaoManual: false,
+      } : s
     );
     update({ profileSegments: newSegs });
   };
@@ -428,7 +416,14 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
   const handleDriverLineChange = (lineIdx: number, descricao: string, codigo: string) => {
     if (!parsed.driverLines) return;
     const newLines = parsed.driverLines.map((dl, i) =>
-      i === lineIdx ? { ...dl, driverModel: descricao, driverCode: codigo, driverManual: true } : dl
+      i === lineIdx ? {
+        ...dl,
+        driverModel: descricao,
+        driverCode: codigo,
+        driverManual: true,
+        corrente: null,
+        programacaoManual: false,
+      } : dl
     );
     update({ driverLines: newLines });
   };
@@ -627,7 +622,7 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
                     existing.qty += seg.qty;
                     existing.segIdxs.push(i);
                   } else {
-                    driverGroups.set(key, { qty: seg.qty, code: "", model: seg.driverModel, corrente: seg.corrente ?? correnteMap?.get(seg.driverCode) ?? null, segIdxs: [i] });
+                    driverGroups.set(key, { qty: seg.qty, code: "", model: seg.driverModel, corrente: seg.corrente ?? null, segIdxs: [i] });
                   }
                 } else {
                   const key = `${seg.driverModel}|${seg.driverCode}`;
@@ -636,7 +631,7 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
                     existing.qty += seg.qty * seg.driverQtyPerPiece;
                     existing.segIdxs.push(i);
                   } else {
-                    driverGroups.set(key, { qty: seg.qty * seg.driverQtyPerPiece, code: seg.driverCode, model: seg.driverModel, corrente: seg.corrente ?? correnteMap?.get(seg.driverCode) ?? null, segIdxs: [i] });
+                    driverGroups.set(key, { qty: seg.qty * seg.driverQtyPerPiece, code: seg.driverCode, model: seg.driverModel, corrente: seg.corrente ?? null, segIdxs: [i] });
                   }
                 }
               }
@@ -753,6 +748,9 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
                                 placeholder="Ex: 350mA"
                               />
                             </div>
+                            {!group.corrente?.trim() && (
+                              <p className="pl-22 text-xs text-amber-700">Programação não retornada pela API — preencha se necessário.</p>
+                            )}
                           </div>
                         );
                       })}
@@ -818,6 +816,9 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
                           placeholder="Ex: 350mA"
                         />
                       </div>
+                      {!parsed.ledBarDriverCorrente?.trim() && (
+                        <p className="pl-22 text-xs text-amber-700">Programação não retornada pela API — preencha se necessário.</p>
+                      )}
                     </div>
                   </div>}
                 </div>
@@ -901,12 +902,15 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
                             <div className="flex items-center gap-2 pl-22">
                               <Label className="text-xs text-muted-foreground">Programação</Label>
                               <Input
-                                value={dl.corrente ?? correnteMap?.get(dl.driverCode) ?? ""}
+                                value={dl.corrente ?? ""}
                                 onChange={e => update({ driverLines: updateDriverLineProgramming(parsed.driverLines!, li, e.target.value) })}
                                 className="h-8 text-xs font-mono w-28"
                                 placeholder="Ex: 350mA"
                               />
                             </div>
+                            {!dl.corrente?.trim() && (
+                              <p className="pl-22 text-xs text-amber-700">Programação não retornada pela API — preencha se necessário.</p>
+                            )}
                           </div>
                         );
                       })}
@@ -936,7 +940,7 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
             const driverSimpleQty = driverSimplePrefixMatch ? Number(driverSimplePrefixMatch[1].replace(",", ".")) : 1;
             const driverSimpleDesc = driverSimplePrefixMatch ? driverSimplePrefixMatch[2] : driverSimpleRaw;
             const driverSimpleCode = extractCode(driverSimpleRaw);
-            const driverSimpleProgramming = parsed.driverLines?.[0]?.corrente ?? correnteMap?.get(driverSimpleCode) ?? "";
+            const driverSimpleProgramming = parsed.driverLines?.[0]?.corrente ?? "";
 
             return (
               <div className="space-y-4">
@@ -1010,15 +1014,18 @@ function EditableItemComponent({ item, drivers, acessorios, onUpdate, onRemove, 
                           driverLines: buildManualDriverLines(
                             driverSimpleDesc,
                             driverSimpleCode,
-                            driverSimpleQty,
-                            itemQty,
-                            { driverUnitPrice: parsed.driverLines?.[0]?.driverUnitPrice ?? null },
-                          ).map(line => ({ ...line, corrente: e.target.value })),
-                        })}
+                          driverSimpleQty,
+                          itemQty,
+                          { driverUnitPrice: parsed.driverLines?.[0]?.driverUnitPrice ?? null },
+                        ).map(line => ({ ...line, corrente: e.target.value, programacaoManual: true })),
+                      })}
                         className="h-8 text-xs font-mono w-28"
                         placeholder="Ex: 350mA"
                       />
                     </div>
+                    {!driverSimpleProgramming.trim() && (
+                      <p className="pl-22 text-xs text-amber-700">Programação não retornada pela API — preencha se necessário.</p>
+                    )}
                   </div>
                 </div>}
               </div>
@@ -1387,14 +1394,6 @@ export default function FactoryOrderDetail() {
     }
     return map;
   }, [componentesData]);
-  /** Corrente de programação de componentes (EQ code → corrente, ex: "350MA") */
-  const componenteCorrenteMapFO = useMemo(() => {
-    const map = new Map<string, string | null>();
-    for (const c of componentesData?.items ?? []) {
-      if (c.codigo) map.set(c.codigo, (c as unknown as { corrente?: string | null }).corrente ?? null);
-    }
-    return map;
-  }, [componentesData]);
   /** Mapa descrição (UPPER) -> código EQ — busca reversa para Migração 7 */
   const componenteReverseDescMapFO = useMemo(() => {
     const map = new Map<string, string>();
@@ -1692,8 +1691,12 @@ export default function FactoryOrderDetail() {
     let semEquipamento = 0;
     let semCor = 0;
     let semCct = 0;
+    let semProgramacao = 0;
     for (const item of items) {
-      const d = parseCartItemData(item.itemData);
+      const raw = parseCartItemData(item.itemData);
+      const d = raw
+        ? enrichDriverProgrammingFromProductApi(normalizeStoredQuoteSnapshot(raw), productSkuMapFO)
+        : null;
       if (!d) continue;
       // Verificar equipamentos pendentes usando a função que considera driverLines, profileSegments, ledBarDriverModel etc.
       if (!hasEquipamentoDefined(d)) semEquipamento++;
@@ -1701,12 +1704,25 @@ export default function FactoryOrderDetail() {
       if (!d.corPeca || d.corPeca.trim() === "" || d.corPeca === "A Definir") semCor++;
       // Verificar CCT
       if (!d.cct || d.cct.trim() === "") semCct++;
+      // A programação só é obrigatória como aviso quando o item utiliza driver.
+      // Ela nunca bloqueia o salvamento ou a emissão do pedido.
+      if (!d.isSpecialItem && !d.withoutEquipment) {
+        const hasMissingProgramming = d.category === "LED BAR"
+          ? Boolean(d.ledBarDriverModel || d.ledBarDriverCode) && !d.ledBarDriverCorrente?.trim()
+          : d.profileSegments && d.profileSegments.length > 0
+            ? d.profileSegments.some(segment => Boolean(segment.driverModel || segment.driverCode) && !segment.corrente?.trim())
+            : d.driverLines && d.driverLines.length > 0
+              ? d.driverLines.some(line => !line.corrente?.trim())
+              : Boolean(d.drivers?.trim());
+        if (hasMissingProgramming) semProgramacao++;
+      }
     }
     if (semEquipamento > 0) warnings.push(`${semEquipamento} item(ns) sem equipamento/driver definido`);
     if (semCor > 0) warnings.push(`${semCor} item(ns) com cor da peça "A Definir" ou em branco`);
     if (semCct > 0) warnings.push(`${semCct} item(ns) sem temperatura de cor (CCT) definida`);
+    if (semProgramacao > 0) warnings.push(`${semProgramacao} item(ns) sem programação retornada pela API ou preenchida manualmente`);
     return warnings;
-  }, []);
+  }, [productSkuMapFO]);
 
   // Executa a geração do Excel de fato (após confirmação de avisos)
   const doGenerateExcel = useCallback(async (orderToUse: NonNullable<typeof currentOrder>) => {
@@ -1723,7 +1739,7 @@ export default function FactoryOrderDetail() {
       const itemsData = orderToUse.items
         .map(i => parseCartItemData(i.itemData))
         .filter((d): d is CartItemData => d !== null)
-        .map(d => enrichItemProgramming(normalizeStoredQuoteSnapshot(d), componenteCorrenteMapFO));
+        .map(d => enrichDriverProgrammingFromProductApi(normalizeStoredQuoteSnapshot(d), productSkuMapFO));
       const fileName = `PEDIDO-FABRICA-${orderNum}-${quote.clientName.replace(/\s+/g, "_")}.xlsx`;
       const buffer = await generateOrderExcel(itemsData, {
         clientName: quote.clientName,
@@ -1767,7 +1783,7 @@ export default function FactoryOrderDetail() {
     } finally {
       setIsGenerating(false);
     }
-  }, [quoteData, saveExcelMutation, componenteCorrenteMapFO, componentePriceMapFO, componenteDescMapFO, componenteReverseDescMapFO, productSkuMapFO]);
+  }, [quoteData, saveExcelMutation, componentePriceMapFO, componenteDescMapFO, componenteReverseDescMapFO, productSkuMapFO]);
 
   const handleGenerateExcel = useCallback(async () => {
     if (!currentOrder || !quoteData) return;
@@ -1958,7 +1974,7 @@ export default function FactoryOrderDetail() {
                     const items = orderToPreview.items
                       .map(i => parseCartItemData(i.itemData))
                       .filter((d): d is CartItemData => d !== null)
-                      .map(d => enrichItemProgramming(normalizeStoredQuoteSnapshot(d), componenteCorrenteMapFO));
+                      .map(d => enrichDriverProgrammingFromProductApi(normalizeStoredQuoteSnapshot(d), productSkuMapFO));
                     setPreviewItems(items);
                     setPreviewForm({
                       clientName: quote.clientName,
@@ -2351,7 +2367,6 @@ export default function FactoryOrderDetail() {
                           descMap={componenteDescMapFO}
                           priceMap={componentePriceMapFO}
                           productSkuMap={productSkuMapFO}
-                          correnteMap={componenteCorrenteMapFO}
                           reverseDescMap={componenteReverseDescMapFO}
                           componentesData={componentesData?.items ?? EMPTY_COMPONENT_OPTIONS}
                           componentesLoading={componentesLoading}

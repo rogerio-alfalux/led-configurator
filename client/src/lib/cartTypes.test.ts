@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { enrichDriverCurrentsFromApi, enrichShiftAccessoryTechnicalComponents, getLinkedAccessoryTotalPrice, getLinkedAccessoryTotalQuantity, migrateItemDrivers, migrateLegacyGlowCommercialItem, normalizeRv00064TechnicalConfiguration, normalizeSplitCommercialPricing, parseCartItemData, selectApiTechnicalVariantForItem } from "./cartTypes";
+import { enrichDriverProgrammingFromProductApi, enrichShiftAccessoryTechnicalComponents, getLinkedAccessoryTotalPrice, getLinkedAccessoryTotalQuantity, migrateItemDrivers, migrateLegacyGlowCommercialItem, normalizeRv00064TechnicalConfiguration, normalizeSplitCommercialPricing, parseCartItemData, selectApiTechnicalVariantForItem } from "./cartTypes";
 
 describe("quantidade de acessórios vinculados", () => {
   const item = { qty: 4 };
@@ -410,6 +410,7 @@ describe("parseCartItemData - múltiplos modelos de driver (caso 33.9995-26)", (
       sku: "LLA-3395.2IN.58F",
       driver220: { code: "EQ00346", model: "LED DRIVER XITANIUM 19W 200-350MA 30-54VDC DS 230V" },
       driverQtd220: 1,
+      correnteDriver: "350mA",
       composicaoD1D2: {
         qtdModuloLed: 4,
         drivers: [{ tipo: "DRIVER_ONOFF_220", modelo: apiD1D2Model, qtd: 1, custo: "18.00" }],
@@ -567,6 +568,7 @@ describe("migrateLegacyGlowCommercialItem", () => {
         markupPadraoDimDali: 2,
         markupPadraoDriverDimDali: 3,
         markupMinimoDriver: 3,
+        correnteDriver: "Programar em 500mA",
       },
     ]]);
 
@@ -575,14 +577,13 @@ describe("migrateLegacyGlowCommercialItem", () => {
       new Map([["EQ00179", 479.52]]),
       new Map([["EQ00179", "LED DRIVER 100W 220V DALI"]]),
       productMap,
-      new Map([["EQ00179", "500mA"]]),
     );
 
     expect(migrated.description).toBe("GLOW S 54W 1154MM 3000K 220V");
     expect(migrated.unitPrice).toBe(345.21);
     expect(migrated.totalPrice).toBe(14153.61);
     expect(migrated.driverLines).toEqual([expect.objectContaining({
-      driverCode: "EQ00179", driverQty: 41, driverUnitPrice: 479.52, driverTotalPrice: 19660.32, corrente: "500mA",
+      driverCode: "EQ00179", driverQty: 41, driverUnitPrice: 479.52, driverTotalPrice: 19660.32, corrente: "Programar em 500mA",
     })]);
   });
 
@@ -620,8 +621,8 @@ describe("migrateLegacyGlowCommercialItem", () => {
   });
 });
 
-describe("enrichDriverCurrentsFromApi", () => {
-  it("preenche somente a programação dos drivers persistidos pelos códigos da API", () => {
+describe("enrichDriverProgrammingFromProductApi", () => {
+  it("preenche a programação de todas as linhas pela variante exata da luminária", () => {
     const item = {
       category: "LED BAR",
       sku: "LLE-2052",
@@ -637,14 +638,14 @@ describe("enrichDriverCurrentsFromApi", () => {
       profileSegments: [{ sku: "LLP-6060.2IF.48F", qty: 1, lengthMm: 1180, barsPerPiece: 2, driverQtyPerPiece: 1, driverCode: "EQ00348", driverModel: "DRIVER 44W" }],
     } as any;
 
-    const enriched = enrichDriverCurrentsFromApi(item, new Map([
-      ["EQ00348", "350mA"],
-      ["EQ00801", "250mA"],
-    ]));
+    const enriched = enrichDriverProgrammingFromProductApi(item, new Map([[
+      "LLE-2052",
+      { sku: "LLE-2052", name: "SKYLINE FL 10W/M", correnteDriver: " Programar em 350mA ", driver220: null, driverBivolt: null, driverQtd220: null, driverQtdBivolt: null },
+    ]]));
 
-    expect(enriched.driverLines?.[0]).toMatchObject({ driverCode: "EQ00348", corrente: "350mA" });
-    expect(enriched.profileSegments?.[0]).toMatchObject({ driverCode: "EQ00348", corrente: "350mA" });
-    expect(enriched.ledBarDriverCorrente).toBe("250mA");
+    expect(enriched.driverLines?.[0]).toMatchObject({ driverCode: "EQ00348", corrente: "Programar em 350mA" });
+    expect(enriched.profileSegments?.[0]).toMatchObject({ driverCode: "EQ00348", corrente: "Programar em 350mA" });
+    expect(enriched.ledBarDriverCorrente).toBe("Programar em 350mA");
     expect(enriched.driverLines?.[0]?.driverModel).toBe("DRIVER 44W");
   });
 
@@ -664,14 +665,30 @@ describe("enrichDriverCurrentsFromApi", () => {
       profileSegments: [{ sku: "LLP-6060.2IF.26F", qty: 1, lengthMm: 1180, barsPerPiece: 2, driverQtyPerPiece: 1, driverCode: "EQ00348", driverModel: "DRIVER 44W", corrente: "500mA", programacaoManual: true }],
     } as any;
 
-    const enriched = enrichDriverCurrentsFromApi(item, new Map([
-      ["EQ00348", "350mA"],
-      ["EQ00801", "250mA"],
-    ]));
+    const enriched = enrichDriverProgrammingFromProductApi(item, new Map([[
+      "LLP-6060",
+      { sku: "LLP-6060", name: "BLAZE H 26W", correnteDriver: "Programar em 350mA", driver220: null, driverBivolt: null, driverQtd220: null, driverQtdBivolt: null },
+    ]]));
 
     expect(enriched.driverLines?.[0]?.corrente).toBe("500mA");
     expect(enriched.profileSegments?.[0]?.corrente).toBe("500mA");
     expect(enriched.ledBarDriverCorrente).toBe("400mA");
+  });
+
+  it("limpa a programação automática quando a luminária não retorna valor", () => {
+    const item = {
+      category: "Luminárias",
+      sku: "LLE-SEM-CORRENTE",
+      description: "LUMINÁRIA SEM PROGRAMAÇÃO",
+      driverLines: [{ driverCode: "EQ00001", driverModel: "DRIVER", driverQty: 1, driverUnitPrice: null, driverTotalPrice: null, corrente: "350mA" }],
+    } as any;
+
+    const enriched = enrichDriverProgrammingFromProductApi(item, new Map([[
+      "LLE-SEM-CORRENTE",
+      { sku: "LLE-SEM-CORRENTE", name: "LUMINÁRIA SEM PROGRAMAÇÃO", correnteDriver: "", driver220: null, driverBivolt: null, driverQtd220: null, driverQtdBivolt: null },
+    ]]));
+
+    expect(enriched.driverLines?.[0]?.corrente).toBeNull();
   });
 });
 

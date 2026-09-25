@@ -1298,7 +1298,6 @@ export function migrateLegacyGlowCommercialItem(
   priceMap: Map<string, number>,
   descMap: Map<string, string>,
   productSkuMap: Map<string, ApiProductDriverInfo>,
-  correnteMap?: Map<string, string | null>,
 ): CartItemData {
   if (item.driverLines && item.driverLines.length > 0) return item;
 
@@ -1345,7 +1344,7 @@ export function migrateLegacyGlowCommercialItem(
     driverTotalPrice: (item.unitPriceDriver ?? priceMap.get(driver.code)) != null
       ? roundCommercialValue((item.unitPriceDriver ?? priceMap.get(driver.code)!) * totalDriverQty)
       : null,
-    ...(correnteMap?.get(driver.code) ? { corrente: correnteMap.get(driver.code)! } : {}),
+    corrente: normalizeProductDriverProgramming(product),
   }];
 
   return {
@@ -1380,32 +1379,43 @@ export function extractPowerLabelFromName(name: string): string {
 }
 
 /**
- * Completa somente a corrente de programação a partir dos componentes retornados
- * pela API. Não altera modelo, código, quantidade ou driver originalmente salvo.
+ * Reidrata a programação pelo cadastro da luminária/perfil na API.
+ *
+ * A programação é uma instrução de produção do produto configurado, não uma
+ * propriedade deduzida pelo texto ou pela faixa de corrente do componente EQ.
+ * Uma alteração explicitamente feita na ficha continua soberana, inclusive se o
+ * usuário decidir deixá-la em branco.
  */
-export function enrichDriverCurrentsFromApi(
-  item: CartItemData,
-  correnteMap?: Map<string, string | null>,
-): CartItemData {
-  if (!correnteMap || correnteMap.size === 0) return item;
+function normalizeProductDriverProgramming(product?: Pick<ApiProductDriverInfo, "correnteDriver"> | null): string | null {
+  return typeof product?.correnteDriver === "string"
+    ? product.correnteDriver.trim() || null
+    : null;
+}
 
+export function enrichDriverProgrammingFromProductApi(
+  item: CartItemData,
+  productSkuMap?: Map<string, ApiProductDriverInfo>,
+): CartItemData {
+  if (!productSkuMap || productSkuMap.size === 0) return item;
+
+  const product = selectApiTechnicalVariantForItem(item, productSkuMap);
+  const programacao = normalizeProductDriverProgramming(product);
   let changed = false;
-  const driverLines = item.driverLines?.map(line => {
-    const corrente = line.driverCode ? correnteMap.get(line.driverCode) : undefined;
-    if (line.programacaoManual || corrente == null || corrente === line.corrente) return line;
+
+  const driverLines = item.driverLines?.map((line) => {
+    if (line.programacaoManual || (line.corrente ?? null) === programacao) return line;
     changed = true;
-    return { ...line, corrente };
+    return { ...line, corrente: programacao };
   });
-  const profileSegments = item.profileSegments?.map(segment => {
-    const corrente = segment.driverCode ? correnteMap.get(segment.driverCode) : undefined;
-    if (segment.programacaoManual || corrente == null || corrente === segment.corrente) return segment;
+  const profileSegments = item.profileSegments?.map((segment) => {
+    if (segment.programacaoManual || (segment.corrente ?? null) === programacao) return segment;
     changed = true;
-    return { ...segment, corrente };
+    return { ...segment, corrente: programacao };
   });
-  const ledBarDriverCorrente = item.ledBarDriverCode
-    ? correnteMap.get(item.ledBarDriverCode)
-    : undefined;
-  if (!item.ledBarDriverProgramacaoManual && ledBarDriverCorrente != null && ledBarDriverCorrente !== item.ledBarDriverCorrente) {
+  const ledBarDriverCorrente = item.ledBarDriverProgramacaoManual
+    ? undefined
+    : programacao;
+  if (ledBarDriverCorrente !== undefined && ledBarDriverCorrente !== (item.ledBarDriverCorrente ?? null)) {
     changed = true;
   }
 
@@ -1414,7 +1424,7 @@ export function enrichDriverCurrentsFromApi(
     ...item,
     ...(driverLines ? { driverLines } : {}),
     ...(profileSegments ? { profileSegments } : {}),
-    ...(ledBarDriverCorrente != null ? { ledBarDriverCorrente } : {}),
+    ...(ledBarDriverCorrente !== undefined ? { ledBarDriverCorrente } : {}),
   };
 }
 
@@ -1426,7 +1436,7 @@ export function enrichDriverCurrentsFromApi(
  * - Migração 2: itens com accessories contendo drivers (EQ*)
  * - Migração 3: itens com campo `drivers` (string legada), com fallback via API de produtos
  *   Preferência: driver220 primeiro, se null usa driverBivolt
- * - Migração 6: enriquecer corrente em driverLines e profileSegments existentes via correnteMap
+ * - A programação é resolvida separadamente pela variante da luminária na API.
  *
  * Também aplica normalizeDriverModels (descrição canônica da API de componentes).
  */
@@ -1510,7 +1520,7 @@ export function migrateItemDrivers(
           driverCode,
           driverModel: descMap.get(driverCode) ?? apiD1D2Driver.modelo,
           driverQtyPerPiece: apiD1D2Driver.qtd ?? 1,
-          corrente: correnteMap?.get(driverCode) ?? segment.corrente ?? null,
+          corrente: normalizeProductDriverProgramming(apiProduct),
         };
       }
       const driverSelection = controlType === "dimDali"
@@ -1533,7 +1543,7 @@ export function migrateItemDrivers(
         driverCode: apiDriver.code,
         driverModel: apiDriver.model,
         driverQtyPerPiece,
-        corrente: apiProduct.correnteDriver ?? null,
+        corrente: normalizeProductDriverProgramming(apiProduct),
       };
     });
     // Limpar linhas anteriores força a Migração 1 abaixo a consolidar apenas
@@ -1703,7 +1713,7 @@ export function migrateItemDrivers(
             driverQty: totalQty,
             driverUnitPrice,
             driverTotalPrice: driverUnitPrice != null ? Math.round(driverUnitPrice * totalQty * 100) / 100 : null,
-            corrente: correnteMap?.get(apiDriver.code) ?? item.driverLines[0]?.corrente ?? null,
+            corrente: normalizeProductDriverProgramming(apiProduct),
           }];
           item = { ...item, driverLines, driverQtyPerUnit: apiDriverQty };
         }
@@ -1711,39 +1721,10 @@ export function migrateItemDrivers(
     }
   }
 
-  // Normalização 0 + Migração 6: itens que já têm driverLines
-  // Normalizar driverModel E enriquecer corrente via correnteMap quando ausente
+  // Normalização 0: a programação é preenchida posteriormente pela variante
+  // exata do produto, e nunca pela descrição ou pelo próprio componente EQ.
   if (item.driverLines && item.driverLines.length > 0) {
     let enriched = item;
-    if (correnteMap && correnteMap.size > 0) {
-      const needsEnrich = item.driverLines.some(
-        dl => dl.driverCode && (dl.corrente == null || dl.corrente === "") && correnteMap.has(dl.driverCode)
-      );
-      if (needsEnrich) {
-        const newLines = item.driverLines.map(dl => {
-          if (!dl.driverCode || (dl.corrente != null && dl.corrente !== "")) return dl;
-          const corrente = correnteMap.get(dl.driverCode);
-          if (corrente == null) return dl;
-          return { ...dl, corrente };
-        });
-        enriched = { ...item, driverLines: newLines };
-      }
-    }
-    // Também enriquecer corrente nos profileSegments quando driverLines já existem
-    if (correnteMap && correnteMap.size > 0 && enriched.profileSegments && enriched.profileSegments.length > 0) {
-      const needsSegEnrich = enriched.profileSegments.some(
-        seg => seg.driverCode && (seg.corrente == null || seg.corrente === "") && correnteMap.has(seg.driverCode)
-      );
-      if (needsSegEnrich) {
-        const newSegs = enriched.profileSegments.map(seg => {
-          if (!seg.driverCode || (seg.corrente != null && seg.corrente !== "")) return seg;
-          const corrente = correnteMap.get(seg.driverCode);
-          if (corrente == null) return seg;
-          return { ...seg, corrente };
-        });
-        enriched = { ...enriched, profileSegments: newSegs };
-      }
-    }
     return normalizeDriverModels(normalizeSplitCommercialPricing(enriched), descMap);
   }
 
@@ -1769,7 +1750,7 @@ export function migrateItemDrivers(
       const unitPrice = priceMap.get(drv.driverCode) ?? null;
       const totalPrice = unitPrice != null ? unitPrice * totalQty : null;
       if (totalPrice != null) totalDriverCost += totalPrice;
-      const corrente = drv.corrente ?? correnteMap?.get(drv.driverCode) ?? null;
+      const corrente = drv.corrente ?? null;
       return { driverCode: drv.driverCode, driverModel: descMap.get(drv.driverCode) ?? drv.driverModel, driverQty: totalQty, driverUnitPrice: unitPrice, driverTotalPrice: totalPrice, ...(corrente ? { corrente } : {}) };
     });
     const totalPrice = item.totalPrice ?? 0;
@@ -1798,14 +1779,12 @@ export function migrateItemDrivers(
       const unitPrice = priceMap.get(acc.codigo)!;
       const totalQty = (acc.qty ?? 1) * itemQty;
       const totalPrice = unitPrice * totalQty;
-      const corrente = correnteMap?.get(acc.codigo) ?? null;
       return {
         driverCode: acc.codigo,
         driverModel: descMap.get(acc.codigo) ?? acc.descricao,
         driverQty: totalQty,
         driverUnitPrice: unitPrice,
         driverTotalPrice: totalPrice,
-        ...(corrente ? { corrente } : {}),
       };
     });
     const totalDriverCost = driverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
@@ -1854,7 +1833,7 @@ export function migrateItemDrivers(
       const totalQty = resolvedDrvQtyPerUnit * itemQty;
       const unitPrice = priceMap.get(resolvedEqCode) ?? null;
       const totalPrice = unitPrice != null ? unitPrice * totalQty : null;
-      const corrente3 = correnteMap?.get(resolvedEqCode) ?? null;
+      const corrente3 = normalizeProductDriverProgramming(apiProduct);
       const driverLines: DriverLine[] = [{
         driverCode: resolvedEqCode,
         driverModel: resolvedDriverModel,
