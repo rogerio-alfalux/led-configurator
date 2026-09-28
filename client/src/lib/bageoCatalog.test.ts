@@ -79,6 +79,12 @@ describe("parseAplicacaoFromName", () => {
   it("parseia D1+D2 corretamente", () => {
     expect(parseAplicacaoFromName("BAGEO SINUOSA P D1+D2 40W/M")).toBe("D1+D2");
   });
+  it("força D1 em BAGEO de embutir mesmo quando a potência é 40W/m", () => {
+    expect(parseAplicacaoFromName("BAGEO SINUOSA E 40W/M", "EMBUTIR")).toBe("D1");
+  });
+  it("não permite que o texto D1+D2 substitua a regra da instalação de embutir", () => {
+    expect(parseAplicacaoFromName("BAGEO SINUOSA E D1+D2 40W/M", "EMBUTIR")).toBe("D1");
+  });
   it("parseia D1 corretamente (sem D2)", () => {
     expect(parseAplicacaoFromName("BAGEO SINUOSA P D1 20W/M")).toBe("D1");
   });

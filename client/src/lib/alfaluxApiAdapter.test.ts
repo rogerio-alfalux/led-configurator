@@ -198,6 +198,29 @@ describe("adaptAlfaluxProducts - MINI BAGEO", () => {
     expect(result.bageosFixos[0]).toMatchObject({ familia: "MINI BAGEO", sku: "MBG-001" });
     expect(result.bageos).toHaveLength(0);
   });
+
+  it("classifica BAGEO Sinuosa de embutir 40W/m como D1, não D1+D2", () => {
+    const result = adaptAlfaluxProducts([makeProduct({
+      categoria: "PERFIS",
+      familia: "BAGEO SINUOSA E",
+      instalacao: "EMBUTIR",
+      sku: "LDF-7035",
+      name: "BAGEO SINUOSA E 40W/M",
+      ledModule: "FITA LED 2835 120LEDS/M 24V 10W/M IP20 [CCT]",
+      ledModuleQtd: 4,
+      driver220: null,
+      driverBivolt: makeDriver("FONTE DE TENSÃO ALFALUX 100W 24V IP20 BIVOLT", "EQ00803"),
+      driverQtdBivolt: 1,
+    })]);
+
+    expect(result.bageos).toHaveLength(1);
+    expect(result.bageos[0]).toMatchObject({
+      sku: "LDF-7035",
+      instalacao: "EMBUTIR",
+      aplicacao: "D1",
+      ledModuleQtd: 4,
+    });
+  });
 });
 
 describe("adaptAlfaluxProducts - Painéis", () => {

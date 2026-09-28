@@ -211,12 +211,22 @@ export const BAGEO_CATALOG: BageoProduct[] = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Parseia a aplicação (D1 ou D1+D2) a partir do nome do produto */
-export function parseAplicacaoFromName(name: string): BageoAplicacao | null {
+/**
+ * Resolve a aplicação óptica do BAGEO.
+ *
+ * A versão de EMBUTIR sempre é D1: a potência de 40W/m representa quatro
+ * voltas da mesma fita no corpo, e não dois circuitos D1 + D2 independentes.
+ * Para as demais instalações, a identificação explícita da API no nome segue
+ * soberana; somente os registros legados sem aplicação usam a potência como
+ * último recurso.
+ */
+export function parseAplicacaoFromName(name: string, instalacao?: string | null): BageoAplicacao | null {
+  if (instalacao?.trim().toUpperCase() === "EMBUTIR") return "D1";
   if (/D1\+D2/i.test(name)) return "D1+D2";
   if (/\bD1\b/i.test(name)) return "D1";
-  // Fallback: inferir pela potência (ex: MINI BAGEO SINUOSA S LED 20W/M, 40W/M)
-  // 40W/m implica dois circuitos (D1+D2), 20W/m implica um circuito (D1)
+  // Fallback para registros legados sem aplicação explícita.
+  // A instalação EMBUTIR já foi tratada acima: 40W/m nela continua sendo D1.
+  // Nas versões pendente/sobrepor, 40W/m representa dois circuitos.
   if (/40W\/M/i.test(name)) return "D1+D2";
   if (/20W\/M/i.test(name)) return "D1";
   return null;

@@ -882,7 +882,9 @@ function isBageoProduct(p: ApiProduct): boolean {
 }
 /** Converte um produto da API para BageoProduct */
 function toBageoProduct(p: ApiProduct): BageoProduct | null {
-  const aplicacao = parseAplicacaoFromName(p.name);
+  // Nenhuma BAGEO de embutir tem D1 + D2. Essa regra precisa ser aplicada
+  // antes de derivar preços e componentes, não apenas na apresentação.
+  const aplicacao = parseAplicacaoFromName(p.name, p.instalacao);
   if (!aplicacao) return null;
   const instalacao: BageoInstalacao = parseInstalacaoFromApi(p.instalacao ?? "");
   const productStructure = adaptProductStructure(p);
