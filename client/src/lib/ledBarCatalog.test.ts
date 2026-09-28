@@ -176,6 +176,7 @@ describe("isLedBarFitaFamily", () => {
     expect(isLedBarFitaFamily("SKYLINE FL")).toBe(true);
     expect(isLedBarFitaFamily("MINI BLAZE FL")).toBe(true);
     expect(isLedBarFitaFamily("PERFIL FUTURO FL")).toBe(true);
+    expect(isLedBarFitaFamily("FLOOR")).toBe(true);
   });
 
   it("não inclui perfis sem o sufixo FL", () => {

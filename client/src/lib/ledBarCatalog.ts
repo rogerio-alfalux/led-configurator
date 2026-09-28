@@ -465,7 +465,11 @@ export const LED_BAR_CONTROLE_OPTIONS: { value: LedBarControle; label: string }[
  * sentinela interna para compatibilidade com o motor; a interface não o exibe.
  */
 export function isLedBarFitaFamily(familia: string | null | undefined): boolean {
-  return /\bFL(?:\s+(?:\d+(?:[.,]\d+)?\s*W\s*\/\s*M\s+)?RGBW)?\s*$/i.test(familia?.trim() ?? "");
+  const normalized = familia?.trim() ?? "";
+  // FLOOR é um perfil linear com fita e segue o mesmo fluxo comercial e
+  // técnico das famílias BLAZE FL, embora não use o sufixo "FL" no nome.
+  return /^FLOOR\b/i.test(normalized)
+    || /\bFL(?:\s+(?:\d+(?:[.,]\d+)?\s*W\s*\/\s*M\s+)?RGBW)?\s*$/i.test(normalized);
 }
 
 /**

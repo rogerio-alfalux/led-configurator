@@ -402,6 +402,37 @@ describe("adaptAlfaluxProducts - LED BAR", () => {
     });
   });
 
+  it("inclui FLOOR no fluxo linear de perfis com fita", () => {
+    const product = makeProduct({
+      categoria: "PERFIS",
+      familia: "FLOOR",
+      instalacao: "EMBUTIR",
+      sku: "LDB-6402.300.68F",
+      name: "FLOOR LED E 10W/M IP65",
+      temperaturasCor: ["3000"],
+      ledModule3000: "FITA LED 2835 120LEDS/M 24V 10W/M IP65 IRC90 3000K 1000LM/M",
+      ledModuleEq3000: "EQ00172",
+      driver220: null,
+      driverBivolt: makeDriver("FONTE DE TENSÃO ALFALUX 36W 24V IP20 BIVOLT", "EQ00801"),
+      custoCorpoOnoffBivolt: 288.93,
+      markupPadraoOnoffBivolt: 3.1,
+    });
+
+    const result = adaptAlfaluxProducts([product]);
+
+    expect(result.ledBars).toHaveLength(1);
+    expect(result.ledBars[0]).toMatchObject({
+      familia: "FLOOR",
+      instalacao: "EMBUTIR",
+      sku: "LDB-6402.300.68F",
+      potencia: 10,
+      difusor: "NF",
+      ccts: ["3000K"],
+      ledModuleEq3000: "EQ00172",
+      driverBivolt: { code: "EQ00801" },
+    });
+  });
+
   it("inclui MINI BLAZE FL como perfil linear sem expor difusor comercial", () => {
     const product = makeProduct({
       categoria: "PERFIS",
