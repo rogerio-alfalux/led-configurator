@@ -66,4 +66,14 @@ describe("Customizados na Home", () => {
     expect(homeSource).toContain("nonQuotedObservation: noObservation.trim() || undefined");
     expect(homeSource).toContain("Esta observação sempre aparecerá no orçamento quando preenchida");
   });
+
+  it("não solicita nem exibe CCT e tensão da luminária quando a lâmpada é um acessório", () => {
+    expect(homeSource).toContain('import { buildFixtureCommercialDescription, isLampBasedProduct } from "@/lib/lampProductTechnicalDetails"');
+    expect(homeSource).toContain('if (!_sProd || isLampBasedProduct(_sProd) || !spotRequiresDriver(_sProd)) return null;');
+    expect(homeSource).toContain('if ((spotSelProd && isLampBasedProduct(spotSelProd)) || spotSelProd?.productStructure?.lightingMode === "NO_LED_MODULE") return null;');
+    expect(homeSource).toContain('if (!_aProd || isLampBasedProduct(_aProd) || !arandelaRequiresDriver(_aProd)) return null;');
+    expect(homeSource).toContain('if ((arandelaSelProd && isLampBasedProduct(arandelaSelProd)) || arandelaSelProd?.productStructure?.lightingMode === "NO_LED_MODULE") return null;');
+    expect(homeSource).toContain('isLampBasedProduct(dlSelProdV)');
+    expect(homeSource).toContain('!isLampBasedProduct(spotResult.product)');
+  });
 });

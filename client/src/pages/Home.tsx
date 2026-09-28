@@ -9,6 +9,7 @@ import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { normalizeRv00064TechnicalConfiguration } from "@/lib/cartTypes";
 import { applyQtyChange } from "@/lib/cctUtils";
+import { buildFixtureCommercialDescription, isLampBasedProduct } from "@/lib/lampProductTechnicalDetails";
 import type { CartItemData, LinkedAccessory, ProfileSegment } from "@/lib/cartTypes";
 import { aggregateProductStructureComponents, productStructureCartFields, type ProductStructureComponent } from "@/lib/productStructure";
 import { redactGuestQuoteSummary } from "@/lib/guestQuoteSummary";
@@ -7458,7 +7459,7 @@ export default function Home() {
                               const availableVoltages = newProd ? getAvailableDownlightVoltages(newProd, "ON/OFF") : [];
                               setDlVoltage(availableVoltages.length === 1 ? availableVoltages[0] : null);
                               if (newProd?.isRgbw) { setDlCCT("RGBW"); }
-                              else if (newProd?.isLamp || newProd?.productStructure?.lightingMode === "NO_LED_MODULE") { /* sem CCT */ }
+                              else if (newProd && (isLampBasedProduct(newProd) || newProd.productStructure?.lightingMode === "NO_LED_MODULE")) { /* sem CCT */ }
                               else {
                                 const availCCTs = newProd?.ccts?.length ? newProd.ccts : ["2700K", "3000K", "4000K", "5000K"];
                                 if (!isCctSelectionAvailable(dlCCT, availCCTs)) setDlCCT(availCCTs[0] ?? "3000K");
@@ -7535,7 +7536,7 @@ export default function Home() {
                       const _dlVName = _dlVNameParts.join('::');
                       const dlSelProdV = activeDlCatalog.find(p => p.sku === _dlVSku && p.name === _dlVName);
                       // Produto sem driver: não exibir tensão
-                      if (dlSelProdV?.semDriver) return null;
+                      if (dlSelProdV?.semDriver || (dlSelProdV && isLampBasedProduct(dlSelProdV))) return null;
                       const dlAvailableVoltages = dlSelProdV
                         ? getAvailableDownlightVoltages(dlSelProdV, dlControle)
                         : [];
@@ -7579,7 +7580,7 @@ export default function Home() {
                     {dlProductKey !== null && (() => {
                       const dlSelProd = activeDlCatalog.find(p => { const [s, ...np] = (dlProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
                       // Produto com lâmpada: sem seleção de CCT
-                      if (dlSelProd?.isLamp || dlSelProd?.productStructure?.lightingMode === "NO_LED_MODULE") return null;
+                      if ((dlSelProd && isLampBasedProduct(dlSelProd)) || dlSelProd?.productStructure?.lightingMode === "NO_LED_MODULE") return null;
                       // Produto RGBW: mostrar apenas opção RGBW
                       const dlAvailCCTs = dlSelProd?.isRgbw ? ["RGBW"] : (dlSelProd?.ccts?.length ? dlSelProd.ccts : ["2700K", "3000K", "4000K", "5000K"]);
                       return (
@@ -8263,12 +8264,13 @@ export default function Home() {
                           // Auto-selecionar tensão quando só há uma opção disponível
                           const newHas220Sp = newProd?.driver220 != null;
                           const newHasBivoltSp = newProd?.driverBivolt != null;
-                          if (newProd && !spotRequiresDriver(newProd)) setSpotVoltage("220V");
+                          if (newProd && isLampBasedProduct(newProd)) setSpotVoltage(null);
+                          else if (newProd && !spotRequiresDriver(newProd)) setSpotVoltage("220V");
                           else if (!newHas220Sp && newHasBivoltSp) setSpotVoltage("Bivolt");
                           else if (newHas220Sp && !newHasBivoltSp) setSpotVoltage("220V");
                           else setSpotVoltage(null);
                           if (newProd?.isRgbw) { setSpotCCT("RGBW"); }
-                          else if (newProd?.isLamp || newProd?.productStructure?.lightingMode === "NO_LED_MODULE") { /* sem CCT */ }
+                          else if (newProd && (isLampBasedProduct(newProd) || newProd.productStructure?.lightingMode === "NO_LED_MODULE")) { /* sem CCT */ }
                           else {
                             const availCCTs = newProd?.ccts?.length ? newProd.ccts : ["2700K", "3000K", "4000K", "5000K"];
                             if (!isCctSelectionAvailable(spotCCT, availCCTs)) setSpotCCT(availCCTs[0] ?? "3000K");
@@ -8331,7 +8333,7 @@ export default function Home() {
                     const [_sSku, ..._sNameParts] = (spotProductKey ?? '::').split('::');
                     const _sName = _sNameParts.join('::');
                     const _sProd = activeSpotCatalog.find(p => p.sku === _sSku && p.name === _sName);
-                    if (!_sProd || !spotRequiresDriver(_sProd)) return null;
+                    if (!_sProd || isLampBasedProduct(_sProd) || !spotRequiresDriver(_sProd)) return null;
                     return (
                     <div className="space-y-1.5">
                       <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
@@ -8369,7 +8371,7 @@ export default function Home() {
                   {spotProductKey !== null && (() => {
                     const spotSelProd = activeSpotCatalog.find(p => { const [s, ...np] = (spotProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
                     // Produto com lâmpada: sem seleção de CCT
-                    if (spotSelProd?.isLamp || spotSelProd?.productStructure?.lightingMode === "NO_LED_MODULE") return null;
+                    if ((spotSelProd && isLampBasedProduct(spotSelProd)) || spotSelProd?.productStructure?.lightingMode === "NO_LED_MODULE") return null;
                     // Produto RGBW: mostrar apenas opção RGBW
                     const spotAvailCCTs = spotSelProd?.isRgbw ? ["RGBW"] : (spotSelProd?.ccts?.length ? spotSelProd.ccts : ["2700K", "3000K", "4000K", "5000K"]);
                     return (
@@ -8479,12 +8481,13 @@ export default function Home() {
                             // Auto-selecionar tensão quando só há uma opção disponível
                             const newHas220Ar = newProd.driver220 != null;
                             const newHasBivoltAr = newProd.driverBivolt != null;
-                            if (!arandelaRequiresDriver(newProd)) setArandelaVoltage("220V");
+                            if (isLampBasedProduct(newProd)) setArandelaVoltage(null);
+                            else if (!arandelaRequiresDriver(newProd)) setArandelaVoltage("220V");
                             else if (!newHas220Ar && newHasBivoltAr) setArandelaVoltage("Bivolt");
                             else if (newHas220Ar && !newHasBivoltAr) setArandelaVoltage("220V");
                             else setArandelaVoltage(null);
                             if (newProd.isRgbw) { setArandelaCCT("RGBW"); }
-                            else if (!newProd.isLamp && newProd.productStructure?.lightingMode !== "NO_LED_MODULE") {
+                            else if (!isLampBasedProduct(newProd) && newProd.productStructure?.lightingMode !== "NO_LED_MODULE") {
                               const availCCTs = newProd.ccts?.length ? newProd.ccts : ["2700K", "3000K", "4000K", "5000K"];
                               const defaultCCT = availCCTs.includes("3000K") ? "3000K" : availCCTs[0];
                               setArandelaCCT(defaultCCT ?? "3000K");
@@ -8540,7 +8543,7 @@ export default function Home() {
                     const [_aSku, ..._aNameParts] = (arandelaProductKey ?? '::').split('::');
                     const _aName = _aNameParts.join('::');
                     const _aProd = activeArandelaCatalog.find(p => p.sku === _aSku && p.name === _aName);
-                    if (!_aProd || !arandelaRequiresDriver(_aProd)) return null;
+                    if (!_aProd || isLampBasedProduct(_aProd) || !arandelaRequiresDriver(_aProd)) return null;
                     return (
                     <div className="space-y-1.5">
                       <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tensão</Label>
@@ -8573,7 +8576,7 @@ export default function Home() {
                   {arandelaProductKey !== null && (() => {
                     const arandelaSelProd = activeArandelaCatalog.find(p => { const [s, ...np] = (arandelaProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
                     // Produto com lâmpada: sem seleção de CCT
-                    if (arandelaSelProd?.isLamp || arandelaSelProd?.productStructure?.lightingMode === "NO_LED_MODULE") return null;
+                    if ((arandelaSelProd && isLampBasedProduct(arandelaSelProd)) || arandelaSelProd?.productStructure?.lightingMode === "NO_LED_MODULE") return null;
                     // Produto RGBW: mostrar apenas opção RGBW
                     const arandelaAvailCCTs = arandelaSelProd?.isRgbw ? ["RGBW"] : (arandelaSelProd?.ccts?.length ? arandelaSelProd.ccts : ["2700K", "3000K", "4000K", "5000K"]);
                     return (
@@ -8628,7 +8631,7 @@ export default function Home() {
                 )}
                 {arandelaProductKey !== null && !arandelaVoltage && (() => {
                   const arSelProdBtn = activeArandelaCatalog.find(p => { const [s, ...np] = (arandelaProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
-                  if (!arSelProdBtn || !arandelaRequiresDriver(arSelProdBtn)) return null;
+                  if (!arSelProdBtn || isLampBasedProduct(arSelProdBtn) || !arandelaRequiresDriver(arSelProdBtn)) return null;
                   return (
                     <p className="text-xs text-amber-500 flex items-center gap-1.5">
                       <AlertTriangle className="w-3.5 h-3.5" /> Selecione a tensão antes de calcular.
@@ -8638,14 +8641,14 @@ export default function Home() {
                 <Button
                   disabled={arandelaProductKey === null || (() => {
                     const arSelProdBtn2 = activeArandelaCatalog.find(p => { const [s, ...np] = (arandelaProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
-                    return Boolean(arSelProdBtn2 && arandelaRequiresDriver(arSelProdBtn2) && !arandelaVoltage);
+                    return Boolean(arSelProdBtn2 && !isLampBasedProduct(arSelProdBtn2) && arandelaRequiresDriver(arSelProdBtn2) && !arandelaVoltage);
                   })()}
                   onClick={() => {
                     if (arandelaProductKey === null) return;
                     const [arandelaSku, ...arandelaNameParts] = (arandelaProductKey ?? '::').split('::');
                     const arandelaName = arandelaNameParts.join('::');
                     const arSelProdBtn3 = activeArandelaCatalog.find(p => p.sku === arandelaSku && p.name === arandelaName);
-                    const arTensaoToUse = (arandelaRequiresDriver(arSelProdBtn3 ?? { driver220: null, driverBivolt: null }) ? arandelaVoltage : "220V") as "220V" | "Bivolt";
+                    const arTensaoToUse = (arSelProdBtn3 && !isLampBasedProduct(arSelProdBtn3) && arandelaRequiresDriver(arSelProdBtn3) ? arandelaVoltage : "220V") as "220V" | "Bivolt";
                     if (!arTensaoToUse) return;
                     setArandelaResult(calculateArandela(activeArandelaCatalog, { productSku: arandelaSku, productName: arandelaName, tensao: arTensaoToUse, cct: arandelaCCT, controle: arandelaControle }));
                   }}
@@ -8677,7 +8680,7 @@ export default function Home() {
                 )}
                 {spotProductKey !== null && !spotVoltage && (() => {
                   const spotSelProdBtn = activeSpotCatalog.find(p => { const [s, ...np] = (spotProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
-                  if (!spotSelProdBtn || !spotRequiresDriver(spotSelProdBtn)) return null;
+                  if (!spotSelProdBtn || isLampBasedProduct(spotSelProdBtn) || !spotRequiresDriver(spotSelProdBtn)) return null;
                   return (
                     <p className="text-xs text-amber-500 flex items-center gap-1.5">
                       <AlertTriangle className="w-3.5 h-3.5" /> Selecione a tensão antes de calcular.
@@ -8687,14 +8690,14 @@ export default function Home() {
                 <Button
                   disabled={spotProductKey === null || (() => {
                     const spotSelProdBtn2 = activeSpotCatalog.find(p => { const [s, ...np] = (spotProductKey ?? '::').split('::'); return p.sku === s && p.name === np.join('::'); });
-                    return Boolean(spotSelProdBtn2 && spotRequiresDriver(spotSelProdBtn2) && !spotVoltage);
+                    return Boolean(spotSelProdBtn2 && !isLampBasedProduct(spotSelProdBtn2) && spotRequiresDriver(spotSelProdBtn2) && !spotVoltage);
                   })()}
                   onClick={() => {
                     if (spotProductKey === null) return;
                     const [spotSku, ...spotNameParts] = (spotProductKey ?? '::').split('::');
                     const spotName = spotNameParts.join('::');
                     const spotSelProdBtn3 = activeSpotCatalog.find(p => p.sku === spotSku && p.name === spotName);
-                    const spotTensaoToUse = (spotRequiresDriver(spotSelProdBtn3 ?? { driver220: null, driverBivolt: null }) ? spotVoltage : "220V") as "220V" | "Bivolt";
+                    const spotTensaoToUse = (spotSelProdBtn3 && !isLampBasedProduct(spotSelProdBtn3) && spotRequiresDriver(spotSelProdBtn3) ? spotVoltage : "220V") as "220V" | "Bivolt";
                     if (!spotTensaoToUse) return;
                     setSpotResult(calculateSpot(activeSpotCatalog, { productSku: spotSku, productName: spotName, tensao: spotTensaoToUse, cct: spotCCT, controle: spotControle }));
                   }}
@@ -11928,14 +11931,18 @@ export default function Home() {
                               <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
                               <p className="text-sm font-semibold">{dlResult.product.name}</p>
                             </div>
-                            <div className="p-3 rounded-lg bg-muted/50">
-                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
-                              <p className="text-sm font-semibold">{dlResult.tensao}</p>
-                            </div>
-                            <div className="p-3 rounded-lg bg-muted/50">
-                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
-                              <p className="text-sm font-semibold">{dlResult.cct}</p>
-                            </div>
+                            {!isLampBasedProduct(dlResult.product) && (
+                              <>
+                                <div className="p-3 rounded-lg bg-muted/50">
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
+                                  <p className="text-sm font-semibold">{dlResult.tensao}</p>
+                                </div>
+                                <div className="p-3 rounded-lg bg-muted/50">
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                                  <p className="text-sm font-semibold">{dlResult.cct}</p>
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
                       ) : null;
@@ -11953,13 +11960,18 @@ export default function Home() {
                             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Produto</p>
                             <p className="text-sm font-semibold">{dlResult.product.name}</p>
                           </div>
-                          <div className="p-3 rounded-lg bg-muted/50">
-                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
-                            <p className="text-sm font-semibold">{dlResult.tensao}</p>                 </div>
-                          <div className="p-3 rounded-lg bg-muted/50">
-                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
-                            <p className="text-sm font-semibold">{dlResult.cct}</p>
-                          </div>
+                          {!isLampBasedProduct(dlResult.product) && (
+                            <>
+                              <div className="p-3 rounded-lg bg-muted/50">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
+                                <p className="text-sm font-semibold">{dlResult.tensao}</p>
+                              </div>
+                              <div className="p-3 rounded-lg bg-muted/50">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                                <p className="text-sm font-semibold">{dlResult.cct}</p>
+                              </div>
+                            </>
+                          )}
                         </>
                       ) : null}
                       {!dlResult.product.isLamp && dlResult.product.productStructure?.lightingMode !== "NO_LED_MODULE" && (
@@ -12061,7 +12073,10 @@ export default function Home() {
                         className="h-7 text-xs gap-1.5"
                         onClick={() => {
                           const preco = getPrecoForControle(dlResult.product, dlResult.controle, dlResult.tensao);
-                          const lines = [`${dlResult.product.name} ${dlResult.cct} ${dlResult.tensao}`.toUpperCase()];
+                          const lines = [buildFixtureCommercialDescription(dlResult.product, {
+                            cct: dlResult.cct,
+                            voltage: dlResult.tensao,
+                          }).toUpperCase()];
                           if (!isConvidado && preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
                           const txt = lines.join("\n");
                           navigator.clipboard.writeText(txt);
@@ -12077,9 +12092,10 @@ export default function Home() {
                         disabled={isAddingToCart}
                         onClick={() => {
                           const preco = getPrecoForControle(dlResult.product, dlResult.controle, dlResult.tensao);
+                          const isLampFixture = isLampBasedProduct(dlResult.product);
                           // Usar resolveDownlightPhoto (API primeiro) em vez de getDownlightPhoto (estático)
                           const dlPhoto = resolveDownlightPhoto(dlFamilia, dlResult.product.name);
-                          const hasDownlightDriver = Boolean(dlResult.driver.model && dlResult.driver.code);
+                          const hasDownlightDriver = !isLampFixture && Boolean(dlResult.driver.model && dlResult.driver.code);
                           const dlDrvLines = hasDownlightDriver
                             ? buildLumDriverLines(dlResult.product.sku ?? "", dlResult.controle, dlResult.tensao, 1, dlResult.driver.model, dlResult.driver.code, lumPriceMap, dlResult.product.name ?? undefined, dlResult.driver.corrente ?? null)
                             : null;
@@ -12093,21 +12109,25 @@ export default function Home() {
                           const item: CartItemData = {
                             category: "Downlights",
                             sku: dlResult.product.sku ?? "",
-                            description: `${dlResult.product.name} ${dlResult.cct} ${dlResult.controle} ${dlResult.tensao}`,
+                            description: buildFixtureCommercialDescription(dlResult.product, {
+                              cct: dlResult.cct,
+                              control: dlResult.controle,
+                              voltage: dlResult.tensao,
+                            }),
                             power: "",
-                            cct: dlResult.cct,
+                            cct: isLampFixture ? undefined : dlResult.cct,
                             ...productStructureCartFields(dlResult.product.productStructure),
                             qty: 1,
                             unitPrice: dlCommercialPrice.unitPrice,
                             totalPrice: dlCommercialPrice.totalPrice,
                             priceFromApi: dlCommercialPrice.priceFromApi,
                             photoUrl: dlPhoto ?? "",
-                             orderSummary: (() => { const modEqSuffix = dlResult.ledModuleEq ? ` (${dlResult.ledModuleEq})` : ""; const modName = dlResult.ledModuleWithCCT.toUpperCase().replace(/[^A-Z0-9 ]/g, '').startsWith("MODULO LED") || dlResult.ledModuleWithCCT.toUpperCase().startsWith("ÉDULO LED") ? dlResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()}`; const parts: string[] = [`${modName}${modEqSuffix}`]; if (dlResult.product.oticaPrimaria) { const oEq1 = dlResult.oticaPrimariaEq ? ` (${dlResult.oticaPrimariaEq})` : ""; parts.push(`${dlResult.product.oticaPrimaria.toUpperCase()}${oEq1}`); if (dlResult.product.oticaSecundaria) { const oEq2 = dlResult.oticaSecundariaEq ? ` (${dlResult.oticaSecundariaEq})` : ""; parts.push(`${dlResult.product.oticaSecundaria.toUpperCase()}${oEq2}`); } } else if (dlResult.product.otica) { const oEq = dlResult.oticaEq ? ` (${dlResult.oticaEq})` : ""; parts.push(`${dlResult.product.otica.toUpperCase()}${oEq}`); } if (dlResult.product.holder) { const hEq = dlResult.holderEq ? ` (${dlResult.holderEq})` : ""; parts.push(`${dlResult.product.holder.toUpperCase()}${hEq}`); } if (dlResult.product.dissipador) { const dEq = dlResult.dissipadorEq ? ` (${dlResult.dissipadorEq})` : ""; parts.push(`${dlResult.product.dissipador.toUpperCase()}${dEq}`); } if (hasDownlightDriver) { const eqSuffix = ` (${dlResult.driver.code})`; const drvQty = driverQtyFor(dlResult.product, dlResult.controle, dlResult.tensao); parts.push(`${drvQty}x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`); } return (`CÓDIGO: ${dlResult.product.sku}\n${dlResult.product.name.toUpperCase()} ${dlResult.cct} ${dlResult.controle.toUpperCase()} ${dlResult.tensao} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim(); })(),
-                            quoteSummary: `${dlResult.product.name} ${dlResult.cct} ${dlResult.controle} ${dlResult.tensao}`.toUpperCase(),
-                            moduloLedCode: dlResult.ledModuleEq ?? null,
-                            moduloLed: (() => { const modEq = dlResult.ledModuleEq ? ` (${dlResult.ledModuleEq})` : ""; const modName = dlResult.ledModuleWithCCT.toUpperCase().replace(/[^A-Z0-9 ]/g, '').startsWith("MODULO LED") ? dlResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()}`; const parts: string[] = [`${modName}${modEq}`]; if (dlResult.product.oticaPrimaria) { const oEq1 = dlResult.oticaPrimariaEq ? ` (${dlResult.oticaPrimariaEq})` : ""; parts.push(`${dlResult.product.oticaPrimaria.toUpperCase()}${oEq1}`); if (dlResult.product.oticaSecundaria) { const oEq2 = dlResult.oticaSecundariaEq ? ` (${dlResult.oticaSecundariaEq})` : ""; parts.push(`${dlResult.product.oticaSecundaria.toUpperCase()}${oEq2}`); } } else if (dlResult.product.otica) { const oEq = dlResult.oticaEq ? ` (${dlResult.oticaEq})` : ""; parts.push(`${dlResult.product.otica.toUpperCase()}${oEq}`); } if (dlResult.product.holder) { const hEq = dlResult.holderEq ? ` (${dlResult.holderEq})` : ""; parts.push(`${dlResult.product.holder.toUpperCase()}${hEq}`); } if (dlResult.product.dissipador) { const dEq = dlResult.dissipadorEq ? ` (${dlResult.dissipadorEq})` : ""; parts.push(`${dlResult.product.dissipador.toUpperCase()}${dEq}`); } return parts.join(" + "); })(),
+                             orderSummary: (() => { const skuLine = dlResult.product.sku ? `CÓDIGO: ${dlResult.product.sku}\n` : ""; if (isLampFixture) return `${skuLine}${dlResult.product.name.toUpperCase()}`; const modEqSuffix = dlResult.ledModuleEq ? ` (${dlResult.ledModuleEq})` : ""; const modName = dlResult.ledModuleWithCCT.toUpperCase().replace(/[^A-Z0-9 ]/g, '').startsWith("MODULO LED") || dlResult.ledModuleWithCCT.toUpperCase().startsWith("ÉDULO LED") ? dlResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()}`; const parts: string[] = [`${modName}${modEqSuffix}`]; if (dlResult.product.oticaPrimaria) { const oEq1 = dlResult.oticaPrimariaEq ? ` (${dlResult.oticaPrimariaEq})` : ""; parts.push(`${dlResult.product.oticaPrimaria.toUpperCase()}${oEq1}`); if (dlResult.product.oticaSecundaria) { const oEq2 = dlResult.oticaSecundariaEq ? ` (${dlResult.oticaSecundariaEq})` : ""; parts.push(`${dlResult.product.oticaSecundaria.toUpperCase()}${oEq2}`); } } else if (dlResult.product.otica) { const oEq = dlResult.oticaEq ? ` (${dlResult.oticaEq})` : ""; parts.push(`${dlResult.product.otica.toUpperCase()}${oEq}`); } if (dlResult.product.holder) { const hEq = dlResult.holderEq ? ` (${dlResult.holderEq})` : ""; parts.push(`${dlResult.product.holder.toUpperCase()}${hEq}`); } if (dlResult.product.dissipador) { const dEq = dlResult.dissipadorEq ? ` (${dlResult.dissipadorEq})` : ""; parts.push(`${dlResult.product.dissipador.toUpperCase()}${dEq}`); } if (hasDownlightDriver) { const eqSuffix = ` (${dlResult.driver.code})`; const drvQty = driverQtyFor(dlResult.product, dlResult.controle, dlResult.tensao); parts.push(`${drvQty}x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`); } return (`${skuLine}${buildFixtureCommercialDescription(dlResult.product, { cct: dlResult.cct, control: dlResult.controle, voltage: dlResult.tensao }).toUpperCase()} MONTADA COM ${parts.join(" + ")}`).replace(/\s*-\s*$/, '').trim(); })(),
+                            quoteSummary: buildFixtureCommercialDescription(dlResult.product, { cct: dlResult.cct, control: dlResult.controle, voltage: dlResult.tensao }).toUpperCase(),
+                            moduloLedCode: isLampFixture ? null : dlResult.ledModuleEq ?? null,
+                            moduloLed: isLampFixture ? "" : (() => { const modEq = dlResult.ledModuleEq ? ` (${dlResult.ledModuleEq})` : ""; const modName = dlResult.ledModuleWithCCT.toUpperCase().replace(/[^A-Z0-9 ]/g, '').startsWith("MODULO LED") ? dlResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()}`; const parts: string[] = [`${modName}${modEq}`]; if (dlResult.product.oticaPrimaria) { const oEq1 = dlResult.oticaPrimariaEq ? ` (${dlResult.oticaPrimariaEq})` : ""; parts.push(`${dlResult.product.oticaPrimaria.toUpperCase()}${oEq1}`); if (dlResult.product.oticaSecundaria) { const oEq2 = dlResult.oticaSecundariaEq ? ` (${dlResult.oticaSecundariaEq})` : ""; parts.push(`${dlResult.product.oticaSecundaria.toUpperCase()}${oEq2}`); } } else if (dlResult.product.otica) { const oEq = dlResult.oticaEq ? ` (${dlResult.oticaEq})` : ""; parts.push(`${dlResult.product.otica.toUpperCase()}${oEq}`); } if (dlResult.product.holder) { const hEq = dlResult.holderEq ? ` (${dlResult.holderEq})` : ""; parts.push(`${dlResult.product.holder.toUpperCase()}${hEq}`); } if (dlResult.product.dissipador) { const dEq = dlResult.dissipadorEq ? ` (${dlResult.dissipadorEq})` : ""; parts.push(`${dlResult.product.dissipador.toUpperCase()}${dEq}`); } return parts.join(" + "); })(),
                             ...(hasDownlightDriver ? { drivers: (() => { const eqSuffix = ` (${dlResult.driver.code})`; const drvQty = driverQtyFor(dlResult.product, dlResult.controle, dlResult.tensao); return `${drvQty}x DRIVER ${dlResult.driver.model.toUpperCase()}${eqSuffix}`; })() } : {}),
-                            availableCCTs: dlResult.product.ccts,
+                            availableCCTs: isLampFixture ? [] : dlResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
                             ...(dlDrvLines ? { driverLines: dlDrvLines.driverLines, priceWithoutDriver: dlDrvLines.priceWithoutDriver, unitPriceLuminaria: dlDrvLines.unitPriceLuminaria, unitPriceDriver: dlDrvLines.unitPriceDriver, luminariaHasApiPrice: dlDrvLines.luminariaHasApiPrice, custoCorpoBase: dlDrvLines.custoCorpoBase, custoDriverBase: dlDrvLines.custoDriverBase, markupPadraoApi: dlDrvLines.markupPadraoApi, markupMinimoApi: dlDrvLines.markupMinimoApi, markupMinimoDriverApi: dlDrvLines.markupMinimoDriverApi, driverQtyPerUnit: dlDrvLines.drvQtyPerUnit } : getCustoForControle(dlResult.product, dlResult.controle, dlResult.tensao)),
                           };
@@ -12146,10 +12166,13 @@ export default function Home() {
                         sel?.addRange(range);
                       }}
                     >
-                      {(() => {
+                        {(() => {
                           const preco = getPrecoForControle(dlResult.product, dlResult.controle, dlResult.tensao);
                           const drvLines = buildLumDriverLines(dlResult.product.sku ?? "", dlResult.controle, dlResult.tensao, globalQty, dlResult.driver.model, dlResult.driver.code, lumPriceMap, dlResult.product.name ?? undefined, dlResult.driver.corrente ?? null);
-                          const lines = [`${dlResult.product.name} ${dlResult.cct} ${dlResult.tensao}`.toUpperCase()];
+                          const lines = [buildFixtureCommercialDescription(dlResult.product, {
+                            cct: dlResult.cct,
+                            voltage: dlResult.tensao,
+                          }).toUpperCase()];
                           if (drvLines) {
                             if (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) {
                               lines.push(`LUMINÁRIAS: ${formatBRL(drvLines.priceWithoutDriver)}`);
@@ -12194,6 +12217,12 @@ export default function Home() {
                       size="sm"
                       className="h-7 text-xs gap-1.5"
                       onClick={() => {
+                          if (isLampBasedProduct(dlResult.product)) {
+                            const skuLine = dlResult.product.sku ? `CÓDIGO: ${dlResult.product.sku}\n` : "";
+                            navigator.clipboard.writeText(`${skuLine}${dlResult.product.name.toUpperCase()}`);
+                            toast.success("Copiado!");
+                            return;
+                          }
                           const modEqSuffix = dlResult.ledModuleEq ? ` (${dlResult.ledModuleEq})` : "";
                           const modName = dlResult.ledModuleWithCCT.toUpperCase().replace(/[^A-Z0-9 ]/g, '').startsWith("MODULO LED") ? dlResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()}`;
                           const parts: string[] = [`${modName}${modEqSuffix}`];
@@ -12229,6 +12258,10 @@ export default function Home() {
                       }}
                     >
                       {(() => {
+                          if (isLampBasedProduct(dlResult.product)) {
+                            const skuLine = dlResult.product.sku ? `CÓDIGO: ${dlResult.product.sku}\n` : "";
+                            return `${skuLine}${dlResult.product.name.toUpperCase()}`;
+                          }
                           const modEqSuffix2 = dlResult.ledModuleEq ? ` (${dlResult.ledModuleEq})` : "";
                           const modName2 = dlResult.ledModuleWithCCT.toUpperCase().replace(/[^A-Z0-9 ]/g, '').startsWith("MODULO LED") ? dlResult.ledModuleWithCCT.toUpperCase() : `MÓDULO LED ${dlResult.ledModuleWithCCT.toUpperCase()}`;
                           const parts: string[] = [`${modName2}${modEqSuffix2}`];
@@ -13152,14 +13185,18 @@ export default function Home() {
                                 <p className="text-sm font-mono font-semibold text-primary">{arandelaResult.product.sku}</p>
                               </div>
                             )}
-                            <div className="p-3 rounded-lg bg-muted/50">
-                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
-                              <p className="text-sm font-semibold">{arandelaResult.tensao}</p>
-                            </div>
-                            <div className="p-3 rounded-lg bg-muted/50">
-                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
-                              <p className="text-sm font-semibold">{arandelaResult.cct}</p>
-                            </div>
+                            {!isLampBasedProduct(arandelaResult.product) && (
+                              <>
+                                <div className="p-3 rounded-lg bg-muted/50">
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
+                                  <p className="text-sm font-semibold">{arandelaResult.tensao}</p>
+                                </div>
+                                <div className="p-3 rounded-lg bg-muted/50">
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                                  <p className="text-sm font-semibold">{arandelaResult.cct}</p>
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
                       ) : (
@@ -13170,14 +13207,18 @@ export default function Home() {
                               <p className="text-sm font-mono font-semibold text-primary">{arandelaResult.product.sku}</p>
                             </div>
                           )}
-                          <div className="p-3 rounded-lg bg-muted/50">
-                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
-                            <p className="text-sm font-semibold">{arandelaResult.tensao}</p>
-                          </div>
-                          <div className="p-3 rounded-lg bg-muted/50">
-                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
-                            <p className="text-sm font-semibold">{arandelaResult.cct}</p>
-                          </div>
+                          {!isLampBasedProduct(arandelaResult.product) && (
+                            <>
+                              <div className="p-3 rounded-lg bg-muted/50">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
+                                <p className="text-sm font-semibold">{arandelaResult.tensao}</p>
+                              </div>
+                              <div className="p-3 rounded-lg bg-muted/50">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                                <p className="text-sm font-semibold">{arandelaResult.cct}</p>
+                              </div>
+                            </>
+                          )}
                         </div>
                       );
                     })()}
@@ -13280,7 +13321,10 @@ export default function Home() {
                         variant="outline" size="sm" className="h-7 text-xs gap-1.5"
                         onClick={() => {
                           const preco = getPrecoForControle(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao);
-                          const lines = [`${arandelaResult.product.name} ${arandelaResult.cct} ${arandelaResult.tensao}`.toUpperCase()];
+                          const lines = [buildFixtureCommercialDescription(arandelaResult.product, {
+                            cct: arandelaResult.cct,
+                            voltage: arandelaResult.tensao,
+                          }).toUpperCase()];
                           if (!isConvidado && preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
                           const txt = lines.join("\n");
                           navigator.clipboard.writeText(txt);
@@ -13296,28 +13340,30 @@ export default function Home() {
                         disabled={isAddingToCart}
                         onClick={() => {
                           const preco = getPrecoForControle(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao);
-                          const arandelaHasDriver = Boolean(arandelaResult.driver.model.trim());
+                          const isLampFixture = isLampBasedProduct(arandelaResult.product);
+                          const arandelaHasDriver = !isLampFixture && Boolean(arandelaResult.driver.model.trim());
                           const arandelaDrvLines = arandelaHasDriver
                             ? buildLumDriverLines(arandelaResult.product.sku ?? "", arandelaResult.controle, arandelaResult.tensao, 1, arandelaResult.driver.model, arandelaResult.driver.code, lumPriceMap, arandelaResult.product.name ?? undefined, arandelaResult.driver.corrente ?? null)
                             : null;
+                          const arandelaLampOrderSummary = `${arandelaResult.product.sku ? `CÓDIGO: ${arandelaResult.product.sku}\n` : ""}${arandelaResult.product.name.toUpperCase()}`;
                           const item: CartItemData = {
                             category: "Arandelas",
                             sku: arandelaResult.product.sku ?? "",
-                            description: `${arandelaResult.product.name} ${arandelaResult.cct} ${arandelaResult.controle} ${arandelaResult.tensao}`,
+                            description: buildFixtureCommercialDescription(arandelaResult.product, { cct: arandelaResult.cct, control: arandelaResult.controle, voltage: arandelaResult.tensao }),
                             power: "",
-                            cct: arandelaResult.cct,
+                            cct: isLampFixture ? undefined : arandelaResult.cct,
                             ...productStructureCartFields(arandelaResult.product.productStructure),
                             qty: 1,
                             unitPrice: preco ?? null,
                             totalPrice: preco ?? null,
                             priceFromApi: preco != null,
                             photoUrl: arandelaResult.product.fotoUrl ?? "",
-                            orderSummary: (() => { const parts: string[] = []; if (arandelaResult.ledModuleWithCCT) { const mQtd = arandelaResult.product.ledModuleQtd; const mPrefix = mQtd != null ? `${mQtd}x ` : ""; const arModEq = arandelaResult.ledModuleEq ? ` (${arandelaResult.ledModuleEq})` : ""; parts.push(`${mPrefix}${arandelaResult.ledModuleWithCCT.toUpperCase()}${arModEq}`); } if (arandelaResult.product.oticaPrimaria) { const oEq1 = arandelaResult.oticaPrimariaEq ? ` (${arandelaResult.oticaPrimariaEq})` : ""; parts.push(`${arandelaResult.product.oticaPrimaria.toUpperCase()}${oEq1}`); if (arandelaResult.product.oticaSecundaria) { const oEq2 = arandelaResult.oticaSecundariaEq ? ` (${arandelaResult.oticaSecundariaEq})` : ""; parts.push(`${arandelaResult.product.oticaSecundaria.toUpperCase()}${oEq2}`); } } else if (arandelaResult.product.otica) { const oEq = arandelaResult.oticaEq ? ` (${arandelaResult.oticaEq})` : ""; parts.push(`${arandelaResult.product.otica.toUpperCase()}${oEq}`); } if (arandelaResult.product.holder) { const hEq = arandelaResult.holderEq ? ` (${arandelaResult.holderEq})` : ""; parts.push(`${arandelaResult.product.holder.toUpperCase()}${hEq}`); } if (arandelaResult.product.dissipador) { const dEq = arandelaResult.dissipadorEq ? ` (${arandelaResult.dissipadorEq})` : ""; parts.push(`${arandelaResult.product.dissipador.toUpperCase()}${dEq}`); } if (arandelaHasDriver) { const eqSuffix = arandelaResult.driver.code ? ` (${arandelaResult.driver.code})` : ""; const drvQty = driverQtyFor(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao); parts.push(`${drvQty}x DRIVER ${arandelaResult.driver.model.toUpperCase()}${eqSuffix}`); } const skuLine = arandelaResult.product.sku ? `CÓDIGO: ${arandelaResult.product.sku}\n` : ""; return `${skuLine}${arandelaResult.product.name.toUpperCase()} ${arandelaResult.cct} ${arandelaResult.controle.toUpperCase()} ${arandelaResult.tensao} MONTADA COM ${parts.join(" + ")}`; })(),
-                            quoteSummary: `${arandelaResult.product.name} ${arandelaResult.cct} ${arandelaResult.controle} ${arandelaResult.tensao}`.toUpperCase(),
-                            moduloLedCode: arandelaResult.ledModuleEq ?? null,
-                            moduloLed: (() => { const mQtd = arandelaResult.product.ledModuleQtd; const mPrefix = mQtd != null ? `${mQtd}x ` : ""; const arModEq = arandelaResult.ledModuleEq ? ` (${arandelaResult.ledModuleEq})` : ""; const parts: string[] = [`${mPrefix}${arandelaResult.ledModuleWithCCT?.toUpperCase() ?? ""}${arModEq}`]; if (arandelaResult.product.oticaPrimaria) { const oEq1 = arandelaResult.oticaPrimariaEq ? ` (${arandelaResult.oticaPrimariaEq})` : ""; parts.push(`${arandelaResult.product.oticaPrimaria.toUpperCase()}${oEq1}`); if (arandelaResult.product.oticaSecundaria) { const oEq2 = arandelaResult.oticaSecundariaEq ? ` (${arandelaResult.oticaSecundariaEq})` : ""; parts.push(`${arandelaResult.product.oticaSecundaria.toUpperCase()}${oEq2}`); } } else if (arandelaResult.product.otica) { const oEq = arandelaResult.oticaEq ? ` (${arandelaResult.oticaEq})` : ""; parts.push(`${arandelaResult.product.otica.toUpperCase()}${oEq}`); } if (arandelaResult.product.holder) { const hEq = arandelaResult.holderEq ? ` (${arandelaResult.holderEq})` : ""; parts.push(`${arandelaResult.product.holder.toUpperCase()}${hEq}`); } if (arandelaResult.product.dissipador) { const dEq = arandelaResult.dissipadorEq ? ` (${arandelaResult.dissipadorEq})` : ""; parts.push(`${arandelaResult.product.dissipador.toUpperCase()}${dEq}`); } return parts.filter(Boolean).join(" + ") || (arandelaResult.ledModuleWithCCT ?? ""); })(),
+                            orderSummary: isLampFixture ? arandelaLampOrderSummary : (() => { const parts: string[] = []; if (arandelaResult.ledModuleWithCCT) { const mQtd = arandelaResult.product.ledModuleQtd; const mPrefix = mQtd != null ? `${mQtd}x ` : ""; const arModEq = arandelaResult.ledModuleEq ? ` (${arandelaResult.ledModuleEq})` : ""; parts.push(`${mPrefix}${arandelaResult.ledModuleWithCCT.toUpperCase()}${arModEq}`); } if (arandelaResult.product.oticaPrimaria) { const oEq1 = arandelaResult.oticaPrimariaEq ? ` (${arandelaResult.oticaPrimariaEq})` : ""; parts.push(`${arandelaResult.product.oticaPrimaria.toUpperCase()}${oEq1}`); if (arandelaResult.product.oticaSecundaria) { const oEq2 = arandelaResult.oticaSecundariaEq ? ` (${arandelaResult.oticaSecundariaEq})` : ""; parts.push(`${arandelaResult.product.oticaSecundaria.toUpperCase()}${oEq2}`); } } else if (arandelaResult.product.otica) { const oEq = arandelaResult.oticaEq ? ` (${arandelaResult.oticaEq})` : ""; parts.push(`${arandelaResult.product.otica.toUpperCase()}${oEq}`); } if (arandelaResult.product.holder) { const hEq = arandelaResult.holderEq ? ` (${arandelaResult.holderEq})` : ""; parts.push(`${arandelaResult.product.holder.toUpperCase()}${hEq}`); } if (arandelaResult.product.dissipador) { const dEq = arandelaResult.dissipadorEq ? ` (${arandelaResult.dissipadorEq})` : ""; parts.push(`${arandelaResult.product.dissipador.toUpperCase()}${dEq}`); } if (arandelaHasDriver) { const eqSuffix = arandelaResult.driver.code ? ` (${arandelaResult.driver.code})` : ""; const drvQty = driverQtyFor(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao); parts.push(`${drvQty}x DRIVER ${arandelaResult.driver.model.toUpperCase()}${eqSuffix}`); } const skuLine = arandelaResult.product.sku ? `CÓDIGO: ${arandelaResult.product.sku}\n` : ""; return `${skuLine}${arandelaResult.product.name.toUpperCase()} ${arandelaResult.cct} ${arandelaResult.controle.toUpperCase()} ${arandelaResult.tensao} MONTADA COM ${parts.join(" + ")}`; })(),
+                            quoteSummary: buildFixtureCommercialDescription(arandelaResult.product, { cct: arandelaResult.cct, control: arandelaResult.controle, voltage: arandelaResult.tensao }).toUpperCase(),
+                            moduloLedCode: isLampFixture ? null : arandelaResult.ledModuleEq ?? null,
+                            moduloLed: isLampFixture ? "" : (() => { const mQtd = arandelaResult.product.ledModuleQtd; const mPrefix = mQtd != null ? `${mQtd}x ` : ""; const arModEq = arandelaResult.ledModuleEq ? ` (${arandelaResult.ledModuleEq})` : ""; const parts: string[] = [`${mPrefix}${arandelaResult.ledModuleWithCCT?.toUpperCase() ?? ""}${arModEq}`]; if (arandelaResult.product.oticaPrimaria) { const oEq1 = arandelaResult.oticaPrimariaEq ? ` (${arandelaResult.oticaPrimariaEq})` : ""; parts.push(`${arandelaResult.product.oticaPrimaria.toUpperCase()}${oEq1}`); if (arandelaResult.product.oticaSecundaria) { const oEq2 = arandelaResult.oticaSecundariaEq ? ` (${arandelaResult.oticaSecundariaEq})` : ""; parts.push(`${arandelaResult.product.oticaSecundaria.toUpperCase()}${oEq2}`); } } else if (arandelaResult.product.otica) { const oEq = arandelaResult.oticaEq ? ` (${arandelaResult.oticaEq})` : ""; parts.push(`${arandelaResult.product.otica.toUpperCase()}${oEq}`); } if (arandelaResult.product.holder) { const hEq = arandelaResult.holderEq ? ` (${arandelaResult.holderEq})` : ""; parts.push(`${arandelaResult.product.holder.toUpperCase()}${hEq}`); } if (arandelaResult.product.dissipador) { const dEq = arandelaResult.dissipadorEq ? ` (${arandelaResult.dissipadorEq})` : ""; parts.push(`${arandelaResult.product.dissipador.toUpperCase()}${dEq}`); } return parts.filter(Boolean).join(" + ") || (arandelaResult.ledModuleWithCCT ?? ""); })(),
                             drivers: arandelaHasDriver ? (() => { const eqSuffix = arandelaResult.driver.code ? ` (${arandelaResult.driver.code})` : ""; const drvQty = driverQtyFor(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao); return `${drvQty}x DRIVER ${arandelaResult.driver.model.toUpperCase()}${eqSuffix}`; })() : "",
-                            availableCCTs: arandelaResult.product.ccts,
+                            availableCCTs: isLampFixture ? [] : arandelaResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
                             ...(arandelaDrvLines ? { driverLines: arandelaDrvLines.driverLines, priceWithoutDriver: arandelaDrvLines.priceWithoutDriver, unitPriceLuminaria: arandelaDrvLines.unitPriceLuminaria, unitPriceDriver: arandelaDrvLines.unitPriceDriver, luminariaHasApiPrice: arandelaDrvLines.luminariaHasApiPrice, custoCorpoBase: arandelaDrvLines.custoCorpoBase, custoDriverBase: arandelaDrvLines.custoDriverBase, markupPadraoApi: arandelaDrvLines.markupPadraoApi, markupMinimoApi: arandelaDrvLines.markupMinimoApi, markupMinimoDriverApi: arandelaDrvLines.markupMinimoDriverApi, driverQtyPerUnit: arandelaDrvLines.drvQtyPerUnit } : getCustoForControle(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao)),
                           };
@@ -13353,7 +13399,10 @@ export default function Home() {
                       {(() => {
                           const preco = getPrecoForControle(arandelaResult.product, arandelaResult.controle, arandelaResult.tensao);
                           const drvLines = buildLumDriverLines(arandelaResult.product.sku ?? "", arandelaResult.controle, arandelaResult.tensao, globalQty, arandelaResult.driver.model, arandelaResult.driver.code, lumPriceMap, arandelaResult.product.name ?? undefined, arandelaResult.driver.corrente ?? null);
-                          const lines = [`${arandelaResult.product.name} ${arandelaResult.cct} ${arandelaResult.tensao}`.toUpperCase()];
+                          const lines = [buildFixtureCommercialDescription(arandelaResult.product, {
+                            cct: arandelaResult.cct,
+                            voltage: arandelaResult.tensao,
+                          }).toUpperCase()];
                           if (drvLines) {
                             if (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) {
                               lines.push(`LUMINÁRIAS: ${formatBRL(drvLines.priceWithoutDriver)}`);
@@ -13395,6 +13444,12 @@ export default function Home() {
                     <Button
                       variant="outline" size="sm" className="h-7 text-xs gap-1.5"
                       onClick={() => {
+                        if (isLampBasedProduct(arandelaResult.product)) {
+                          const skuLine = arandelaResult.product.sku ? `CÓDIGO: ${arandelaResult.product.sku}\n` : "";
+                          navigator.clipboard.writeText(`${skuLine}${arandelaResult.product.name.toUpperCase()}`);
+                          toast.success("Copiado!");
+                          return;
+                        }
                         const parts: string[] = [];
                         if (arandelaResult.ledModuleWithCCT) { const mQtd = arandelaResult.product.ledModuleQtd; const mPrefix = mQtd != null ? `${mQtd}x ` : ""; const arEq = arandelaResult.ledModuleEq ? ` (${arandelaResult.ledModuleEq})` : ""; parts.push(`${mPrefix}${arandelaResult.ledModuleWithCCT.toUpperCase()}${arEq}`); }
                         if (arandelaResult.product.oticaPrimaria) { const oEq1 = arandelaResult.oticaPrimariaEq ? ` (${arandelaResult.oticaPrimariaEq})` : ""; parts.push(`${arandelaResult.product.oticaPrimaria.toUpperCase()}${oEq1}`); if (arandelaResult.product.oticaSecundaria) { const oEq2 = arandelaResult.oticaSecundariaEq ? ` (${arandelaResult.oticaSecundariaEq})` : ""; parts.push(`${arandelaResult.product.oticaSecundaria.toUpperCase()}${oEq2}`); } } else if (arandelaResult.product.otica) { const oEq = arandelaResult.oticaEq ? ` (${arandelaResult.oticaEq})` : ""; parts.push(`${arandelaResult.product.otica.toUpperCase()}${oEq}`); }
@@ -13416,6 +13471,10 @@ export default function Home() {
                       onClick={(e) => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(e.currentTarget); sel?.removeAllRanges(); sel?.addRange(range); }}
                     >
                       {(() => {
+                        if (isLampBasedProduct(arandelaResult.product)) {
+                          const skuLine = arandelaResult.product.sku ? `CÓDIGO: ${arandelaResult.product.sku}\n` : "";
+                          return `${skuLine}${arandelaResult.product.name.toUpperCase()}`;
+                        }
                         const parts: string[] = [];
                         if (arandelaResult.ledModuleWithCCT) { const mQtd = arandelaResult.product.ledModuleQtd; const mPrefix = mQtd != null ? `${mQtd}x ` : ""; const arEq2 = arandelaResult.ledModuleEq ? ` (${arandelaResult.ledModuleEq})` : ""; parts.push(`${mPrefix}${arandelaResult.ledModuleWithCCT.toUpperCase()}${arEq2}`); }
                         if (arandelaResult.product.oticaPrimaria) { const oEq1 = arandelaResult.oticaPrimariaEq ? ` (${arandelaResult.oticaPrimariaEq})` : ""; parts.push(`${arandelaResult.product.oticaPrimaria.toUpperCase()}${oEq1}`); if (arandelaResult.product.oticaSecundaria) { const oEq2 = arandelaResult.oticaSecundariaEq ? ` (${arandelaResult.oticaSecundariaEq})` : ""; parts.push(`${arandelaResult.product.oticaSecundaria.toUpperCase()}${oEq2}`); } } else if (arandelaResult.product.otica) { const oEq = arandelaResult.oticaEq ? ` (${arandelaResult.oticaEq})` : ""; parts.push(`${arandelaResult.product.otica.toUpperCase()}${oEq}`); }
@@ -13469,14 +13528,18 @@ export default function Home() {
                                 <p className="text-sm font-mono font-semibold text-primary">{spotResult.product.sku}</p>
                               </div>
                             )}
-                            <div className="p-3 rounded-lg bg-muted/50">
-                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
-                              <p className="text-sm font-semibold">{spotResult.tensao}</p>
-                            </div>
-                            <div className="p-3 rounded-lg bg-muted/50">
-                              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
-                              <p className="text-sm font-semibold">{spotResult.cct}</p>
-                            </div>
+                            {!isLampBasedProduct(spotResult.product) && (
+                              <>
+                                <div className="p-3 rounded-lg bg-muted/50">
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
+                                  <p className="text-sm font-semibold">{spotResult.tensao}</p>
+                                </div>
+                                <div className="p-3 rounded-lg bg-muted/50">
+                                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                                  <p className="text-sm font-semibold">{spotResult.cct}</p>
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
                       ) : (
@@ -13487,14 +13550,18 @@ export default function Home() {
                               <p className="text-sm font-mono font-semibold text-primary">{spotResult.product.sku}</p>
                             </div>
                           )}
-                          <div className="p-3 rounded-lg bg-muted/50">
-                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
-                            <p className="text-sm font-semibold">{spotResult.tensao}</p>
-                          </div>
-                          <div className="p-3 rounded-lg bg-muted/50">
-                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
-                            <p className="text-sm font-semibold">{spotResult.cct}</p>
-                          </div>
+                          {!isLampBasedProduct(spotResult.product) && (
+                            <>
+                              <div className="p-3 rounded-lg bg-muted/50">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Tensão</p>
+                                <p className="text-sm font-semibold">{spotResult.tensao}</p>
+                              </div>
+                              <div className="p-3 rounded-lg bg-muted/50">
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">CCT</p>
+                                <p className="text-sm font-semibold">{spotResult.cct}</p>
+                              </div>
+                            </>
+                          )}
                         </div>
                       );
                     })()}
@@ -13590,7 +13657,10 @@ export default function Home() {
                         variant="outline" size="sm" className="h-7 text-xs gap-1.5"
                         onClick={() => {
                           const preco = getPrecoForControle(spotResult.product, spotResult.controle, spotResult.tensao);
-                          const lines = [`${spotResult.product.name} ${spotResult.cct} ${spotResult.tensao}`.toUpperCase()];
+                          const lines = [buildFixtureCommercialDescription(spotResult.product, {
+                            cct: spotResult.cct,
+                            voltage: spotResult.tensao,
+                          }).toUpperCase()];
                           if (!isConvidado && preco !== null) lines.push(`PREÇO: ${formatBRL(preco)}`);
                           const txt = lines.join("\n");
                           navigator.clipboard.writeText(txt);
@@ -13606,25 +13676,31 @@ export default function Home() {
                         disabled={isAddingToCart}
                         onClick={() => {
                           const preco = getPrecoForControle(spotResult.product, spotResult.controle, spotResult.tensao);
-                          const spotDrvLines = buildLumDriverLines(spotResult.product.sku ?? "", spotResult.controle, spotResult.tensao, 1, spotResult.driver.model, spotResult.driver.code, lumPriceMap, spotResult.product.name ?? undefined, spotResult.driver.corrente ?? null);
+                          const isLampFixture = isLampBasedProduct(spotResult.product);
+                          const spotDrvLines = isLampFixture ? null : buildLumDriverLines(spotResult.product.sku ?? "", spotResult.controle, spotResult.tensao, 1, spotResult.driver.model, spotResult.driver.code, lumPriceMap, spotResult.product.name ?? undefined, spotResult.driver.corrente ?? null);
+                          const spotLampOrderSummary = `${spotResult.product.sku ? `CÓDIGO: ${spotResult.product.sku}\n` : ""}${spotResult.product.name.toUpperCase()}`;
                           const item: CartItemData = {
                             category: "Spots",
                             sku: spotResult.product.sku ?? "",
-                            description: `${spotResult.product.name} ${spotResult.cct} ${spotResult.controle} ${spotResult.tensao}`,
+                            description: buildFixtureCommercialDescription(spotResult.product, {
+                              cct: spotResult.cct,
+                              control: spotResult.controle,
+                              voltage: spotResult.tensao,
+                            }),
                             power: "",
-                            cct: spotResult.cct,
+                            cct: isLampFixture ? undefined : spotResult.cct,
                             ...productStructureCartFields(spotResult.product.productStructure),
                             qty: 1,
                             unitPrice: preco ?? null,
                             totalPrice: preco ?? null,
                             priceFromApi: preco != null,
                             photoUrl: spotResult.product.fotoUrl ?? "",
-                            orderSummary: (() => { const parts: string[] = []; if (spotResult.ledModuleWithCCT) { const spModEq = spotResult.ledModuleEq ? ` (${spotResult.ledModuleEq})` : ""; parts.push(`${spotResult.ledModuleWithCCT.toUpperCase()}${spModEq}`); } if (spotResult.product.oticaPrimaria) { const oEq1 = spotResult.oticaPrimariaEq ? ` (${spotResult.oticaPrimariaEq})` : ""; parts.push(`${spotResult.product.oticaPrimaria.toUpperCase()}${oEq1}`); if (spotResult.product.oticaSecundaria) { const oEq2 = spotResult.oticaSecundariaEq ? ` (${spotResult.oticaSecundariaEq})` : ""; parts.push(`${spotResult.product.oticaSecundaria.toUpperCase()}${oEq2}`); } } else if (spotResult.product.otica) { const oEq = spotResult.oticaEq ? ` (${spotResult.oticaEq})` : ""; parts.push(`${spotResult.product.otica.toUpperCase()}${oEq}`); } if (spotResult.product.holder) { const hEq = spotResult.holderEq ? ` (${spotResult.holderEq})` : ""; parts.push(`${spotResult.product.holder.toUpperCase()}${hEq}`); } if (spotResult.product.dissipador) { const dEq = spotResult.dissipadorEq ? ` (${spotResult.dissipadorEq})` : ""; parts.push(`${spotResult.product.dissipador.toUpperCase()}${dEq}`); } const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; const drvQty = driverQtyFor(spotResult.product, spotResult.controle, spotResult.tensao); parts.push(`${drvQty}x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`); const skuLine = spotResult.product.sku ? `CÓDIGO: ${spotResult.product.sku}\n` : ""; return `${skuLine}${spotResult.product.name.toUpperCase()} ${spotResult.cct} ${spotResult.controle.toUpperCase()} ${spotResult.tensao} MONTADA COM ${parts.join(" + ")}`; })(),
-                            quoteSummary: `${spotResult.product.name} ${spotResult.cct} ${spotResult.controle} ${spotResult.tensao}`.toUpperCase(),
-                            moduloLedCode: spotResult.ledModuleEq ?? null,
-                            moduloLed: (() => { const parts: string[] = []; if (spotResult.ledModuleWithCCT) { const mQtd = spotResult.product.ledModuleQtd; const mPrefix = mQtd != null && mQtd > 1 ? `${mQtd}x ` : ""; const spModEq = spotResult.ledModuleEq ? ` (${spotResult.ledModuleEq})` : ""; parts.push(`${mPrefix}${spotResult.ledModuleWithCCT.toUpperCase()}${spModEq}`); } if (spotResult.product.oticaPrimaria) { const oEq1 = spotResult.oticaPrimariaEq ? ` (${spotResult.oticaPrimariaEq})` : ""; parts.push(`${spotResult.product.oticaPrimaria.toUpperCase()}${oEq1}`); if (spotResult.product.oticaSecundaria) { const oEq2 = spotResult.oticaSecundariaEq ? ` (${spotResult.oticaSecundariaEq})` : ""; parts.push(`${spotResult.product.oticaSecundaria.toUpperCase()}${oEq2}`); } } else if (spotResult.product.otica) { const oEq = spotResult.oticaEq ? ` (${spotResult.oticaEq})` : ""; parts.push(`${spotResult.product.otica.toUpperCase()}${oEq}`); } if (spotResult.product.holder) { const hEq = spotResult.holderEq ? ` (${spotResult.holderEq})` : ""; parts.push(`${spotResult.product.holder.toUpperCase()}${hEq}`); } if (spotResult.product.dissipador) { const dEq = spotResult.dissipadorEq ? ` (${spotResult.dissipadorEq})` : ""; parts.push(`${spotResult.product.dissipador.toUpperCase()}${dEq}`); } return parts.join(" + ") || (spotResult.ledModuleWithCCT ?? ""); })(),
-                            drivers: (() => { const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; const drvQty = driverQtyFor(spotResult.product, spotResult.controle, spotResult.tensao); return `${drvQty}x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
-                            availableCCTs: spotResult.product.ccts,
+                            orderSummary: isLampFixture ? spotLampOrderSummary : (() => { const parts: string[] = []; if (spotResult.ledModuleWithCCT) { const spModEq = spotResult.ledModuleEq ? ` (${spotResult.ledModuleEq})` : ""; parts.push(`${spotResult.ledModuleWithCCT.toUpperCase()}${spModEq}`); } if (spotResult.product.oticaPrimaria) { const oEq1 = spotResult.oticaPrimariaEq ? ` (${spotResult.oticaPrimariaEq})` : ""; parts.push(`${spotResult.product.oticaPrimaria.toUpperCase()}${oEq1}`); if (spotResult.product.oticaSecundaria) { const oEq2 = spotResult.oticaSecundariaEq ? ` (${spotResult.oticaSecundariaEq})` : ""; parts.push(`${spotResult.product.oticaSecundaria.toUpperCase()}${oEq2}`); } } else if (spotResult.product.otica) { const oEq = spotResult.oticaEq ? ` (${spotResult.oticaEq})` : ""; parts.push(`${spotResult.product.otica.toUpperCase()}${oEq}`); } if (spotResult.product.holder) { const hEq = spotResult.holderEq ? ` (${spotResult.holderEq})` : ""; parts.push(`${spotResult.product.holder.toUpperCase()}${hEq}`); } if (spotResult.product.dissipador) { const dEq = spotResult.dissipadorEq ? ` (${spotResult.dissipadorEq})` : ""; parts.push(`${spotResult.product.dissipador.toUpperCase()}${dEq}`); } const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; const drvQty = driverQtyFor(spotResult.product, spotResult.controle, spotResult.tensao); parts.push(`${drvQty}x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`); const skuLine = spotResult.product.sku ? `CÓDIGO: ${spotResult.product.sku}\n` : ""; return `${skuLine}${buildFixtureCommercialDescription(spotResult.product, { cct: spotResult.cct, control: spotResult.controle, voltage: spotResult.tensao }).toUpperCase()} MONTADA COM ${parts.join(" + ")}`; })(),
+                            quoteSummary: buildFixtureCommercialDescription(spotResult.product, { cct: spotResult.cct, control: spotResult.controle, voltage: spotResult.tensao }).toUpperCase(),
+                            moduloLedCode: isLampFixture ? null : spotResult.ledModuleEq ?? null,
+                            moduloLed: isLampFixture ? "" : (() => { const parts: string[] = []; if (spotResult.ledModuleWithCCT) { const mQtd = spotResult.product.ledModuleQtd; const mPrefix = mQtd != null && mQtd > 1 ? `${mQtd}x ` : ""; const spModEq = spotResult.ledModuleEq ? ` (${spotResult.ledModuleEq})` : ""; parts.push(`${mPrefix}${spotResult.ledModuleWithCCT.toUpperCase()}${spModEq}`); } if (spotResult.product.oticaPrimaria) { const oEq1 = spotResult.oticaPrimariaEq ? ` (${spotResult.oticaPrimariaEq})` : ""; parts.push(`${spotResult.product.oticaPrimaria.toUpperCase()}${oEq1}`); if (spotResult.product.oticaSecundaria) { const oEq2 = spotResult.oticaSecundariaEq ? ` (${spotResult.oticaSecundariaEq})` : ""; parts.push(`${spotResult.product.oticaSecundaria.toUpperCase()}${oEq2}`); } } else if (spotResult.product.otica) { const oEq = spotResult.oticaEq ? ` (${spotResult.oticaEq})` : ""; parts.push(`${spotResult.product.otica.toUpperCase()}${oEq}`); } if (spotResult.product.holder) { const hEq = spotResult.holderEq ? ` (${spotResult.holderEq})` : ""; parts.push(`${spotResult.product.holder.toUpperCase()}${hEq}`); } if (spotResult.product.dissipador) { const dEq = spotResult.dissipadorEq ? ` (${spotResult.dissipadorEq})` : ""; parts.push(`${spotResult.product.dissipador.toUpperCase()}${dEq}`); } return parts.join(" + ") || (spotResult.ledModuleWithCCT ?? ""); })(),
+                            drivers: isLampFixture ? "" : (() => { const eqSuffix = spotResult.driver.code ? ` (${spotResult.driver.code})` : ""; const drvQty = driverQtyFor(spotResult.product, spotResult.controle, spotResult.tensao); return `${drvQty}x DRIVER ${spotResult.driver.model.toUpperCase()}${eqSuffix}`; })(),
+                            availableCCTs: isLampFixture ? [] : spotResult.product.ccts,
                             itemEmPlanta: globalItemEmPlanta,
                             ...(spotDrvLines ? { driverLines: spotDrvLines.driverLines, priceWithoutDriver: spotDrvLines.priceWithoutDriver, unitPriceLuminaria: spotDrvLines.unitPriceLuminaria, unitPriceDriver: spotDrvLines.unitPriceDriver, luminariaHasApiPrice: spotDrvLines.luminariaHasApiPrice, custoCorpoBase: spotDrvLines.custoCorpoBase, custoDriverBase: spotDrvLines.custoDriverBase, markupPadraoApi: spotDrvLines.markupPadraoApi, markupMinimoApi: spotDrvLines.markupMinimoApi, markupMinimoDriverApi: spotDrvLines.markupMinimoDriverApi, driverQtyPerUnit: spotDrvLines.drvQtyPerUnit } : getCustoForControle(spotResult.product, spotResult.controle, spotResult.tensao)),
                           };
@@ -13657,10 +13733,13 @@ export default function Home() {
                       className="text-sm font-mono bg-muted/40 rounded-lg p-3 whitespace-pre-wrap cursor-text select-all"
                       onClick={(e) => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(e.currentTarget); sel?.removeAllRanges(); sel?.addRange(range); }}
                     >
-                      {(() => {
+                        {(() => {
                           const preco = getPrecoForControle(spotResult.product, spotResult.controle, spotResult.tensao);
                           const drvLines = buildLumDriverLines(spotResult.product.sku ?? "", spotResult.controle, spotResult.tensao, globalQty, spotResult.driver.model, spotResult.driver.code, lumPriceMap, spotResult.product.name ?? undefined, spotResult.driver.corrente ?? null);
-                          const lines = [`${spotResult.product.name} ${spotResult.cct} ${spotResult.tensao}`.toUpperCase()];
+                          const lines = [buildFixtureCommercialDescription(spotResult.product, {
+                            cct: spotResult.cct,
+                            voltage: spotResult.tensao,
+                          }).toUpperCase()];
                           if (drvLines) {
                             if (drvLines.luminariaHasApiPrice && drvLines.priceWithoutDriver != null) {
                               lines.push(`LUMINÁRIAS: ${formatBRL(drvLines.priceWithoutDriver)}`);
@@ -13702,6 +13781,12 @@ export default function Home() {
                     <Button
                       variant="outline" size="sm" className="h-7 text-xs gap-1.5"
                       onClick={() => {
+                        if (isLampBasedProduct(spotResult.product)) {
+                          const skuLine = spotResult.product.sku ? `CÓDIGO: ${spotResult.product.sku}\n` : "";
+                          navigator.clipboard.writeText(`${skuLine}${spotResult.product.name.toUpperCase()}`);
+                          toast.success("Copiado!");
+                          return;
+                        }
                         const parts: string[] = [];
                          if (spotResult.ledModuleWithCCT) { const spEq = spotResult.ledModuleEq ? ` (${spotResult.ledModuleEq})` : ""; parts.push(`${spotResult.ledModuleWithCCT.toUpperCase()}${spEq}`); }
                          // Ótica: usar primária+secundária separadas se disponíveis, senão legado
@@ -13731,6 +13816,10 @@ export default function Home() {
                       onClick={(e) => { const sel = window.getSelection(); const range = document.createRange(); range.selectNodeContents(e.currentTarget); sel?.removeAllRanges(); sel?.addRange(range); }}
                     >
                       {(() => {
+                        if (isLampBasedProduct(spotResult.product)) {
+                          const skuLine = spotResult.product.sku ? `CÓDIGO: ${spotResult.product.sku}\n` : "";
+                          return `${skuLine}${spotResult.product.name.toUpperCase()}`;
+                        }
                         const parts: string[] = [];
                          if (spotResult.ledModuleWithCCT) { const spEq2 = spotResult.ledModuleEq ? ` (${spotResult.ledModuleEq})` : ""; parts.push(`${spotResult.ledModuleWithCCT.toUpperCase()}${spEq2}`); }
                          // Ótica: usar primária+secundária separadas se disponíveis, senão legado

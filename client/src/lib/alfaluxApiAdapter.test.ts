@@ -161,6 +161,29 @@ describe("adaptAlfaluxProducts - Downlights", () => {
   });
 });
 
+describe("adaptAlfaluxProducts - produtos com lâmpada", () => {
+  it("reconhece modoIluminacao LAMPADA como luminária cuja tensão e CCT pertencem ao acessório", () => {
+    const result = adaptAlfaluxProducts([makeProduct({
+      categoria: "SPOTS",
+      familia: "GUGA",
+      sku: "LDS-2300.1G1.40B",
+      name: "GUGA M GU10 Ø57 X 82 CNP/GNC",
+      modoIluminacao: "LAMPADA",
+      moduloLampada: true,
+      temperaturasCor: [],
+      driver220: null,
+      driverBivolt: null,
+    })]);
+
+    expect(result.spots).toHaveLength(1);
+    expect(result.spots[0]).toMatchObject({
+      isLamp: true,
+      productStructure: { lightingMode: "LAMP" },
+      ccts: [],
+    });
+  });
+});
+
 describe("adaptAlfaluxProducts - MINI BAGEO", () => {
   it("classifica MINI BAGEO como perfil fixo no mesmo fluxo de BAGEO", () => {
     const result = adaptAlfaluxProducts([makeProduct({
