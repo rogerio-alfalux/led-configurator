@@ -101,7 +101,55 @@ import { isCostDepartmentEligibleForManualCost, isCostDepartmentRole, isSpecialO
 import { getCommercialSellerPrefix, isCommercialQuoteNumber, isCommercialQuoteNumberForSeller } from "../shared/quoteNumberFormat";
 import { isFactoryOrderReadOnlyForQuoteStatus } from "../shared/factoryOrderReadOnly";
 import { calculateCommercialQuoteTotal } from "../shared/quoteCommercialTotal";
+import { hasNegativeCommercialPrice, markIntentionalNegativeCommercialPrices } from "../shared/signedCommercialPrice";
 import { isDuplicateKeyError } from "./databaseErrors";
+
+type CommercialItemPayload = { itemNumber: number; itemData: string };
+
+/**
+ * A permissão é checada no servidor para impedir que um cliente alterado envie
+ * devoluções comerciais fora do fluxo autorizado. A marca persiste a intenção
+ * e evita que normalizadores legados tratem o valor como corrupção histórica.
+ */
+async function authorizeAndMarkNegativeCommercialItems(
+  user: { id: number; role: string },
+  items: CommercialItemPayload[],
+): Promise<CommercialItemPayload[]> {
+  const parsedItems = items.map((entry) => {
+    try {
+      return { entry, parsed: JSON.parse(entry.itemData) as Record<string, unknown> };
+    } catch {
+      return { entry, parsed: null };
+    }
+  });
+  const hasNegativeValue = parsedItems.some(({ parsed }) => hasNegativeCommercialPrice(parsed));
+  if (hasNegativeValue && !await hasUserPermission(user.id, user.role, PERMISSIONS.EDITAR_VALORES_NEGATIVOS)) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Você não tem permissão para registrar valores negativos como devolução.",
+    });
+  }
+  return parsedItems.map(({ entry, parsed }) => parsed
+    ? { ...entry, itemData: JSON.stringify(markIntentionalNegativeCommercialPrices(parsed)) }
+    : entry,
+  );
+}
+
+async function authorizeAndMarkNegativeCommercialPatch(
+  user: { id: number; role: string },
+  patch: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const requestsNegativeMarker = patch.negativePriceManual === true
+    || (Array.isArray(patch.driverLines) && patch.driverLines.some(line => line && typeof line === "object" && (line as Record<string, unknown>).negativePriceManual === true))
+    || (Array.isArray(patch.accessories) && patch.accessories.some(line => line && typeof line === "object" && (line as Record<string, unknown>).negativePriceManual === true));
+  if ((hasNegativeCommercialPrice(patch) || requestsNegativeMarker) && !await hasUserPermission(user.id, user.role, PERMISSIONS.EDITAR_VALORES_NEGATIVOS)) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Você não tem permissão para registrar valores negativos como devolução.",
+    });
+  }
+  return markIntentionalNegativeCommercialPrices(patch);
+}
 
 async function assertQuoteNumberUsesSellerPrefix(quoteNumber: string, sellerId?: number): Promise<void> {
   if (!sellerId) {
@@ -929,7 +977,8 @@ export const appRouter = router({
     add: nonCostDepartmentProcedure
       .input(z.object({ itemData: z.string() }))
       .mutation(async ({ ctx, input }) => {
-        const id = await addCartItem({ userId: ctx.user.id, itemData: input.itemData });
+        const [item] = await authorizeAndMarkNegativeCommercialItems(ctx.user, [{ itemNumber: 1, itemData: input.itemData }]);
+        const id = await addCartItem({ userId: ctx.user.id, itemData: item!.itemData });
         return { id };
       }),
 
@@ -974,7 +1023,8 @@ export const appRouter = router({
         patch: z.record(z.string(), z.unknown()),
       }))
       .mutation(async ({ ctx, input }) => {
-        await updateCartItemData(input.id, ctx.user.id, input.patch);
+        const patch = await authorizeAndMarkNegativeCommercialPatch(ctx.user, input.patch);
+        await updateCartItemData(input.id, ctx.user.id, patch);
         return { success: true };
       }),
   }),
@@ -1064,8 +1114,9 @@ export const appRouter = router({
         if (!requestedQuoteNumber || !isCommercialQuoteNumber(requestedQuoteNumber)) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "O número do orçamento deve seguir o formato xx.xxxx-xx." });
         }
+        const authorizedItems = await authorizeAndMarkNegativeCommercialItems(ctx.user, input.items);
         const identityTeam = await getIdentityBoundTeam(ctx.user);
-        const boundInput = { ...input, quoteNumber: requestedQuoteNumber, ...identityTeam };
+        const boundInput = { ...input, items: authorizedItems, quoteNumber: requestedQuoteNumber, ...identityTeam };
         const saveInput = {
           ...boundInput,
           seller1Id: boundInput.seller1Id ?? undefined,
@@ -1236,7 +1287,9 @@ export const appRouter = router({
         showDiscount: z.boolean().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const { quoteId, bumpVersion, ...rest } = input;
+        const authorizedItems = await authorizeAndMarkNegativeCommercialItems(ctx.user, input.items);
+        const securedInput = { ...input, items: authorizedItems };
+        const { quoteId, bumpVersion, ...rest } = securedInput;
         // Verificar permissão de edição
         const existingForRevision = await getQuoteById(quoteId);
         if (!existingForRevision) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
@@ -1706,13 +1759,14 @@ export const appRouter = router({
         if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
         const canAppend = await canEditQuote(ctx.user.email, existing.quote, ctx.user.role, ctx.user.id);
         if (!canAppend) throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para adicionar itens a este orçamento." });
+        const authorizedNewItems = await authorizeAndMarkNegativeCommercialItems(ctx.user, input.newItems);
         const { quote, items, activeVersionId: currentVersionId } = existing;
         const currentItems = items
           .filter(i => i.quoteVersionId === currentVersionId)
           .map((i, idx) => ({ itemNumber: i.itemNumber, itemData: i.itemData }));
         // Renumerar novos itens após os existentes
         const offset = currentItems.length;
-        const newItemsNumbered = input.newItems.map((it, idx) => ({
+        const newItemsNumbered = authorizedNewItems.map((it, idx) => ({
           itemNumber: offset + idx + 1,
           itemData: it.itemData,
         }));
@@ -1806,6 +1860,7 @@ export const appRouter = router({
         if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Orçamento não encontrado" });
         const canReplace = await canEditQuote(ctx.user.email, existing.quote, ctx.user.role, ctx.user.id);
         if (!canReplace) throw new TRPCError({ code: "FORBIDDEN", message: "Você não tem permissão para editar este orçamento." });
+        const [authorizedReplacement] = await authorizeAndMarkNegativeCommercialItems(ctx.user, [{ itemNumber: 1, itemData: input.newItemData }]);
         const { quote, items, activeVersionId: currentVersionId } = existing;
         const currentItems = items
           .filter(i => i.quoteVersionId === currentVersionId)
@@ -1816,7 +1871,7 @@ export const appRouter = router({
         // Replace the item at the given index, keeping the same itemNumber
         const updatedItems = currentItems.map((it, idx) => {
           if (idx === input.replaceIndex) {
-            return { itemNumber: it.itemNumber, itemData: input.newItemData };
+            return { itemNumber: it.itemNumber, itemData: authorizedReplacement!.itemData };
           }
           return it;
         });

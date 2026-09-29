@@ -184,12 +184,13 @@ interface SortableEditItemProps {
   onUploadSpecialPhoto: (itemId: number, base64: string, mimeType: 'image/jpeg' | 'image/png' | 'image/webp', fileName: string) => Promise<void>;
   canOverrideApiPrice?: boolean;
   canEditDriverPrice?: boolean;
+  canEditNegativePrice?: boolean;
   isCostPrivileged?: boolean;
   canEditMkp?: boolean;
   canEditDiscount?: boolean;
 }
 
-function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, resolvePhoto, onUpdate, onDelete, onDuplicate, onReplace, onUploadSpecialPhoto, canOverrideApiPrice = false, canEditDriverPrice = false, isCostPrivileged = false, canEditMkp = false, canEditDiscount = false }: SortableEditItemProps) {
+function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, resolvePhoto, onUpdate, onDelete, onDuplicate, onReplace, onUploadSpecialPhoto, canOverrideApiPrice = false, canEditDriverPrice = false, canEditNegativePrice = false, isCostPrivileged = false, canEditMkp = false, canEditDiscount = false }: SortableEditItemProps) {
   const [specialUploading, setSpecialUploading] = useState(false);
   const [seqInputVal, setSeqInputVal] = useState<string>("");
   const d = item.parsed;
@@ -450,7 +451,7 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
           </Label>
           <Input
             type={d.isSpecialItem ? "number" : "text"}
-            min={0}
+            min={canEditNegativePrice ? undefined : 0}
             step={0.01}
             inputMode="decimal"
             value={d.isSpecialItem ? (currentBodyUnitPrice ?? "") : unitPriceDraft}
@@ -458,7 +459,8 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
               const rawValue = e.target.value;
               if (d.isSpecialItem) {
                 const newUnitPrice = rawValue ? parseFloat(rawValue) : null;
-                onUpdate(item.id, { unitPrice: newUnitPrice });
+                if (newUnitPrice !== null && (!Number.isFinite(newUnitPrice) || (newUnitPrice < 0 && !canEditNegativePrice))) return;
+                onUpdate(item.id, { unitPrice: newUnitPrice, ...(newUnitPrice != null && newUnitPrice < 0 ? { negativePriceManual: true } : {}) });
                 return;
               }
 
@@ -469,7 +471,7 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
                 return;
               }
               const newUnitPrice = Number(rawValue.replace(",", "."));
-              if (!Number.isFinite(newUnitPrice) || newUnitPrice < 0) return;
+              if (!Number.isFinite(newUnitPrice) || (newUnitPrice < 0 && !canEditNegativePrice)) return;
               const markup = getBodyUnitPriceMarkup(d, newUnitPrice);
               if (markup?.isBelowMinimum) {
                 setUnitPriceMinimumMessage(
@@ -480,6 +482,7 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
               }
               onUpdate(item.id, {
                 unitPrice: newUnitPrice,
+                ...(newUnitPrice < 0 ? { negativePriceManual: true } : {}),
                 ...(markup ? { mkpCustom: markup.markup } : {}),
               });
             })}
@@ -539,8 +542,8 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
           })() : (
             <>
               <p className="text-xs text-muted-foreground">Total{d.itemMarginPercent != null && d.itemMarginPercent > 0 ? ` +${d.itemMarginPercent}% ind.` : ""}{d.itemDiscountPercent != null && d.itemDiscountPercent > 0 ? ` −${d.itemDiscountPercent}% desc.` : ""}</p>
-              <p className="font-bold text-primary">
-                {d.totalPrice != null && d.totalPrice > 0 ? formatBRL(applyItemComponentsQD(d.totalPrice, calculateLinkedAccessoriesTotal(d), d.itemMarginPercent, d.itemDiscountPercent)) : "A consultar"}
+              <p className={`font-bold ${d.totalPrice != null && d.totalPrice < 0 ? "text-red-600" : "text-primary"}`}>
+                {d.totalPrice != null && d.totalPrice !== 0 ? formatBRL(applyItemComponentsQD(d.totalPrice, calculateLinkedAccessoriesTotal(d), d.itemMarginPercent, d.itemDiscountPercent)) : "A consultar"}
               </p>
             </>
           )}
@@ -584,7 +587,7 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
                     <div className="relative">
                       <input
                         type="number"
-                        min={0}
+                        min={canEditNegativePrice ? undefined : 0}
                         step={0.01}
                         value={dl.driverUnitPrice ?? ''}
                         placeholder={dl.driverUnitPrice != null ? String(dl.driverUnitPrice) : "0"}
@@ -592,7 +595,7 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
                         onChange={(e) => {
                           const rawValue = e.target.value;
                           const newUnitPrice = rawValue === "" ? null : Number(rawValue);
-                          if (newUnitPrice !== null && !Number.isFinite(newUnitPrice)) return;
+                          if (newUnitPrice !== null && (!Number.isFinite(newUnitPrice) || (newUnitPrice < 0 && !canEditNegativePrice))) return;
                           onUpdate(item.id, buildSplitDriverPricePatch(d, dIdx, newUnitPrice));
                         }}
                       />
@@ -600,12 +603,12 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
                     </div>
                   </div>
                 ) : (
-                  dl.driverUnitPrice != null && dl.driverUnitPrice > 0 && (
-                    <span className="text-muted-foreground">Unit: <span className="font-medium text-foreground">{formatBRL(dl.driverUnitPrice)}</span></span>
+                  dl.driverUnitPrice != null && dl.driverUnitPrice !== 0 && (
+                    <span className="text-muted-foreground">Unit: <span className={`font-medium ${dl.driverUnitPrice < 0 ? "text-red-600" : "text-foreground"}`}>{formatBRL(dl.driverUnitPrice)}</span></span>
                   )
                 )}
-                {dl.driverTotalPrice != null && dl.driverTotalPrice > 0 && (
-                  <span className="font-semibold text-primary">{formatBRL(dl.driverTotalPrice)}</span>
+                {dl.driverTotalPrice != null && dl.driverTotalPrice !== 0 && (
+                  <span className={`font-semibold ${dl.driverTotalPrice < 0 ? "text-red-600" : "text-primary"}`}>{formatBRL(dl.driverTotalPrice)}</span>
                 )}
               </div>
             </div>
@@ -613,9 +616,9 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
           {/* Subtotal drivers */}
           {(() => {
             const drvTotal = d.driverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
-            return drvTotal > 0 ? (
+            return drvTotal !== 0 ? (
               <div className="flex justify-end text-xs text-muted-foreground pt-0.5">
-                Subtotal drivers: <span className="ml-1 font-semibold text-foreground">{formatBRL(drvTotal)}</span>
+                Subtotal drivers: <span className={`ml-1 font-semibold ${drvTotal < 0 ? "text-red-600" : "text-foreground"}`}>{formatBRL(drvTotal)}</span>
               </div>
             ) : null;
           })()}
@@ -670,16 +673,16 @@ function SortableEditItem({ item, idx, globalSeq, totalItems, onReorderToSeq, re
                       className={`h-6 w-20 rounded border px-1.5 text-right text-xs text-foreground focus:outline-none focus:ring-1 ${canEditModulePrice ? "border-cyan-500/60 bg-background focus:ring-cyan-500" : "border-border bg-muted text-muted-foreground cursor-not-allowed"}`}
                       onBlur={(event) => {
                         if (!canEditModulePrice) return;
-                        const newUnitPrice = parseShiftModuleManualPrice(event.target.value);
+                        const newUnitPrice = parseShiftModuleManualPrice(event.target.value, canEditNegativePrice);
                         if (newUnitPrice === accessory.unitPrice) return;
                         const accessories = (d.accessories ?? []).map((current, currentIndex) =>
-                          currentIndex === index ? { ...current, unitPrice: newUnitPrice } : current,
+                          currentIndex === index ? { ...current, unitPrice: newUnitPrice, ...(newUnitPrice != null && newUnitPrice < 0 ? { negativePriceManual: true } : {}) } : current,
                         );
                         onUpdate(item.id, { accessories });
                       }}
                     />
                   </div>
-                  <span className="min-w-28 text-right font-semibold text-primary">{accessory.unitPrice != null && accessory.unitPrice > 0 ? formatBRL(getLinkedAccessoryTotalPrice(d, accessory)) : "—"}</span>
+                  <span className={`min-w-28 text-right font-semibold ${accessory.unitPrice != null && accessory.unitPrice < 0 ? "text-red-600" : "text-primary"}`}>{accessory.unitPrice != null && accessory.unitPrice !== 0 ? formatBRL(getLinkedAccessoryTotalPrice(d, accessory)) : "—"}</span>
                 </div>
               </div>
             );
@@ -3021,6 +3024,7 @@ export default function QuoteDetail() {
                                     onUploadSpecialPhoto={async (id, base64, mimeType, fileName) => { const result = await uploadSpecialPhotoMutationQD.mutateAsync({ base64, mimeType, fileName }); setEditableItems(prev => prev.map(it => { if (it.id !== id) return it; const newParsed = { ...it.parsed, specialPhotoUrl: result.url, photoUrl: result.url }; return { ...it, parsed: newParsed, itemData: JSON.stringify(newParsed) }; })); }}
                                     canOverrideApiPrice={hasQuotePermission(PERMISSIONS.EDITAR_PRECOS)}
                                     canEditDriverPrice={hasQuotePermission(PERMISSIONS.EDITAR_PRECOS_DRIVER)}
+                                    canEditNegativePrice={hasQuotePermission(PERMISSIONS.EDITAR_VALORES_NEGATIVOS)}
                                     isCostPrivileged={hasQuotePermission(PERMISSIONS.VER_CUSTOS)}
                                     canEditMkp={hasQuotePermission(PERMISSIONS.EDITAR_MARKUP)}
                                     canEditDiscount={hasQuotePermission(PERMISSIONS.EDITAR_DESCONTOS)}
@@ -3108,6 +3112,7 @@ export default function QuoteDetail() {
                           }}
                           canOverrideApiPrice={hasQuotePermission(PERMISSIONS.EDITAR_PRECOS)}
                           canEditDriverPrice={hasQuotePermission(PERMISSIONS.EDITAR_PRECOS_DRIVER)}
+                          canEditNegativePrice={hasQuotePermission(PERMISSIONS.EDITAR_VALORES_NEGATIVOS)}
                           isCostPrivileged={hasQuotePermission(PERMISSIONS.VER_CUSTOS)}
                           canEditMkp={hasQuotePermission(PERMISSIONS.EDITAR_MARKUP)}
                           canEditDiscount={hasQuotePermission(PERMISSIONS.EDITAR_DESCONTOS)}
@@ -4798,8 +4803,8 @@ export default function QuoteDetail() {
                   hasDriverBreakdown = true;
                   // Resolver priceWithoutDriver: campo dedicado, fallback derivado de (totalPrice - driversTotalPrice), ou unitPrice
                   const _drvTotal2 = d.driverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
-                  const _derivedUnitLum2 = (d.unitPriceLuminaria == null && d.totalPrice != null && d.totalPrice > 0 && d.qty > 0)
-                    ? Math.max(0, d.totalPrice - _drvTotal2) / d.qty
+                  const _derivedUnitLum2 = (d.unitPriceLuminaria == null && d.totalPrice != null && (d.totalPrice > 0 || (d.totalPrice < 0 && d.negativePriceManual)) && d.qty > 0)
+                    ? (d.totalPrice - _drvTotal2) / d.qty
                     : null;
                   const _resolvedUnitLum2 = d.unitPriceLuminaria ?? _derivedUnitLum2 ?? null;
                   let correctedPriceWithoutDriver: number | null = null;
@@ -4808,8 +4813,8 @@ export default function QuoteDetail() {
                     correctedPriceWithoutDriver = isUnitOnly ? d.unitPriceLuminaria! * d.qty : d.priceWithoutDriver;
                   } else if (_resolvedUnitLum2 != null) {
                     correctedPriceWithoutDriver = _resolvedUnitLum2 * d.qty;
-                  } else if (d.totalPrice != null && d.totalPrice > 0) {
-                    correctedPriceWithoutDriver = Math.max(0, d.totalPrice - _drvTotal2);
+                  } else if (d.totalPrice != null && (d.totalPrice > 0 || (d.totalPrice < 0 && d.negativePriceManual))) {
+                    correctedPriceWithoutDriver = d.totalPrice - _drvTotal2;
                   }
                   const lumRaw = correctedPriceWithoutDriver ?? (d.totalPrice ?? 0);
                   const drvRaw = d.driverLines.reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0);
@@ -4817,7 +4822,7 @@ export default function QuoteDetail() {
                   totalLuminaria += applyMkupWithItem(lumRaw, d.itemMarginPercent, d.itemDiscountPercent);
                   totalDriver += applyMkupWithItem(drvRaw, d.itemMarginPercent, d.itemDiscountPercent, false);
                 } else {
-                  const tot = d.totalPrice != null && d.totalPrice > 0 ? applyMkupWithItem(d.totalPrice, d.itemMarginPercent, d.itemDiscountPercent) : 0;
+                  const tot = d.totalPrice != null && (d.totalPrice > 0 || (d.totalPrice < 0 && d.negativePriceManual)) ? applyMkupWithItem(d.totalPrice, d.itemMarginPercent, d.itemDiscountPercent) : 0;
                   totalGeral += tot;
                   totalLuminaria += tot;
                 }
@@ -4897,17 +4902,17 @@ export default function QuoteDetail() {
                             const fixedSampleCharge = d.isCommercialSampleCharge ? (d.sampleChargeFinalAmount ?? d.totalPrice ?? 0) : null;
                             const unitDisplay = fixedSampleCharge != null
                               ? fixedSampleCharge / Math.max(d.qty, 1)
-                              : d.unitPrice != null && d.unitPrice > 0
+                              : d.unitPrice != null && (d.unitPrice > 0 || (d.unitPrice < 0 && d.negativePriceManual))
                               ? applyMkupWithItem(d.unitPrice, d.itemMarginPercent, d.itemDiscountPercent)
                               : null;
                             const totalDisplay = fixedSampleCharge != null
                               ? fixedSampleCharge
-                              : d.totalPrice != null && d.totalPrice > 0
+                              : d.totalPrice != null && (d.totalPrice > 0 || (d.totalPrice < 0 && d.negativePriceManual))
                               ? applyMkupWithItem(d.totalPrice, d.itemMarginPercent, d.itemDiscountPercent)
                               : null;
                             const hasBreakdown = !!(d.driverLines && d.driverLines.length > 0);
                             // Fallback: quando unitPrice é null mas totalPrice > 0, derivar unitPrice = totalPrice / qty
-                            const _derivedUnitPricePreview = (d.unitPrice == null && d.totalPrice != null && d.totalPrice > 0 && d.qty > 0)
+                            const _derivedUnitPricePreview = (d.unitPrice == null && d.totalPrice != null && (d.totalPrice > 0 || (d.totalPrice < 0 && d.negativePriceManual)) && d.qty > 0)
                               ? d.totalPrice / d.qty
                               : null;
                             const _effectiveUnitPricePreview = d.unitPrice ?? _derivedUnitPricePreview;
@@ -4916,8 +4921,8 @@ export default function QuoteDetail() {
                             const _drvTotalForLum = hasBreakdown
                               ? (d.driverLines ?? []).reduce((s, dl) => s + (dl.driverTotalPrice ?? 0), 0)
                               : 0;
-                            const _derivedUnitLumFromTotal = (hasBreakdown && d.unitPriceLuminaria == null && d.totalPrice != null && d.totalPrice > 0 && d.qty > 0)
-                              ? Math.max(0, d.totalPrice - _drvTotalForLum) / d.qty
+                            const _derivedUnitLumFromTotal = (hasBreakdown && d.unitPriceLuminaria == null && d.totalPrice != null && (d.totalPrice > 0 || (d.totalPrice < 0 && d.negativePriceManual)) && d.qty > 0)
+                              ? (d.totalPrice - _drvTotalForLum) / d.qty
                               : null;
                             // Resolver unitPriceLuminaria: usa o campo dedicado, depois fallback derivado, depois unitPrice (sem driver)
                             const _resolvedUnitLum = hasBreakdown
@@ -4931,9 +4936,9 @@ export default function QuoteDetail() {
                                 _correctedPWD = _isUnitOnly ? d.unitPriceLuminaria! * d.qty : d.priceWithoutDriver;
                               } else if (_resolvedUnitLum != null) {
                                 _correctedPWD = _resolvedUnitLum * d.qty;
-                              } else if (d.totalPrice != null && d.totalPrice > 0) {
+                              } else if (d.totalPrice != null && (d.totalPrice > 0 || (d.totalPrice < 0 && d.negativePriceManual))) {
                                 // Fallback final: totalPrice - driversTotalPrice
-                                _correctedPWD = Math.max(0, d.totalPrice - _drvTotalForLum);
+                                _correctedPWD = d.totalPrice - _drvTotalForLum;
                               }
                             }
                             const lumTotalDisplay = _correctedPWD != null
@@ -4952,22 +4957,22 @@ export default function QuoteDetail() {
                               : (d.totalPrice ?? 0);
                             const _correctTotalWithMkup = fixedSampleCharge != null
                               ? fixedSampleCharge
-                              : _correctTotalItem > 0
+                              : _correctTotalItem !== 0
                               ? applyMkupComponents(_lumTotalRaw, _driversTotalRaw, d.itemMarginPercent, d.itemDiscountPercent)
                               : 0;
                             // Diluição proporcional ao peso deste item
                             const _itemDiluicao = getItemDiluicaoFrac(_correctTotalWithMkup);
                             // Frete diluído proporcional ao peso bruto deste item (antes de RT/margem)
                             // IMPORTANTE: frete entra na base ANTES do RT/margem (igual ao ExcelPreviewModal)
-                            const _itemFreteRaw = getItemFreteFrac(_correctTotalItem > 0 ? _correctTotalItem : (d.totalPrice ?? 0));
+                            const _itemFreteRaw = getItemFreteFrac(_correctTotalItem !== 0 ? _correctTotalItem : (d.totalPrice ?? 0));
                             // Recalcular total do item com frete incluído na base (antes do markup)
-                            const _lumFreteRaw = _correctTotalItem > 0 ? _itemFreteRaw * (_lumTotalRaw / _correctTotalItem) : _itemFreteRaw;
-                            const _correctTotalWithFrete = _correctTotalItem > 0
+                            const _lumFreteRaw = _correctTotalItem !== 0 ? _itemFreteRaw * (_lumTotalRaw / _correctTotalItem) : _itemFreteRaw;
+                            const _correctTotalWithFrete = _correctTotalItem !== 0
                               ? applyMkupComponents(_lumTotalRaw + _lumFreteRaw, _driversTotalRaw + _itemFreteRaw - _lumFreteRaw, d.itemMarginPercent, d.itemDiscountPercent)
                               : 0;
                             const _itemFreteComMkup = _correctTotalWithFrete - _correctTotalWithMkup;
                             const _itemDifalFcp = getItemDifalFcpFrac(_correctTotalWithFrete + _itemDiluicao);
-                            const correctTotalDisplay = _correctTotalWithMkup > 0
+                            const correctTotalDisplay = _correctTotalWithMkup !== 0
                               ? _correctTotalWithFrete + _itemDiluicao + _itemDifalFcp
                               : null;
                             // Distribuição da diluição + frete entre luminária e driver proporcionalmente
@@ -4978,7 +4983,7 @@ export default function QuoteDetail() {
                             const _itemTotalForRatio = _lumWithMkup + _drvWithMkup;
                             // Combinar diluição + frete para distribuir proporcionalmente
                             const _totalAdicional = _itemDiluicao + _itemFreteComMkup + _itemDifalFcp;
-                            const _lumDiluicaoFrac = _itemTotalForRatio > 0 ? _totalAdicional * (_lumWithMkup / _itemTotalForRatio) : _totalAdicional;
+                            const _lumDiluicaoFrac = _itemTotalForRatio !== 0 ? _totalAdicional * (_lumWithMkup / _itemTotalForRatio) : _totalAdicional;
                             const lumTotalDisplayWithDil = lumTotalDisplay != null ? lumTotalDisplay + _lumDiluicaoFrac : null;
                             const lumUnitDisplayWithDil = lumUnitDisplay != null && d.qty > 0 ? lumTotalDisplayWithDil != null ? lumTotalDisplayWithDil / d.qty : null : null;
                             const lumUnitDiscountedWithDil = lumUnitDisplay != null && d.qty > 0
@@ -5077,7 +5082,7 @@ export default function QuoteDetail() {
                                           <span className="font-mono text-[10px] text-muted-foreground">{acc.codigo}</span>
                                           <span className="text-cyan-700 dark:text-cyan-400 truncate">{acc.descricao}</span>
                                           {acc.qty > 1 && <span className="text-muted-foreground">x{acc.qty}</span>}
-                                          <span className="ml-auto flex-shrink-0 text-right text-cyan-800 dark:text-cyan-300 font-medium">
+                                          <span className={`ml-auto flex-shrink-0 text-right font-medium ${accessoryTotal < 0 ? "text-red-600 dark:text-red-400" : "text-cyan-800 dark:text-cyan-300"}`}>
                                             {acc.unitPrice != null ? `${formatBRL(acc.unitPrice)} / un · ${formatBRL(accessoryTotal)}` : "Preço a definir"}
                                           </span>
                                         </div>
@@ -5098,9 +5103,9 @@ export default function QuoteDetail() {
                                             <p className="text-[10px] text-muted-foreground">Cheio: {formatBRL(lumUnitDisplayWithDil)}/un</p>
                                             <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">C/ desc.: {formatBRL(lumUnitDiscountedWithDil)}/un</p>
                                           </>
-                                        ) : <p className="text-xs text-muted-foreground">{formatBRL(lumUnitDisplayWithDil)}/un</p>)}
+                                        ) : <p className={`text-xs ${lumUnitDisplayWithDil < 0 ? "text-red-600" : "text-muted-foreground"}`}>{formatBRL(lumUnitDisplayWithDil)}/un</p>)}
                                         {lumTotalDisplayWithDil != null
-                                          ? <p className="font-semibold text-foreground text-sm">{formatBRL(lumTotalDisplayWithDil)}</p>
+                                          ? <p className={`font-semibold text-sm ${lumTotalDisplayWithDil < 0 ? "text-red-600" : "text-foreground"}`}>{formatBRL(lumTotalDisplayWithDil)}</p>
                                           : <p className="text-xs italic text-muted-foreground">A consultar</p>}
                                       </div>
                                       {d.driverLines!.map((dl, di) => {
@@ -5123,9 +5128,9 @@ export default function QuoteDetail() {
                                                 <p className="text-[10px] text-muted-foreground">Cheio: {formatBRL(drvUnitWithDil)}/un</p>
                                                 <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">C/ desc.: {formatBRL(drvUnitDiscountedWithDil)}/un</p>
                                               </>
-                                            ) : <p className="text-xs text-muted-foreground">{formatBRL(drvUnitWithDil)}/un</p>)}
+                                            ) : <p className={`text-xs ${drvUnitWithDil < 0 ? "text-red-600" : "text-muted-foreground"}`}>{formatBRL(drvUnitWithDil)}/un</p>)}
                                             {drvTotalWithDil != null
-                                              ? <p className="font-semibold text-foreground text-sm">{formatBRL(drvTotalWithDil)}</p>
+                                              ? <p className={`font-semibold text-sm ${drvTotalWithDil < 0 ? "text-red-600" : "text-foreground"}`}>{formatBRL(drvTotalWithDil)}</p>
                                               : <p className="text-xs italic text-muted-foreground">A consultar</p>}
                                           </div>
                                         );
@@ -5136,7 +5141,7 @@ export default function QuoteDetail() {
                                         {correctTotalDisplay != null
                                           ? <>
                                               {d.qty > 1 && <p className="text-xs text-muted-foreground">{formatBRL(correctTotalDisplay / d.qty)}/un</p>}
-                                              <p className="font-bold text-primary text-sm">{formatBRL(correctTotalDisplay)}</p>
+                                              <p className={`font-bold text-sm ${correctTotalDisplay < 0 ? "text-red-600" : "text-primary"}`}>{formatBRL(correctTotalDisplay)}</p>
                                             </>
                                           : <p className="text-xs italic text-muted-foreground">A consultar</p>}
                                       </div>
@@ -5151,9 +5156,9 @@ export default function QuoteDetail() {
                                           <p className="text-[10px] text-muted-foreground">Cheio: {formatBRL(simpleUnitDisplayWithDil)}/un</p>
                                           <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">C/ desc.: {formatBRL(simpleUnitDiscountedWithDil)}/un</p>
                                         </>
-                                      ) : <p className="text-xs text-muted-foreground">{formatBRL(simpleUnitDisplayWithDil)}/un</p>)}
+                                      ) : <p className={`text-xs ${simpleUnitDisplayWithDil < 0 ? "text-red-600" : "text-muted-foreground"}`}>{formatBRL(simpleUnitDisplayWithDil)}/un</p>)}
                                       {totalDisplay != null
-                                        ? <p className="font-bold text-primary text-sm">{formatBRL(totalDisplay + _itemDiluicao + _itemFreteComMkup + _itemDifalFcp)}</p>
+                                        ? <p className={`font-bold text-sm ${(totalDisplay + _itemDiluicao + _itemFreteComMkup + _itemDifalFcp) < 0 ? "text-red-600" : "text-primary"}`}>{formatBRL(totalDisplay + _itemDiluicao + _itemFreteComMkup + _itemDifalFcp)}</p>
                                         : <p className="text-xs italic text-muted-foreground">A consultar</p>}
                                     </>
                                   )}

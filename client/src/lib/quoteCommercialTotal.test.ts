@@ -75,6 +75,27 @@ describe("calculateCommercialQuoteTotal", () => {
     expect(totals.totalFinal).toBe(420);
   });
 
+  it("deduz devoluções autorizadas de luminária, driver e acessório", () => {
+    const totals = calculateCommercialQuoteTotal({}, [{
+      category: "Painéis",
+      qty: 1,
+      totalPrice: 100,
+      priceWithoutDriver: 100,
+      unitPriceLuminaria: 100,
+      driverLines: [{ driverQty: 1, driverUnitPrice: -30, driverTotalPrice: -30, negativePriceManual: true }],
+      accessories: [{ unitPrice: -20, qty: 1, negativePriceManual: true }],
+    }, {
+      category: "Revenda",
+      qty: 1,
+      unitPrice: -50,
+      totalPrice: -50,
+      negativePriceManual: true,
+    }]);
+
+    expect(totals.productsBeforeDiscount).toBe(0);
+    expect(totals.totalFinal).toBe(0);
+  });
+
   it("aplica RT e margem globais ao conjunto de luminária e driver", () => {
     const totals = calculateCommercialQuoteTotal({
       rtPercent: 0.10,

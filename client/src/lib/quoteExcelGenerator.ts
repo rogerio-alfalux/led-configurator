@@ -558,7 +558,7 @@ async function _generateExcelBuffer(
     const iqty = it.qty ?? 1;
     return it.driverLines.reduce((sd, d) => {
       const stored = d.driverTotalPrice;
-      if (stored != null && stored > 0) return sd + stored;
+      if (stored != null && (stored > 0 || (stored < 0 && d.negativePriceManual))) return sd + stored;
       const storedQty = d.driverQty ?? 1;
       const drvQtyPerUnitCalc = it.driverQtyPerUnit;
       const effectiveQty = drvQtyPerUnitCalc != null
@@ -969,7 +969,7 @@ async function _generateExcelBuffer(
     const cUnit = ws.getCell(`M${rowNum}`);
     const cUnitWithIpi = showIpi ? ws.getCell(`N${rowNum}`) : null;
     // Fallback: quando unitPrice é null mas totalPrice > 0, derivar unitPrice = totalPrice / qty
-    const _derivedUnitPrice = (item.unitPrice == null && item.totalPrice != null && item.totalPrice > 0 && item.qty > 0)
+    const _derivedUnitPrice = (item.unitPrice == null && item.totalPrice != null && (item.totalPrice > 0 || (item.totalPrice < 0 && item.negativePriceManual)) && item.qty > 0)
       ? item.totalPrice / item.qty
       : null;
     const _effectiveUnitPrice = item.unitPrice ?? _derivedUnitPrice;
@@ -1015,13 +1015,15 @@ async function _generateExcelBuffer(
     const _unitForLuminaria = hasDriverBreakdownItem
       ? (_baseUnitLuminaria != null ? _baseUnitLuminaria + _lumDiluicaoUnit : _unitPriceComDiluicao(item))
       : _unitPriceComDiluicao(item);
-    if (_unitForLuminaria !== null && _unitForLuminaria !== undefined && _unitForLuminaria > 0) {
+    if (_unitForLuminaria !== null && _unitForLuminaria !== undefined && _unitForLuminaria !== 0) {
       const originalUnitPrice = applyMarkup(_unitForLuminaria) + _lumDifalFcpUnit;
       cUnit.value = showIpi ? getUnitPriceWithoutIpi(originalUnitPrice) : originalUnitPrice;
       cUnit.numFmt = '"R$"#,##0.00';
+      if (originalUnitPrice < 0) cUnit.font = { name: "Calibri", size: 11, color: { argb: RED_TXT } };
       if (cUnitWithIpi) {
         cUnitWithIpi.value = originalUnitPrice;
         cUnitWithIpi.numFmt = '"R$"#,##0.00';
+        if (originalUnitPrice < 0) cUnitWithIpi.font = { name: "Calibri", size: 11, color: { argb: RED_TXT } };
       }
     } else if (hasDriverBreakdownItem && !item.luminariaHasApiPrice) {
       cUnit.value = "A definir";
@@ -1049,10 +1051,11 @@ async function _generateExcelBuffer(
       : _totalPriceComDiluicao(item);
     // Linha principal mostra APENAS o preço da luminária (sem drivers).
     // Os drivers aparecem separados nas sub-linhas abaixo, evitando duplicação.
-    if (_totalForLuminaria !== null && _totalForLuminaria > 0) {
-      cTotal.value = applyMarkup(_totalForLuminaria) + _lumDifalFcpTotal;
+    if (_totalForLuminaria !== null && _totalForLuminaria !== 0) {
+      const commercialLumTotal = applyMarkup(_totalForLuminaria) + _lumDifalFcpTotal;
+      cTotal.value = commercialLumTotal;
       cTotal.numFmt = '"R$"#,##0.00';
-      cTotal.font = { name: "Calibri", size: 11, bold: false };
+      cTotal.font = { name: "Calibri", size: 11, bold: false, color: { argb: commercialLumTotal < 0 ? RED_TXT : "FF000000" } };
     } else if (hasDriverBreakdownItem && !item.luminariaHasApiPrice) {
       cTotal.value = "A definir";
       cTotal.font = { name: "Calibri", size: 9, italic: true, color: { argb: "FFE65100" } };
@@ -1157,7 +1160,7 @@ async function _generateExcelBuffer(
         }
         const accQty = getLinkedAccessoryTotalQuantity(item, acc);
         fillAcc(ws.getCell(`L${accRowNum}`), accQty, true);
-        if (acc.unitPrice && acc.unitPrice > 0) {
+        if (acc.unitPrice != null && acc.unitPrice !== 0) {
           const accBaseTotal = getLinkedAccessoryTotalPrice(item, acc);
           const accWeight = _itemRawForTax > 0 ? accBaseTotal / _itemRawForTax : 0;
           const accDifalFcpTotal = _itemDifalFcpFator * accWeight;
@@ -1169,7 +1172,7 @@ async function _generateExcelBuffer(
           const mCell = ws.getCell(`M${accRowNum}`);
           mCell.value = showIpi ? getUnitPriceWithoutIpi(accUnitAdjusted) : accUnitAdjusted;
           mCell.numFmt = '"R$"#,##0.00';
-          mCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: ACC_COLOR } };
+          mCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: accUnitAdjusted < 0 ? RED_TXT : ACC_COLOR } };
           mCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACC_BG } };
           mCell.alignment = { horizontal: "center", vertical: "middle" };
           mCell.border = accBorder;
@@ -1177,7 +1180,7 @@ async function _generateExcelBuffer(
             const ipiCell = ws.getCell(`N${accRowNum}`);
             ipiCell.value = accUnitAdjusted;
             ipiCell.numFmt = '"R$"#,##0.00';
-            ipiCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: ACC_COLOR } };
+            ipiCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: accUnitAdjusted < 0 ? RED_TXT : ACC_COLOR } };
             ipiCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACC_BG } };
             ipiCell.alignment = { horizontal: "center", vertical: "middle" };
             ipiCell.border = accBorder;
@@ -1185,7 +1188,7 @@ async function _generateExcelBuffer(
           const nCell = ws.getCell(`${totalPriceCol}${accRowNum}`);
           nCell.value = accCommercialTotal;
           nCell.numFmt = '"R$"#,##0.00';
-          nCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: ACC_COLOR } };
+          nCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: accCommercialTotal < 0 ? RED_TXT : ACC_COLOR } };
           nCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ACC_BG } };
           nCell.alignment = { horizontal: "center", vertical: "middle" };
           nCell.border = accBorder;
@@ -1232,7 +1235,7 @@ async function _generateExcelBuffer(
         // unidade de luminária.
         const _effectiveDrvQty = getEffectiveDriverLineQuantity(item, drv);
         fillDrv(ws.getCell(`L${drvRowNum}`), _effectiveDrvQty, true);
-        if (drv.driverUnitPrice != null && drv.driverUnitPrice > 0) {
+        if (drv.driverUnitPrice != null && drv.driverUnitPrice !== 0) {
           // Aplicar diluição proporcional ao peso do driver neste item
           const _drvPeso = _itemRawForTax > 0 ? (drv.driverUnitPrice * _effectiveDrvQty) / _itemRawForTax : 0;
           const _drvDiluicaoUnit = _effectiveDrvQty > 0 ? (_diluicaoFatorItem + _freteFatorItem) * _drvPeso / _effectiveDrvQty : 0;
@@ -1242,7 +1245,7 @@ async function _generateExcelBuffer(
           const mCell = ws.getCell(`M${drvRowNum}`);
           mCell.value = showIpi ? getUnitPriceWithoutIpi(drvUnitAdjusted) : drvUnitAdjusted;
           mCell.numFmt = '"R$"#,##0.00';
-          mCell.font = { name: 'Calibri', size: 9, italic: true, color: { argb: DRV_COLOR } };
+          mCell.font = { name: 'Calibri', size: 9, italic: true, color: { argb: drvUnitAdjusted < 0 ? RED_TXT : DRV_COLOR } };
           mCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: DRV_BG } };
           mCell.alignment = { horizontal: 'center', vertical: 'middle' };
           mCell.border = drvBorder;
@@ -1250,15 +1253,16 @@ async function _generateExcelBuffer(
             const ipiCell = ws.getCell(`N${drvRowNum}`);
             ipiCell.value = drvUnitAdjusted;
             ipiCell.numFmt = '"R$"#,##0.00';
-            ipiCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: DRV_COLOR } };
+            ipiCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: drvUnitAdjusted < 0 ? RED_TXT : DRV_COLOR } };
             ipiCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: DRV_BG } };
             ipiCell.alignment = { horizontal: "center", vertical: "middle" };
             ipiCell.border = drvBorder;
           }
           const nCell = ws.getCell(`${totalPriceCol}${drvRowNum}`);
-          nCell.value = applySubitemMarkup((drv.driverUnitPrice + _drvDiluicaoUnit) * _effectiveDrvQty) + _drvDifalFcpTotal;
+          const drvCommercialTotal = applySubitemMarkup((drv.driverUnitPrice + _drvDiluicaoUnit) * _effectiveDrvQty) + _drvDifalFcpTotal;
+          nCell.value = drvCommercialTotal;
           nCell.numFmt = '"R$"#,##0.00';
-          nCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: DRV_COLOR } };
+          nCell.font = { name: "Calibri", size: 9, italic: true, color: { argb: drvCommercialTotal < 0 ? RED_TXT : DRV_COLOR } };
           nCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: DRV_BG } };
           nCell.alignment = { horizontal: "center", vertical: "middle" };
           nCell.border = drvBorder;

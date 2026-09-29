@@ -7,6 +7,7 @@ const roundMoney = (value: number): number => Math.round(value * 100) / 100;
  * unitPriceLuminaria é a fonte canônica; unitPrice é usado apenas como fallback legado.
  */
 export function getEditableBodyUnitPrice(item: CartItemData): number | null {
+  const acceptsSignedBodyPrice = item.negativePriceManual === true;
   if (item.driverLines && item.driverLines.length > 0) {
     const qty = Math.max(1, item.qty ?? 1);
     const candidates = [
@@ -14,7 +15,7 @@ export function getEditableBodyUnitPrice(item: CartItemData): number | null {
       item.priceWithoutDriver != null ? item.priceWithoutDriver / qty : null,
       item.unitPrice,
     ];
-    const validPrice = candidates.find(value => value != null && Number.isFinite(value) && value >= 0);
+    const validPrice = candidates.find(value => value != null && Number.isFinite(value) && (value >= 0 || acceptsSignedBodyPrice));
     if (validPrice != null) return roundMoney(validPrice);
     const markup = item.mkpCustom ?? item.markupPadraoApi;
     if (item.custoCorpoBase != null && item.custoCorpoBase > 0 && markup != null && markup > 0) {
@@ -22,12 +23,14 @@ export function getEditableBodyUnitPrice(item: CartItemData): number | null {
     }
     return null;
   }
-  return item.unitPrice == null ? null : roundMoney(Math.max(0, item.unitPrice));
+  if (item.unitPrice == null || !Number.isFinite(item.unitPrice)) return null;
+  return roundMoney(item.unitPrice < 0 && acceptsSignedBodyPrice ? item.unitPrice : Math.max(0, item.unitPrice));
 }
 
 export function getCommercialBodyTotal(item: CartItemData): number {
   if (!item.driverLines || item.driverLines.length === 0) {
-    return roundMoney(Math.max(0, item.totalPrice ?? 0));
+    const total = item.totalPrice ?? 0;
+    return roundMoney(total < 0 && item.negativePriceManual ? total : Math.max(0, total));
   }
   const unitPrice = getEditableBodyUnitPrice(item);
   return unitPrice == null ? 0 : roundMoney(unitPrice * Math.max(0, item.qty ?? 0));
@@ -43,7 +46,7 @@ export function buildSplitBodyPricePatch(
   qty: number,
 ): Partial<CartItemData> {
   const normalizedQty = Math.max(1, qty);
-  const normalizedBodyUnitPrice = roundMoney(Math.max(0, bodyUnitPrice));
+  const normalizedBodyUnitPrice = roundMoney(bodyUnitPrice);
   const bodyTotal = roundMoney(normalizedBodyUnitPrice * normalizedQty);
   const driversTotal = (item.driverLines ?? []).reduce((sum, line) => {
     const lineTotal = line.driverTotalPrice
@@ -57,6 +60,7 @@ export function buildSplitBodyPricePatch(
     priceWithoutDriver: bodyTotal,
     totalPrice: roundMoney(bodyTotal + driversTotal),
     luminariaHasApiPrice: item.luminariaHasApiPrice,
+    ...(normalizedBodyUnitPrice < 0 ? { negativePriceManual: true } : {}),
   };
 }
 
@@ -71,7 +75,7 @@ export function buildSplitDriverPricePatch(
 ): Partial<CartItemData> {
   const driverLines = (item.driverLines ?? []).map((line, index) => {
     if (index !== driverIndex) return line;
-    const normalizedPrice = driverUnitPrice == null ? null : roundMoney(Math.max(0, driverUnitPrice));
+    const normalizedPrice = driverUnitPrice == null ? null : roundMoney(driverUnitPrice);
     return {
       ...line,
       driverUnitPrice: normalizedPrice,
@@ -80,13 +84,16 @@ export function buildSplitDriverPricePatch(
         : roundMoney(normalizedPrice * (line.driverQty ?? 0)),
       // Uma edição comercial deliberada deve sobreviver a toda reidratação da API.
       driverPriceManual: true,
+      ...(normalizedPrice != null && normalizedPrice < 0 ? { negativePriceManual: true } : {}),
     };
   });
   const qty = Math.max(1, item.qty ?? 1);
   const bodyUnitPrice = getEditableBodyUnitPrice(item);
   const bodyTotal = bodyUnitPrice != null
     ? roundMoney(bodyUnitPrice * qty)
-    : Math.max(0, item.priceWithoutDriver ?? item.totalPrice ?? 0);
+    : item.negativePriceManual
+      ? (item.priceWithoutDriver ?? item.totalPrice ?? 0)
+      : Math.max(0, item.priceWithoutDriver ?? item.totalPrice ?? 0);
   const driversTotal = driverLines.reduce((sum, line) => {
     const lineTotal = line.driverTotalPrice
       ?? ((line.driverUnitPrice ?? 0) * (line.driverQty ?? 0));
@@ -122,7 +129,9 @@ export function buildSplitDriverQuantityPatch(
   const bodyUnitPrice = getEditableBodyUnitPrice(item);
   const bodyTotal = bodyUnitPrice != null
     ? roundMoney(bodyUnitPrice * Math.max(1, item.qty ?? 1))
-    : Math.max(0, item.priceWithoutDriver ?? item.totalPrice ?? 0);
+    : item.negativePriceManual
+      ? (item.priceWithoutDriver ?? item.totalPrice ?? 0)
+      : Math.max(0, item.priceWithoutDriver ?? item.totalPrice ?? 0);
   const driversTotal = driverLines.reduce((sum, line) => sum + (line.driverTotalPrice ?? ((line.driverUnitPrice ?? 0) * (line.driverQty ?? 0))), 0);
   return {
     driverLines,

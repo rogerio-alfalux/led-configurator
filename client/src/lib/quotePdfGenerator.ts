@@ -131,7 +131,7 @@ async function _generatePdfBlob(
     const iqty = it.qty ?? 1;
     return it.driverLines.reduce((sd, d) => {
       const stored = d.driverTotalPrice;
-      if (stored != null && stored > 0) return sd + stored;
+      if (stored != null && (stored > 0 || (stored < 0 && d.negativePriceManual))) return sd + stored;
       const storedQty = d.driverQty ?? 1;
       const effectiveQty = it.driverQtyPerUnit != null
         ? it.driverQtyPerUnit * iqty
@@ -414,7 +414,7 @@ async function _generatePdfBlob(
     const bodyUnitRaw = item.driverLines?.length
       ? (getEditableBodyUnitPrice(item) ?? 0)
       : (itemQty > 0 ? lumRaw / itemQty : 0);
-    const bodyWeight = itemRaw > 0 ? lumRaw / itemRaw : 1;
+    const bodyWeight = itemRaw !== 0 ? lumRaw / itemRaw : 1;
     const bodyAllocatedAdditions = (_pdfFreteFatorItem + _pdfDiluicaoFatorItem) * bodyWeight;
     const bodyDifalFcp = itemDifalFcp * bodyWeight;
     const bodyTotal = _pdfApplyItemDiscount(
@@ -434,10 +434,10 @@ async function _generatePdfBlob(
       item.cct || item.specialColorTemp || "",
       String(itemQty),
       ...(showIpi ? [
-        itemTotal > 0 ? fmtBRL(getUnitPriceWithoutIpi(originalItemUnit)) : "—",
-        itemTotal > 0 ? fmtBRL(originalItemUnit) : "—",
+        itemTotal !== 0 ? fmtBRL(getUnitPriceWithoutIpi(originalItemUnit)) : "—",
+        itemTotal !== 0 ? fmtBRL(originalItemUnit) : "—",
       ] : []),
-      bodyTotal > 0 ? fmtBRL(bodyTotal) : "—",
+      bodyTotal !== 0 ? fmtBRL(bodyTotal) : "—",
     ]);
     rowMeta.push({ photoUrl: getPersistedItemPhotoUrl(item) || null });
 
@@ -450,7 +450,7 @@ async function _generatePdfBlob(
         const drvQty = _drvQtyPerUnit != null
           ? _drvQtyPerUnit * _iqty
           : (_storedDrvQty <= 1 ? _iqty : _storedDrvQty);
-        const _drvTotalRaw = drv.driverTotalPrice != null && drv.driverTotalPrice >= 0
+        const _drvTotalRaw = drv.driverTotalPrice != null && (drv.driverTotalPrice >= 0 || drv.negativePriceManual)
           ? drv.driverTotalPrice
           : Math.round((drv.driverUnitPrice ?? 0) * drvQty * 100) / 100;
         // Peso do driver no item para distribuição do frete
@@ -465,10 +465,10 @@ async function _generatePdfBlob(
           "", "", "", "", "", "",
           String(drvQty),
           ...(showIpi ? [
-            drvTotal2 > 0 ? fmtBRL(getUnitPriceWithoutIpi(originalDriverUnit)) : "—",
-            drvTotal2 > 0 ? fmtBRL(originalDriverUnit) : "—",
+            drvTotal2 !== 0 ? fmtBRL(getUnitPriceWithoutIpi(originalDriverUnit)) : "—",
+            drvTotal2 !== 0 ? fmtBRL(originalDriverUnit) : "—",
           ] : []),
-          drvTotal2 > 0 ? fmtBRL(drvTotal2) : "—",
+          drvTotal2 !== 0 ? fmtBRL(drvTotal2) : "—",
         ]);
         rowMeta.push({ photoUrl: null, isDriverRow: true });
       }
@@ -490,10 +490,10 @@ async function _generatePdfBlob(
         "", "", "", "", "", "",
         String(accQty),
         ...(showIpi ? [
-          accTotal > 0 ? fmtBRL(getUnitPriceWithoutIpi(originalAccessoryUnit)) : "—",
-          accTotal > 0 ? fmtBRL(originalAccessoryUnit) : "—",
+          accTotal !== 0 ? fmtBRL(getUnitPriceWithoutIpi(originalAccessoryUnit)) : "—",
+          accTotal !== 0 ? fmtBRL(originalAccessoryUnit) : "—",
         ] : []),
-        accTotal > 0 ? fmtBRL(accTotal) : "—",
+        accTotal !== 0 ? fmtBRL(accTotal) : "—",
       ]);
       rowMeta.push({ photoUrl: null, isAccessoryRow: true });
     }
@@ -585,6 +585,10 @@ async function _generatePdfBlob(
         data.cell.styles.fontStyle = "italic";
         data.cell.styles.fillColor = [250, 250, 250] as [number, number, number];
         data.cell.styles.minCellHeight = 7;
+      }
+      const isPriceColumn = data.column.index >= colWidths.length - (showIpi ? 3 : 1);
+      if (isPriceColumn && typeof data.cell.raw === "string" && /R\$\s*-/.test(data.cell.raw)) {
+        data.cell.styles.textColor = [220, 38, 38] as [number, number, number];
       }
     },
     didDrawCell: (data) => {

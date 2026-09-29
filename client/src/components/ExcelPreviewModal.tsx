@@ -472,7 +472,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
     const drvT = (it.driverLines && it.driverLines.length > 0)
       ? it.driverLines.reduce((sd, d) => {
           const stored = d.driverTotalPrice;
-          if (stored != null && stored > 0) return sd + stored;
+          if (stored != null && (stored > 0 || (stored < 0 && d.negativePriceManual))) return sd + stored;
           // fallback: recalcular com effectiveQty
           const iqty = it.qty ?? 1;
           const storedQty = d.driverQty ?? 1;
@@ -516,7 +516,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
     const drvT = (it.driverLines && it.driverLines.length > 0)
       ? it.driverLines.reduce((sd, d) => {
           const stored = d.driverTotalPrice;
-          if (stored != null && stored > 0) return sd + stored;
+          if (stored != null && (stored > 0 || (stored < 0 && d.negativePriceManual))) return sd + stored;
           const iqty = it.qty ?? 1;
           const storedQty = d.driverQty ?? 1;
           const drvQtyPerUnitB = it.driverQtyPerUnit;
@@ -970,9 +970,9 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                           <td style={tdStyle}></td>{/* FOTO vazia */}
                           <td colSpan={7} style={{ ...tdStyle, textAlign: "left", fontStyle: "italic" }}>{item.description || item.sku || "Serviço"}</td>
                           <td style={tdStyle}>{item.qty}</td>
-                          <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(applyMarkupItem(unitPriceComFrete(item) ?? item.unitPrice, item.itemMarginPercent, item.itemDiscountPercent) + getItemDifalFcp(item) / Math.max(item.qty ?? 1, 1)) : applyMarkupItem(unitPriceComFrete(item) ?? item.unitPrice, item.itemMarginPercent, item.itemDiscountPercent) + getItemDifalFcp(item) / Math.max(item.qty ?? 1, 1)) : "-"}</td>
-                          {showIpi && <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkupItem(unitPriceComFrete(item) ?? item.unitPrice, item.itemMarginPercent, item.itemDiscountPercent) + getItemDifalFcp(item) / Math.max(item.qty ?? 1, 1)) : "-"}</td>}
-                          <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkupItem(totalPriceComFrete(item) ?? item.totalPrice, item.itemMarginPercent, item.itemDiscountPercent) + getItemDifalFcp(item)) : "-"}</td>
+                          <td style={{ ...tdStyle, color: (item.unitPrice ?? 0) < 0 ? RED : undefined }}>{item.unitPrice != null && item.unitPrice !== 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(applyMarkupItem(unitPriceComFrete(item) ?? item.unitPrice, item.itemMarginPercent, item.itemDiscountPercent) + getItemDifalFcp(item) / Math.max(item.qty ?? 1, 1)) : applyMarkupItem(unitPriceComFrete(item) ?? item.unitPrice, item.itemMarginPercent, item.itemDiscountPercent) + getItemDifalFcp(item) / Math.max(item.qty ?? 1, 1)) : "-"}</td>
+                          {showIpi && <td style={{ ...tdStyle, color: (item.unitPrice ?? 0) < 0 ? RED : undefined }}>{item.unitPrice != null && item.unitPrice !== 0 ? formatBRL(applyMarkupItem(unitPriceComFrete(item) ?? item.unitPrice, item.itemMarginPercent, item.itemDiscountPercent) + getItemDifalFcp(item) / Math.max(item.qty ?? 1, 1)) : "-"}</td>}
+                          <td style={{ ...tdStyle, color: (item.totalPrice ?? 0) < 0 ? RED : undefined }}>{item.totalPrice != null && item.totalPrice !== 0 ? formatBRL(applyMarkupItem(totalPriceComFrete(item) ?? item.totalPrice, item.itemMarginPercent, item.itemDiscountPercent) + getItemDifalFcp(item)) : "-"}</td>
                         </tr>
                       ) : item.driverLines && item.driverLines.length > 0 ? (
                         <tr>
@@ -1038,8 +1038,8 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                             const _lumDifalFcpTotal = getItemDifalFcp(item) * _lumPeso;
                             const _lumDifalFcpUnit = _qty > 0 ? _lumDifalFcpTotal / _qty : 0;
                             return (<>
-                              <td style={tdStyle}>
-                                {_effectiveUnitLum && _effectiveUnitLum > 0
+                              <td style={{ ...tdStyle, color: (_effectiveUnitLum ?? 0) < 0 ? RED : undefined }}>
+                                {_effectiveUnitLum != null && _effectiveUnitLum !== 0
                                   ? formatBRL(showIpi
                                     ? getUnitPriceWithoutIpi(applyMarkupItem(_effectiveUnitLum + _lumDilUnit + _lumFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent) + _lumDifalFcpUnit)
                                     : applyMarkupItem(_effectiveUnitLum + _lumDilUnit + _lumFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent) + _lumDifalFcpUnit)
@@ -1047,15 +1047,15 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                                     ? <span style={{ color: "#E65100", fontStyle: "italic", fontSize: 9 }}>A definir</span>
                                     : "-"}
                               </td>
-                              {showIpi && <td style={tdStyle}>
-                                {_effectiveUnitLum && _effectiveUnitLum > 0
+                              {showIpi && <td style={{ ...tdStyle, color: (_effectiveUnitLum ?? 0) < 0 ? RED : undefined }}>
+                                {_effectiveUnitLum != null && _effectiveUnitLum !== 0
                                   ? formatBRL(applyMarkupItem(_effectiveUnitLum + _lumDilUnit + _lumFreteFracUnit, item.itemMarginPercent, item.itemDiscountPercent) + _lumDifalFcpUnit)
                                   : item.luminariaHasApiPrice === false
                                     ? <span style={{ color: "#E65100", fontStyle: "italic", fontSize: 9 }}>A definir</span>
                                     : "-"}
                               </td>}
-                              <td style={tdStyle}>
-                                {_correctedTotal > 0
+                              <td style={{ ...tdStyle, color: _correctedTotal < 0 ? RED : undefined }}>
+                                {_correctedTotal !== 0
                                   ? formatBRL(applyMarkupItem(_correctedTotal + _lumDilTotal + _lumFreteFrac, item.itemMarginPercent, item.itemDiscountPercent) + _lumDifalFcpTotal)
                                   : item.luminariaHasApiPrice === false
                                     ? <span style={{ color: "#E65100", fontStyle: "italic", fontSize: 9 }}>A definir</span>
@@ -1120,9 +1120,9 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                               </>);
                             }
                             return (<>
-                              <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(applyMarkupItem(_unitWithDil, item.itemMarginPercent, item.itemDiscountPercent) + _itemDifalFcpUnit) : applyMarkupItem(_unitWithDil, item.itemMarginPercent, item.itemDiscountPercent) + _itemDifalFcpUnit) : "-"}</td>
-                              {showIpi && <td style={tdStyle}>{item.unitPrice && item.unitPrice > 0 ? formatBRL(applyMarkupItem(_unitWithDil, item.itemMarginPercent, item.itemDiscountPercent) + _itemDifalFcpUnit) : "-"}</td>}
-                              <td style={tdStyle}>{item.totalPrice && item.totalPrice > 0 ? formatBRL(applyMarkupItem(_totalWithDil, item.itemMarginPercent, item.itemDiscountPercent) + _itemDifalFcpTotal) : "-"}</td>
+                              <td style={{ ...tdStyle, color: (item.unitPrice ?? 0) < 0 ? RED : undefined }}>{item.unitPrice != null && item.unitPrice !== 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(applyMarkupItem(_unitWithDil, item.itemMarginPercent, item.itemDiscountPercent) + _itemDifalFcpUnit) : applyMarkupItem(_unitWithDil, item.itemMarginPercent, item.itemDiscountPercent) + _itemDifalFcpUnit) : "-"}</td>
+                              {showIpi && <td style={{ ...tdStyle, color: (item.unitPrice ?? 0) < 0 ? RED : undefined }}>{item.unitPrice != null && item.unitPrice !== 0 ? formatBRL(applyMarkupItem(_unitWithDil, item.itemMarginPercent, item.itemDiscountPercent) + _itemDifalFcpUnit) : "-"}</td>}
+                              <td style={{ ...tdStyle, color: (item.totalPrice ?? 0) < 0 ? RED : undefined }}>{item.totalPrice != null && item.totalPrice !== 0 ? formatBRL(applyMarkupItem(_totalWithDil, item.itemMarginPercent, item.itemDiscountPercent) + _itemDifalFcpTotal) : "-"}</td>
                             </>);
                           })()}
                         </tr>
@@ -1174,9 +1174,9 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                             <td key={i} style={{ ...tdStyle, fontSize: 9 }}></td>
                           ))}
                           <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold" }}>{accQty}</td>
-                          <td style={{ ...tdStyle, fontSize: 9 }}>{unifyItemValues ? "incl." : acc.unitPrice && acc.unitPrice > 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(accUnitWithTax) : accUnitWithTax) : "-"}</td>
-                          {showIpi && <td style={{ ...tdStyle, fontSize: 9 }}>{unifyItemValues ? "incl." : acc.unitPrice && acc.unitPrice > 0 ? formatBRL(accUnitWithTax) : "-"}</td>}
-                          <td style={{ ...tdStyle, fontSize: 9 }}>{unifyItemValues ? "incl." : acc.unitPrice && acc.unitPrice > 0 ? formatBRL(accCommercialTotal) : "-"}</td>
+                          <td style={{ ...tdStyle, fontSize: 9, color: accUnitWithTax < 0 ? RED : undefined }}>{unifyItemValues ? "incl." : acc.unitPrice != null && acc.unitPrice !== 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(accUnitWithTax) : accUnitWithTax) : "-"}</td>
+                          {showIpi && <td style={{ ...tdStyle, fontSize: 9, color: accUnitWithTax < 0 ? RED : undefined }}>{unifyItemValues ? "incl." : acc.unitPrice != null && acc.unitPrice !== 0 ? formatBRL(accUnitWithTax) : "-"}</td>}
+                          <td style={{ ...tdStyle, fontSize: 9, color: accCommercialTotal < 0 ? RED : undefined }}>{unifyItemValues ? "incl." : acc.unitPrice != null && acc.unitPrice !== 0 ? formatBRL(accCommercialTotal) : "-"}</td>
                         </tr>
                         );
                       })}
@@ -1220,7 +1220,7 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                         const _effectiveDrvQty = getEffectiveDriverLineQuantity(item, drv);
                         // Diluição proporcional ao peso do driver neste item
                         const _itemTotalRealDrv = getItemTotalReal(item);
-                        const _drvTotalPrice = drv.driverTotalPrice != null && drv.driverTotalPrice >= 0
+                        const _drvTotalPrice = drv.driverTotalPrice != null && (drv.driverTotalPrice >= 0 || drv.negativePriceManual)
                           ? drv.driverTotalPrice
                           : Math.round((drv.driverUnitPrice ?? 0) * _effectiveDrvQty * 100) / 100;
                         const _drvPeso = _itemTotalRealDrv > 0 ? _drvTotalPrice / _itemTotalRealDrv : 0;
@@ -1248,14 +1248,14 @@ export function ExcelPreviewModal({ open, onClose, items, formData, freshPhotoMa
                             <td key={i} style={{ ...tdStyle, fontSize: 9 }}></td>
                           ))}
                           <td style={{ ...tdStyle, fontSize: 9, fontWeight: "bold", color: "#E65100" }}>{_effectiveDrvQty}</td>
-                          <td style={{ ...tdStyle, fontSize: 9, color: "#E65100" }}>
-                            {unifyItemValues ? "incl." : drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(applyMarkupSubitem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemDiscountPercent) + _drvDifalFcpUnit) : applyMarkupSubitem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemDiscountPercent) + _drvDifalFcpUnit) : "-"}
+                          <td style={{ ...tdStyle, fontSize: 9, color: (drv.driverUnitPrice ?? 0) < 0 ? RED : "#E65100" }}>
+                            {unifyItemValues ? "incl." : drv.driverUnitPrice != null && drv.driverUnitPrice !== 0 ? formatBRL(showIpi ? getUnitPriceWithoutIpi(applyMarkupSubitem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemDiscountPercent) + _drvDifalFcpUnit) : applyMarkupSubitem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemDiscountPercent) + _drvDifalFcpUnit) : "-"}
                           </td>
-                          {showIpi && <td style={{ ...tdStyle, fontSize: 9, color: "#E65100" }}>
-                            {unifyItemValues ? "incl." : drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupSubitem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemDiscountPercent) + _drvDifalFcpUnit) : "-"}
+                          {showIpi && <td style={{ ...tdStyle, fontSize: 9, color: (drv.driverUnitPrice ?? 0) < 0 ? RED : "#E65100" }}>
+                            {unifyItemValues ? "incl." : drv.driverUnitPrice != null && drv.driverUnitPrice !== 0 ? formatBRL(applyMarkupSubitem(drv.driverUnitPrice + _drvDilUnit + _drvFreteFracUnit, item.itemDiscountPercent) + _drvDifalFcpUnit) : "-"}
                           </td>}
-                          <td style={{ ...tdStyle, fontSize: 9, color: "#E65100" }}>
-                            {unifyItemValues ? "incl." : drv.driverUnitPrice && drv.driverUnitPrice > 0 ? formatBRL(applyMarkupSubitem(_drvTotalPrice + _drvDilTotal + _drvFreteFrac, item.itemDiscountPercent) + _drvDifalFcpTotal) : "-"}
+                          <td style={{ ...tdStyle, fontSize: 9, color: _drvTotalPrice < 0 ? RED : "#E65100" }}>
+                            {unifyItemValues ? "incl." : drv.driverUnitPrice != null && drv.driverUnitPrice !== 0 ? formatBRL(applyMarkupSubitem(_drvTotalPrice + _drvDilTotal + _drvFreteFrac, item.itemDiscountPercent) + _drvDifalFcpTotal) : "-"}
                           </td>
                         </tr>
                         );

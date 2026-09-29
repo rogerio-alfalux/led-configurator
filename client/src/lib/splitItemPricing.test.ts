@@ -74,6 +74,22 @@ describe("preço desmembrado ao duplicar e editar itens", () => {
     expect(getCommercialBodyTotal(corruptedLegacyItem)).toBe(57_639.16);
   });
 
+  it("preserva preço negativo quando a devolução foi autorizada e marcada", () => {
+    const returnItem: CartItemData = {
+      ...itemWithDriver,
+      qty: 1,
+      unitPrice: -100,
+      unitPriceLuminaria: -100,
+      priceWithoutDriver: -100,
+      totalPrice: -100,
+      negativePriceManual: true,
+    };
+
+    expect(getEditableBodyUnitPrice(returnItem)).toBe(-100);
+    expect(getCommercialBodyTotal(returnItem)).toBe(-100);
+    expect(buildSplitDriverPricePatch(returnItem, 0, -20).driverLines?.[0].negativePriceManual).toBe(true);
+  });
+
   it("ao editar o driver preserva 193,42 na luminária mesmo se o campo separado legado estiver negativo", () => {
     const corruptedLegacyItem: CartItemData = {
       ...itemWithDriver,

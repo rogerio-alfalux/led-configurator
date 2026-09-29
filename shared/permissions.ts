@@ -7,6 +7,8 @@ export const PERMISSIONS = {
   EDITAR_PRECOS: "editar_precos",
   /** Pode editar preço unitário de drivers */
   EDITAR_PRECOS_DRIVER: "editar_precos_driver",
+  /** Pode registrar valores negativos como devoluções comerciais. */
+  EDITAR_VALORES_NEGATIVOS: "editar_valores_negativos",
   /** Pode ver custos, markup e dashboard de lucro por orçamento */
   VER_CUSTOS: "ver_custos",
   /** Pode editar custos ausentes somente em Produtos Especiais e Revenda */
@@ -36,6 +38,7 @@ export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 export const ALL_PERMISSIONS: { key: Permission; label: string; description: string }[] = [
   { key: PERMISSIONS.EDITAR_PRECOS, label: "Editar Preços", description: "Sobrescrever preços de produtos da API" },
   { key: PERMISSIONS.EDITAR_PRECOS_DRIVER, label: "Editar Preços Driver", description: "Editar preço unitário de drivers" },
+  { key: PERMISSIONS.EDITAR_VALORES_NEGATIVOS, label: "Registrar Devoluções", description: "Informar preços negativos que deduzem o valor do orçamento" },
   { key: PERMISSIONS.VER_CUSTOS, label: "Ver Custos/Lucro", description: "Ver custos, markup e dashboard de lucro" },
   { key: PERMISSIONS.EDITAR_CUSTOS_ESPECIAIS_REVENDA, label: "Editar Custos de Especiais e Revenda", description: "Preencher custos ausentes somente em Produtos Especiais e Revenda" },
   { key: PERMISSIONS.EDITAR_DESCONTOS, label: "Editar Descontos", description: "Definir/alterar descontos globais e por item" },

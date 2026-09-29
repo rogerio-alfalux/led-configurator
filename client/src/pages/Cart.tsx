@@ -389,8 +389,8 @@ function SortableCartItem({
                           <span className="font-mono text-[10px] text-muted-foreground">{acc.codigo}</span>
                           <span className="text-cyan-700 dark:text-cyan-400 truncate">{acc.descricao}</span>
                           {acc.qty > 1 && <span className="text-muted-foreground">x{acc.qty}</span>}
-                          {acc.unitPrice != null && acc.unitPrice > 0 && (
-                            <span className="ml-auto text-muted-foreground">{formatBRL(acc.unitPrice)}</span>
+                          {acc.unitPrice != null && acc.unitPrice !== 0 && (
+                            <span className={`ml-auto ${acc.unitPrice < 0 ? "text-red-600 font-medium" : "text-muted-foreground"}`}>{formatBRL(acc.unitPrice)}</span>
                           )}
                           {acc.familia === "SHIFT MÓDULO" && (acc.unitPrice == null || acc.unitPrice <= 0) && (
                             <button
@@ -412,8 +412,8 @@ function SortableCartItem({
                   {entry.data.driverLines && entry.data.driverLines.length > 0 ? (
                     <>
                       {/* Luminária: preço unitário + total (qty × unit) */}
-                      {luminariaUnitPrice != null && luminariaUnitPrice > 0 ? (
-                        <p className="text-xs text-muted-foreground">
+                      {luminariaUnitPrice != null && luminariaUnitPrice !== 0 ? (
+                        <p className={`text-xs ${luminariaUnitPrice < 0 ? "text-red-600 font-medium" : "text-muted-foreground"}`}>
                           Lum: {formatBRL(luminariaUnitPrice)}/un
                           {(entry.data.qty ?? 1) > 1 && (() => {
                             // Corrigir itens antigos onde priceWithoutDriver foi salvo como valor unitário
@@ -454,7 +454,7 @@ function SortableCartItem({
                             : storedQty;
                           return s + Math.round(unitPrice * effectiveQty * 100) / 100;
                         }, 0);
-                        if (drvTotal <= 0) return null;
+                        if (drvTotal === 0) return null;
                         // Calcular preço unitário do driver (por luminária)
                         const drvUnitTotal = entry.data.driverLines.reduce((s, d) => {
                           const unitPrice = d.driverUnitPrice ?? 0;
@@ -465,7 +465,7 @@ function SortableCartItem({
                           return s + Math.round(unitPrice * qtyPerLuminaria * 100) / 100;
                         }, 0);
                         return (
-                          <p className="text-xs text-orange-600">
+                          <p className={`text-xs ${drvTotal < 0 ? "text-red-600" : "text-orange-600"}`}>
                             Driver: {formatBRL(drvUnitTotal)}/un
                             {qty > 1 && (
                               <> × {qty} = <span className="font-medium">{formatBRL(drvTotal)}</span></>
@@ -474,8 +474,8 @@ function SortableCartItem({
                         );
                       })()}
                       {/* Total geral */}
-                      {entry.data.totalPrice != null && entry.data.totalPrice > 0 ? (
-                        <p className="font-bold text-primary text-base">{formatBRL(getItemTotalWithMargin(entry.data))}</p>
+                      {entry.data.totalPrice != null && entry.data.totalPrice !== 0 ? (
+                        <p className={`font-bold text-base ${entry.data.totalPrice < 0 ? "text-red-600" : "text-primary"}`}>{formatBRL(getItemTotalWithMargin(entry.data))}</p>
                       ) : (
                         <p className="text-xs text-muted-foreground italic">Total a calcular</p>
                       )}
@@ -485,11 +485,11 @@ function SortableCartItem({
                     </>
                   ) : (
                     <>
-                      {entry.data.unitPrice != null && entry.data.unitPrice > 0 && (
-                        <p className="text-xs text-muted-foreground">{formatBRL(applyBodyItemMargin(entry.data.unitPrice, entry.data.itemMarginPercent))} / un</p>
+                      {entry.data.unitPrice != null && entry.data.unitPrice !== 0 && (
+                        <p className={`text-xs ${entry.data.unitPrice < 0 ? "text-red-600 font-medium" : "text-muted-foreground"}`}>{formatBRL(applyBodyItemMargin(entry.data.unitPrice, entry.data.itemMarginPercent))} / un</p>
                       )}
-                      {entry.data.totalPrice != null && entry.data.totalPrice > 0 ? (
-                        <p className="font-bold text-primary text-base">{formatBRL(getItemTotalWithMargin(entry.data))}</p>
+                      {entry.data.totalPrice != null && entry.data.totalPrice !== 0 ? (
+                        <p className={`font-bold text-base ${entry.data.totalPrice < 0 ? "text-red-600" : "text-primary"}`}>{formatBRL(getItemTotalWithMargin(entry.data))}</p>
                       ) : !entry.data.priceFromApi ? (
                         <p className="text-xs text-amber-600 italic cursor-pointer hover:underline" onClick={() => onEditClick(entry.id, entry.data)}>Definir preço →</p>
                       ) : (
@@ -1757,8 +1757,8 @@ function StandardCart() {
                         </div>
                       );
                     })()}
-                    {totalGeral > 0 && (
-                      <p className="text-2xl font-bold text-primary">{formatBRL(totalGeral)}</p>
+                    {totalGeral !== 0 && (
+                      <p className={`text-2xl font-bold ${totalGeral < 0 ? "text-red-600" : "text-primary"}`}>{formatBRL(totalGeral)}</p>
                     )}
                     {freteValor > 0 && !saveForm.freteIncluded && (
                       <p className="text-xs text-muted-foreground">+ Frete: <span className="text-red-600 font-medium">{formatBRL(freteValor)}</span></p>
@@ -2905,6 +2905,7 @@ function StandardCart() {
               const userEmail = (user as any)?.email?.toLowerCase() ?? "";
               const canOverrideApiPrice = _hp(PERMISSIONS.EDITAR_PRECOS);
               const canEditDriverPrice = _hp(PERMISSIONS.EDITAR_PRECOS_DRIVER);
+              const canEditNegativePrice = _hp(PERMISSIONS.EDITAR_VALORES_NEGATIVOS);
               const canEditPrice = !item?.data.priceFromApi || canOverrideApiPrice;
               const canEditMkp = _hp(PERMISSIONS.EDITAR_MARKUP);
               const hasMkpData = canEditMkp && item?.data.custoCorpoBase != null && item.data.custoCorpoBase > 0;
@@ -3563,6 +3564,7 @@ function StandardCart() {
               const userEmailSave = (user as any)?.email?.toLowerCase() ?? "";
               const canOverrideApiPriceSave = _hp(PERMISSIONS.EDITAR_PRECOS);
               const canEditDriverPriceSave = _hp(PERMISSIONS.EDITAR_PRECOS_DRIVER);
+              const canEditNegativePriceSave = _hp(PERMISSIONS.EDITAR_VALORES_NEGATIVOS);
               const canEditPriceSave = !item?.data.priceFromApi || canOverrideApiPriceSave;
               if (isNaoOrcamosSave) {
                 if (editFields.description.trim()) {
@@ -3574,10 +3576,16 @@ function StandardCart() {
                 patch.nonQuotedObservation = editFields.nonQuotedObservation.trim() || undefined;
               } else if (isRevenda) {
                 const qty = parseInt(editFields.qty) || 1;
-                const unitPrice = parseFloat(editFields.unitPrice.replace(',', '.')) || 0;
+                const parsedUnitPrice = parseFloat(editFields.unitPrice.replace(',', '.'));
+                if (!Number.isFinite(parsedUnitPrice) || (parsedUnitPrice < 0 && !canEditNegativePriceSave)) {
+                  toast.error(parsedUnitPrice < 0 ? 'Você não tem permissão para registrar devolução com valor negativo.' : 'Informe um preço unitário válido.');
+                  return;
+                }
+                const unitPrice = parsedUnitPrice;
                 patch.qty = qty;
                 patch.unitPrice = unitPrice;
                 patch.totalPrice = qty * unitPrice;
+                if (unitPrice < 0) patch.negativePriceManual = true;
               } else {
                 const requestedQty = parseInt(editFields.qty) || item?.data.qty || 1;
                 patch.qty = requestedQty;
@@ -3617,7 +3625,11 @@ function StandardCart() {
                   let effectiveDriverUnitPrice = item.data.driverLines[0]?.driverUnitPrice ?? null;
                   if (canEditDriverPriceSave && editFields.driverUnitPriceOverride.trim()) {
                     const parsedDrvPrice = parseFloat(editFields.driverUnitPriceOverride.replace(',', '.'));
-                    if (!isNaN(parsedDrvPrice) && parsedDrvPrice >= 0) {
+                    if (parsedDrvPrice < 0 && !canEditNegativePriceSave) {
+                      toast.error('Você não tem permissão para registrar devolução de driver com valor negativo.');
+                      return;
+                    }
+                    if (!isNaN(parsedDrvPrice)) {
                       effectiveDriverUnitPrice = parsedDrvPrice;
                       // Atualizar driverLines com o novo preço unitário
                       const qty = parseInt(editFields.qty) || item?.data.qty || 1;
@@ -3630,6 +3642,7 @@ function StandardCart() {
                           ...dl,
                           driverUnitPrice: parsedDrvPrice,
                           driverTotalPrice: Math.round(parsedDrvPrice * drvQtyForTotal * 100) / 100,
+                          ...(parsedDrvPrice < 0 ? { negativePriceManual: true, driverPriceManual: true } : {}),
                         };
                       });
                       // Atualizar unitPriceDriver para consistência
@@ -3638,7 +3651,11 @@ function StandardCart() {
                   }
                   if (canEditLuminaria && editFields.unitPrice.trim()) {
                     const qty = parseInt(editFields.qty) || item?.data.qty || 1;
-                    const lumUnitPrice = parseFloat(editFields.unitPrice.replace(',', '.')) || 0;
+                    const lumUnitPrice = parseFloat(editFields.unitPrice.replace(',', '.'));
+                    if (!Number.isFinite(lumUnitPrice) || (lumUnitPrice < 0 && !canEditNegativePriceSave)) {
+                      toast.error(lumUnitPrice < 0 ? 'Você não tem permissão para registrar devolução com valor negativo.' : 'Informe um preço unitário válido.');
+                      return;
+                    }
                     Object.assign(patch, buildSplitBodyPricePatch(item.data, lumUnitPrice, qty));
                   } else if (canEditDriverPriceSave && editFields.driverUnitPriceOverride.trim() && !editFields.unitPrice.trim()) {
                     // Apenas o driver foi alterado (sem alterar luminária): recalcular unitPrice e totalPrice
@@ -3650,9 +3667,14 @@ function StandardCart() {
                   }
                 } else if (canEditPriceSave && editFields.unitPrice.trim()) {
                   const qty = parseInt(editFields.qty) || item?.data.qty || 1;
-                  const unitPrice = parseFloat(editFields.unitPrice.replace(',', '.')) || 0;
+                  const unitPrice = parseFloat(editFields.unitPrice.replace(',', '.'));
+                  if (!Number.isFinite(unitPrice) || (unitPrice < 0 && !canEditNegativePriceSave)) {
+                    toast.error(unitPrice < 0 ? 'Você não tem permissão para registrar devolução com valor negativo.' : 'Informe um preço unitário válido.');
+                    return;
+                  }
                   patch.unitPrice = unitPrice;
                   patch.totalPrice = qty * unitPrice;
+                  if (unitPrice < 0) patch.negativePriceManual = true;
                 }
               }
               if (item?.data.driverLines && item.data.driverLines.length > 0 && !editFields.withoutEquipment) {
@@ -3741,7 +3763,16 @@ function StandardCart() {
                   if (!Object.prototype.hasOwnProperty.call(shiftModulePriceDrafts, draftKey)) return nextAccessory;
                   const canEditModulePrice = (user as any)?.role !== "convidado" && (accessory.unitPrice == null || canOverrideApiPriceSave);
                   if (!canEditModulePrice) return nextAccessory;
-                  return { ...nextAccessory, unitPrice: parseShiftModuleManualPrice(shiftModulePriceDrafts[draftKey]) };
+                  const nextUnitPrice = parseShiftModuleManualPrice(shiftModulePriceDrafts[draftKey], canEditNegativePriceSave);
+                  if (nextUnitPrice !== null && nextUnitPrice < 0 && !canEditNegativePriceSave) {
+                    toast.error('Você não tem permissão para registrar devolução de acessório com valor negativo.');
+                    return nextAccessory;
+                  }
+                  return {
+                    ...nextAccessory,
+                    unitPrice: nextUnitPrice,
+                    ...(nextUnitPrice != null && nextUnitPrice < 0 ? { negativePriceManual: true } : {}),
+                  };
                   });
               }
               // Persistir o total comercial da luminária + drivers. Acessórios
@@ -3752,7 +3783,9 @@ function StandardCart() {
                 const bodyUnitPrice = getEditableBodyUnitPrice(nextData);
                 const bodyTotal = bodyUnitPrice != null
                   ? bodyUnitPrice * Math.max(1, nextData.qty ?? 1)
-                  : Math.max(0, nextData.priceWithoutDriver ?? 0);
+                  : nextData.negativePriceManual
+                    ? (nextData.priceWithoutDriver ?? 0)
+                    : Math.max(0, nextData.priceWithoutDriver ?? 0);
                 const driversTotal = (nextData.driverLines ?? []).reduce((sum, line) =>
                   sum + (line.driverTotalPrice ?? ((line.driverUnitPrice ?? 0) * (line.driverQty ?? 0))), 0);
                 if ((nextData.driverLines?.length ?? 0) > 0) {
@@ -3764,7 +3797,7 @@ function StandardCart() {
                 : (!item?.data.driverLines?.length && canEditPriceSave && editFields.unitPrice.trim()
                   ? (item?.data.qty || 1) * (parseFloat(editFields.unitPrice.replace(',', '.')) || 0)
                   : 0);
-              if (totalForUpdate > 0) patch.totalPrice = totalForUpdate;
+              if (totalForUpdate !== 0) patch.totalPrice = totalForUpdate;
               updateItemField(editItemId, patch, 0); // 0ms: envia imediatamente ao salvar
               toast.success('Item atualizado!');
               setEditItemId(null);

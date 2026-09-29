@@ -2,6 +2,7 @@ export type CommercialDriverLine = {
   driverTotalPrice?: unknown;
   driverUnitPrice?: unknown;
   driverQty?: unknown;
+  negativePriceManual?: unknown;
 };
 
 export type CommercialLinkedAccessory = {
@@ -9,6 +10,7 @@ export type CommercialLinkedAccessory = {
   qty?: unknown;
   /** Quantidade manual do pedido: não deve ser multiplicada pela quantidade da luminária. */
   quantityScope?: unknown;
+  negativePriceManual?: unknown;
 };
 
 export type CommercialQuoteItem = {
@@ -23,6 +25,8 @@ export type CommercialQuoteItem = {
   itemDiscountPercent?: unknown;
   isCommercialSampleCharge?: unknown;
   sampleChargeFinalAmount?: unknown;
+  /** Devolução autorizada, preservada dos normalizadores de snapshots legados. */
+  negativePriceManual?: unknown;
 };
 
 export type CommercialQuoteFields = {
@@ -66,8 +70,8 @@ export const calculateItemCommercialBase = (
   itemMarginPercent: unknown,
   itemDiscountPercent: unknown,
 ): number => applyItemDiscount(
-  applyItemMarginToLuminaire(Math.max(0, luminaireTotal), itemMarginPercent)
-    + Math.max(0, nonLuminaireTotal),
+  applyItemMarginToLuminaire(luminaireTotal, itemMarginPercent)
+    + nonLuminaireTotal,
   itemDiscountPercent,
 );
 
@@ -96,7 +100,7 @@ export function calculateCommercialProductsBeforeDiscount(
     ? Math.max(0, numberOrZero(fields.freteValue))
     : 0;
   const dilution = Math.max(0, numberOrZero(fields.diluicaoValor));
-  const withIncludedCharges = Math.max(0, numberOrZero(itemBase)) + freight + dilution;
+  const withIncludedCharges = numberOrZero(itemBase) + freight + dilution;
   const rtRate = rate(fields.rtPercent);
   const withGlobalRt = rtRate > 0 ? withIncludedCharges / (1 - rtRate) : withIncludedCharges;
   const marginRate = rate(fields.marginPercent);
@@ -130,7 +134,7 @@ export function calculateCommercialQuoteTotal(
     const drivers = Array.isArray(item.driverLines) ? item.driverLines : [];
     const driversTotal = drivers.reduce((driverSum, driver) => {
       const storedTotal = numberOrZero(driver.driverTotalPrice);
-      if (storedTotal > 0) return driverSum + storedTotal;
+      if (storedTotal > 0 || (storedTotal < 0 && driver.negativePriceManual === true)) return driverSum + storedTotal;
       const storedQty = numberOrZero(driver.driverQty);
       const driverQty = storedQty <= 1 ? qty : storedQty;
       return driverSum + numberOrZero(driver.driverUnitPrice) * driverQty;
@@ -138,21 +142,27 @@ export function calculateCommercialQuoteTotal(
     const bodyTotal = drivers.length > 0
       ? (() => {
           const storedBody = numberOrZero(item.priceWithoutDriver);
-          const bodyWasStoredPerUnit = numberOrZero(item.unitPriceLuminaria) > 0
+          const unitBody = numberOrZero(item.unitPriceLuminaria);
+          const signedBody = item.negativePriceManual === true;
+          const bodyWasStoredPerUnit = (unitBody > 0 || (unitBody < 0 && signedBody))
             && Math.abs(storedBody - numberOrZero(item.unitPriceLuminaria)) < 0.02
             && qty > 1;
-          if (storedBody > 0) return bodyWasStoredPerUnit ? storedBody * qty : storedBody;
-          const unitBody = numberOrZero(item.unitPriceLuminaria);
-          if (unitBody > 0) return unitBody * qty;
-          return Math.max(0, numberOrZero(item.totalPrice) - driversTotal);
+          if (storedBody > 0 || (storedBody < 0 && signedBody)) return bodyWasStoredPerUnit ? storedBody * qty : storedBody;
+          if (unitBody > 0 || (unitBody < 0 && signedBody)) return unitBody * qty;
+          const savedTotal = numberOrZero(item.totalPrice);
+          return savedTotal < 0 && signedBody ? savedTotal - driversTotal : Math.max(0, savedTotal - driversTotal);
         })()
-      : numberOrZero(item.totalPrice);
+      : (() => {
+          const total = numberOrZero(item.totalPrice);
+          return total < 0 && item.negativePriceManual === true ? total : Math.max(0, total);
+        })();
     const accessoriesTotal = (item.accessories ?? []).reduce((accessorySum, accessory) => {
       const accessoryQty = Math.max(0, numberOrZero(accessory.qty));
       const totalAccessoryQty = accessory.quantityScope === "order_total"
         ? accessoryQty
         : accessoryQty * qty;
-      return accessorySum + numberOrZero(accessory.unitPrice) * totalAccessoryQty;
+      const unitPrice = numberOrZero(accessory.unitPrice);
+      return accessorySum + (unitPrice < 0 && accessory.negativePriceManual === true ? unitPrice : Math.max(0, unitPrice)) * totalAccessoryQty;
     }, 0);
     return sum + calculateItemCommercialBase(
       bodyTotal,

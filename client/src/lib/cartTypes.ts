@@ -86,6 +86,8 @@ export interface CartItemData {
   unitPrice: number | null;
   /** Preço total = unitPrice × qty (null se unitPrice for null) */
   totalPrice: number | null;
+  /** Marca um valor comercial negativo autorizado como devolução, não como dado legado corrompido. */
+  negativePriceManual?: boolean;
   /** URL da foto do produto (pode ser null) */
   photoUrl: string | null;
   /** Texto completo do resumo para pedido. Opcional para itens especiais. */
@@ -429,6 +431,8 @@ export interface DriverLine {
   driverManual?: boolean;
   /** Mantém o preço comercial definido no orçamento sem substituí-lo pela API. */
   driverPriceManual?: boolean;
+  /** Marca o valor negativo autorizado deste driver como devolução comercial. */
+  negativePriceManual?: boolean;
 }
 
 /**
@@ -462,6 +466,8 @@ export interface LinkedAccessory {
   qty: number;
   /** Preço unitário do acessório (null se não cadastrado) */
   unitPrice: number | null;
+  /** Marca o valor negativo autorizado deste acessório como devolução comercial. */
+  negativePriceManual?: boolean;
   /** URL da foto do acessório */
   fotoUrl?: string | null;
   /** Família/categoria do acessório (ex: "Rabicho", "Conector") */
@@ -503,9 +509,12 @@ export function getLinkedAccessoryTotalQuantity(
 /** Retorna o valor bruto total do acessório respeitando seu escopo de quantidade. */
 export function getLinkedAccessoryTotalPrice(
   item: Pick<CartItemData, "qty">,
-  accessory: Pick<LinkedAccessory, "qty" | "quantityScope" | "unitPrice">,
+  accessory: Pick<LinkedAccessory, "qty" | "quantityScope" | "unitPrice" | "negativePriceManual">,
 ): number {
-  const unitPrice = Math.max(0, Number(accessory.unitPrice) || 0);
+  const rawUnitPrice = Number(accessory.unitPrice);
+  const unitPrice = Number.isFinite(rawUnitPrice)
+    ? (rawUnitPrice < 0 && accessory.negativePriceManual ? rawUnitPrice : Math.max(0, rawUnitPrice))
+    : 0;
   return unitPrice * getLinkedAccessoryTotalQuantity(item, accessory);
 }
 
@@ -1101,14 +1110,16 @@ export function normalizeSplitCommercialPricing(item: CartItemData): CartItemDat
   const qty = Math.max(1, finiteNumber(item.qty) ?? 1);
   const normalizedDriverLines = item.driverLines.map(line => {
     const rawUnitPrice = finiteNumber(line.driverUnitPrice);
-    const driverUnitPrice = rawUnitPrice == null ? null : roundCommercialValue(Math.max(0, rawUnitPrice));
+    const driverUnitPrice = rawUnitPrice == null ? null : roundCommercialValue(
+      rawUnitPrice < 0 && line.negativePriceManual ? rawUnitPrice : Math.max(0, rawUnitPrice),
+    );
     const driverQty = Math.max(0, finiteNumber(line.driverQty) ?? 0);
     const rawTotalPrice = finiteNumber(line.driverTotalPrice);
     const driverTotalPrice = driverUnitPrice != null
       ? roundCommercialValue(driverUnitPrice * driverQty)
       : rawTotalPrice == null
         ? null
-        : roundCommercialValue(Math.max(0, rawTotalPrice));
+        : roundCommercialValue(rawTotalPrice < 0 && line.negativePriceManual ? rawTotalPrice : Math.max(0, rawTotalPrice));
     return { ...line, driverUnitPrice, driverTotalPrice };
   });
 
@@ -1120,7 +1131,7 @@ export function normalizeSplitCommercialPricing(item: CartItemData): CartItemDat
     })(),
     finiteNumber(item.unitPrice),
   ];
-  const storedBodyUnitPrice = bodyCandidates.find(value => value != null && value >= 0) ?? null;
+  const storedBodyUnitPrice = bodyCandidates.find(value => value != null && (value >= 0 || item.negativePriceManual)) ?? null;
   const hasNegativeBodyValue = bodyCandidates.some(value => value != null && value < 0);
   const bodyCost = finiteNumber(item.custoCorpoBase);
   const markup = finiteNumber(item.mkpCustom) ?? finiteNumber(item.markupPadraoApi);
@@ -1131,7 +1142,7 @@ export function normalizeSplitCommercialPricing(item: CartItemData): CartItemDat
     ? roundCommercialValue(storedBodyUnitPrice)
     : markupBodyUnitPrice;
 
-  if (!hasNegativeBodyValue) {
+  if (!hasNegativeBodyValue || item.negativePriceManual) {
     const unitPrice = finiteNumber(item.unitPrice);
     const unitPriceLuminaria = finiteNumber(item.unitPriceLuminaria);
     const priceWithoutDriver = finiteNumber(item.priceWithoutDriver);
@@ -1139,10 +1150,10 @@ export function normalizeSplitCommercialPricing(item: CartItemData): CartItemDat
     return {
       ...item,
       driverLines: normalizedDriverLines,
-      ...(unitPrice != null ? { unitPrice: roundCommercialValue(Math.max(0, unitPrice)) } : {}),
-      ...(unitPriceLuminaria != null ? { unitPriceLuminaria: roundCommercialValue(Math.max(0, unitPriceLuminaria)) } : {}),
-      ...(priceWithoutDriver != null ? { priceWithoutDriver: roundCommercialValue(Math.max(0, priceWithoutDriver)) } : {}),
-      ...(totalPrice != null ? { totalPrice: roundCommercialValue(Math.max(0, totalPrice)) } : {}),
+      ...(unitPrice != null ? { unitPrice: roundCommercialValue(unitPrice < 0 && item.negativePriceManual ? unitPrice : Math.max(0, unitPrice)) } : {}),
+      ...(unitPriceLuminaria != null ? { unitPriceLuminaria: roundCommercialValue(unitPriceLuminaria < 0 && item.negativePriceManual ? unitPriceLuminaria : Math.max(0, unitPriceLuminaria)) } : {}),
+      ...(priceWithoutDriver != null ? { priceWithoutDriver: roundCommercialValue(priceWithoutDriver < 0 && item.negativePriceManual ? priceWithoutDriver : Math.max(0, priceWithoutDriver)) } : {}),
+      ...(totalPrice != null ? { totalPrice: roundCommercialValue(totalPrice < 0 && item.negativePriceManual ? totalPrice : Math.max(0, totalPrice)) } : {}),
     };
   }
 

@@ -319,6 +319,31 @@ describe("sub-linha comercial de driver de perfil", () => {
     expect(Number(worksheet.getCell(`N${accessoryRow}`).value)).toBeCloseTo(22.2222, 3);
   });
 
+  it("exporta devolução autorizada como valor negativo em vermelho", async () => {
+    const item: CartItemData = {
+      category: "Revenda",
+      sku: "RET-001",
+      description: "DEVOLUÇÃO COMERCIAL",
+      qty: 1,
+      unitPrice: -100,
+      totalPrice: -100,
+      negativePriceManual: true,
+      photoUrl: null,
+    };
+    const buffer = await generateQuoteExcelBuffer([item], form);
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+    const worksheet = workbook.getWorksheet("Alfalux")!;
+    const row = Array.from({ length: worksheet.rowCount }, (_, index) => index + 1)
+      .find((rowNumber) => String(worksheet.getCell(`E${rowNumber}`).value ?? "").includes("DEVOLUÇÃO COMERCIAL"));
+
+    expect(row).toBeDefined();
+    expect(worksheet.getCell(`M${row}`).value).toBe(-100);
+    expect(worksheet.getCell(`N${row}`).value).toBe(-100);
+    expect(worksheet.getCell(`M${row}`).font.color?.argb).toBe("FFFF0000");
+    expect(worksheet.getCell(`N${row}`).font.color?.argb).toBe("FFFF0000");
+  });
+
   it("mantém no rodapé o total final soberano da revisão histórica", async () => {
     const item: CartItemData = {
       category: "Painéis",

@@ -103,6 +103,27 @@ describe("PDF com valores unificados por produto", () => {
     expect(accessoryRow!.textContent).toContain(formatBRL(22.2222));
   });
 
+  it("exibe devolução assinada em vermelho e a mantém no valor comercial", () => {
+    const returnItem: CartItemData = {
+      ...item,
+      driverLines: undefined,
+      unitPrice: -100,
+      totalPrice: -100,
+      negativePriceManual: true,
+    };
+    render(React.createElement(ExcelPreviewModal, {
+      open: true,
+      onClose: () => undefined,
+      items: [returnItem],
+      formData: baseForm,
+    }));
+
+    const row = Array.from(document.querySelectorAll<HTMLTableRowElement>(".quote-items-table tbody tr"))
+      .find(candidate => candidate.textContent?.includes("Luminária do item 01"));
+    expect(row?.textContent).toContain(formatBRL(-100));
+    expect(Array.from(row?.querySelectorAll("td") ?? []).some(cell => cell.style.color === "rgb(255, 0, 0)")).toBe(true);
+  });
+
   it("mostra os campos técnicos e a cor de Item Especial, além da observação obrigatória de Não Orçamos", () => {
     const specialItem: CartItemData = {
       category: "Item Especial",

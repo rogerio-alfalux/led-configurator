@@ -318,36 +318,38 @@ export default function UserManagement() {
                             <SlidersHorizontal className="w-3.5 h-3.5" />
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-lg">
+                        <DialogContent className="flex max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-4xl flex-col overflow-hidden p-0">
                           <DialogHeader>
-                            <DialogTitle>Permissões — {u.name || u.email}</DialogTitle>
+                            <DialogTitle className="px-6 pt-6">Permissões — {u.name || u.email}</DialogTitle>
                           </DialogHeader>
                           {u.role === "admin" ? (
-                            <p className="rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">Administradores possuem todas as permissões por padrão.</p>
+                            <p className="mx-6 mb-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">Administradores possuem todas as permissões por padrão.</p>
                           ) : (
-                            <div className="space-y-2 py-2">
-                              <p className="text-xs text-muted-foreground">As permissões abaixo são independentes do tipo de usuário. Alterações são aplicadas imediatamente.</p>
+                            <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-4">
+                              <p className="mb-3 text-xs text-muted-foreground">As permissões abaixo são independentes do tipo de usuário. Alterações são aplicadas imediatamente.</p>
+                              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                               {ALL_PERMISSIONS.map((permission) => {
                                 const granted = permissionsForUser(u.id).includes(permission.key);
                                 const pending = grantPermissionMutation.isPending || revokePermissionMutation.isPending;
                                 return (
-                                  <label key={permission.key} className="flex items-start gap-3 rounded-md border p-3 cursor-pointer hover:bg-muted/40">
+                                  <label key={permission.key} className="flex min-w-0 items-start gap-3 rounded-md border p-3 cursor-pointer hover:bg-muted/40">
                                     <Checkbox
                                       checked={granted}
                                       disabled={pending}
                                       onCheckedChange={() => togglePermission(u.id, permission.key, granted)}
                                       className="mt-0.5"
                                     />
-                                    <span className="space-y-0.5">
+                                    <span className="min-w-0 space-y-0.5">
                                       <span className="block text-sm font-medium">{permission.label}</span>
                                       <span className="block text-xs text-muted-foreground">{permission.description}</span>
                                     </span>
                                   </label>
                                 );
                               })}
+                              </div>
                             </div>
                           )}
-                          <DialogFooter>
+                          <DialogFooter className="border-t px-6 py-4">
                             <Button variant="outline" onClick={() => setPermissionsUserId(null)}>Fechar</Button>
                           </DialogFooter>
                         </DialogContent>

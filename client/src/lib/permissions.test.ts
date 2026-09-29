@@ -8,6 +8,7 @@ describe("catálogo de permissões granulares", () => {
     expect(new Set(keys).size).toBe(keys.length);
     expect(keys).toContain(PERMISSIONS.EDITAR_PRECOS);
     expect(keys).toContain(PERMISSIONS.EDITAR_PRECOS_DRIVER);
+    expect(keys).toContain(PERMISSIONS.EDITAR_VALORES_NEGATIVOS);
     expect(keys).toContain(PERMISSIONS.VER_CUSTOS);
     expect(keys).toContain(PERMISSIONS.EDITAR_CUSTOS_ESPECIAIS_REVENDA);
     expect(keys).toContain(PERMISSIONS.EDITAR_DESCONTOS);

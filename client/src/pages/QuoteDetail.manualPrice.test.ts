@@ -6,8 +6,9 @@ describe("editor de preço manual do orçamento", () => {
   it("permite preencher itens sem preço da API e mantém o bloqueio apenas para preço oficial sem permissão", () => {
     const source = readFileSync(resolve(process.cwd(), "client/src/pages/QuoteDetail.tsx"), "utf8");
 
-    expect(source).toContain('value={getEditableBodyUnitPrice(d) ?? ""}');
-    expect(source).toContain('onUpdate(item.id, { unitPrice: newUnitPrice });');
+    expect(source).toContain('value={d.isSpecialItem ? (currentBodyUnitPrice ?? "") : unitPriceDraft}');
+    expect(source).toContain('unitPrice: newUnitPrice,');
+    expect(source).toContain('newUnitPrice < 0 && !canEditNegativePrice');
     expect(source).toContain('readOnly={!!d.priceFromApi && !canOverrideApiPrice}');
     expect(source).toContain('placeholder={d.priceFromApi ? (canOverrideApiPrice ? "Sobrescrever preço da API" : "Preço da API") : "Definir preço"}');
   });
@@ -16,7 +17,7 @@ describe("editor de preço manual do orçamento", () => {
     const source = readFileSync(resolve(process.cwd(), "client/src/pages/QuoteDetail.tsx"), "utf8");
     expect(source).toContain("const linkedAccessories = (d.accessories ?? []).map");
     expect(source).toContain("Acessórios vinculados");
-    expect(source).toContain("currentIndex === index ? { ...current, unitPrice: newUnitPrice } : current");
+    expect(source).toContain("currentIndex === index ? { ...current, unitPrice: newUnitPrice, ...(newUnitPrice != null && newUnitPrice < 0 ? { negativePriceManual: true } : {}) } : current");
     expect(source).toContain("onUpdate(item.id, { accessories });");
   });
 });

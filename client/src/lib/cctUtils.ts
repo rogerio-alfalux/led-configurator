@@ -80,7 +80,7 @@ export function applyUnitPriceChange(
   const qty = newQty ?? item.qty ?? 1;
   const normalizedUnitPrice = newUnitPrice == null
     ? null
-    : Math.round(Math.max(0, newUnitPrice) * 100) / 100;
+    : Math.round((newUnitPrice < 0 && item.negativePriceManual ? newUnitPrice : Math.max(0, newUnitPrice)) * 100) / 100;
   const bodyTotal = normalizedUnitPrice != null
     ? Math.round(normalizedUnitPrice * qty * 100) / 100
     : null;
@@ -100,7 +100,7 @@ export function applyUnitPriceChange(
     }, 0);
     patch.totalPrice = bodyTotal != null
       ? Math.round((bodyTotal + driversTotal) * 100) / 100
-      : driversTotal > 0 ? Math.round(driversTotal * 100) / 100 : null;
+      : driversTotal !== 0 ? Math.round(driversTotal * 100) / 100 : null;
     // Marcar que o preço não é mais da API (foi sobrescrito manualmente)
     patch.luminariaHasApiPrice = false;
   }
