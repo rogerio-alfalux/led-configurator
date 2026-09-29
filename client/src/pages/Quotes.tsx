@@ -17,6 +17,7 @@ import { getLoginUrl } from "@/const";
 import { formatBRL } from "@/lib/cartTypes";
 import { getDisplayedCustomerTotal } from "@/lib/quoteTotals";
 import { getQuoteParticipationPercent } from "@/lib/quoteAnalysis";
+import { selectQuotesWithoutDuplicates } from "@/lib/quoteDuplicateSelection";
 import { toBrasiliaDate, toBrasiliaDateTimeShort, toBrasiliaFileDate, toBrasiliaMonthYear } from "@/lib/dateUtils";
 import { generateFilteredQuotesExcel } from "@/lib/quotesExcelGenerator";
 import {
@@ -43,7 +44,6 @@ const DEFAULT_VISIBLE_METRICS: Record<string, boolean> = {
   approved: true,
   lost: true,
   invoiced: true,
-  valueWithoutDuplicates: true,
   ldProspecting: false,
   duplicateValue: true,
   generalExpenses: false,
@@ -241,11 +241,15 @@ export default function Quotes() {
   // Estatísticas refletem os filtros ativos
   const stats = useMemo(() => {
     const rows = (filteredAllData?.rows ?? []).filter(isWithinSelectedDateRange);
-    // Total representa exatamente o mesmo conjunto filtrado que pode ser exportado.
-    const total = rows.length;
+    const rowsWithoutDuplicates = selectQuotesWithoutDuplicates(rows, isManuallyDuplicate);
+    // Os indicadores comerciais e o relatório padrão usam sempre uma única
+    // referência por duplicidade, preservando os duplicados apenas como dado
+    // informativo no respectivo card.
+    const total = rowsWithoutDuplicates.length;
     // Amostras e manutenções não são receita comercial: mantêm o registro e o custo,
     // mas seu valor de venda é zerado nos indicadores gerais.
-    const commercialRows = rows.filter(q => !(q as any).isProspecting && !isNonCommercialQuoteStatus(q.status));
+    const rawCommercialRows = rows.filter(q => !(q as any).isProspecting && !isNonCommercialQuoteStatus(q.status));
+    const commercialRows = selectQuotesWithoutDuplicates(rawCommercialRows, isManuallyDuplicate);
     const open = commercialRows.filter(q => q.status === "open").length;
     const approved = commercialRows.filter(q => isApprovedOrInvoicedStatus(q.status)).length;
     const lost = commercialRows.filter(q => q.status === "lost").length;
@@ -253,25 +257,17 @@ export default function Quotes() {
     // Referência única da revisão atual: margem, RT, desconto, frete e DIFAL/FCP.
     const getQuoteValue = (q: typeof rows[0]) => getCommercialQuoteValue(q.status, getQuoteCustomerTotal(q));
     const totalValue = commercialRows.reduce((sum, q) => sum + getQuoteValue(q), 0);
-    const seenDuplicateGroups = new Set<string>();
-    const withoutDuplicates = commercialRows.filter((q: any) => {
-      if (isManuallyDuplicate(q)) return false;
-      if (!q.isDuplicate || !q.duplicateKey) return true;
-      if (seenDuplicateGroups.has(q.duplicateKey)) return false;
-      seenDuplicateGroups.add(q.duplicateKey);
-      return true;
-    });
-    const realValue = withoutDuplicates.reduce((sum, q) => sum + getQuoteValue(q), 0);
-    const duplicateCount = commercialRows.filter((q: any) => q.isDuplicate).length;
-    const prospectingRows = rows.filter((q: any) => q.isProspecting);
+    const rawTotalValue = rawCommercialRows.reduce((sum, q) => sum + getQuoteValue(q), 0);
+    const duplicateCount = rawCommercialRows.filter((q: any) => isManuallyDuplicate(q) || q.isDuplicate).length;
+    const prospectingRows = rowsWithoutDuplicates.filter((q: any) => q.isProspecting);
     const prospectingValue = prospectingRows.reduce((sum, q) => sum + getQuoteValue(q), 0);
     const openValue = commercialRows.filter(q => q.status === "open").reduce((sum, q) => sum + getQuoteValue(q), 0);
     const approvedValue = commercialRows.filter(q => isApprovedOrInvoicedStatus(q.status)).reduce((sum, q) => sum + getQuoteValue(q), 0);
     const lostValue = commercialRows.filter(q => q.status === "lost").reduce((sum, q) => sum + getQuoteValue(q), 0);
     const invoicedValue = commercialRows.filter(q => q.status === "invoiced").reduce((sum, q) => sum + getQuoteValue(q), 0);
     return {
-      total, open, approved, lost, invoiced, totalValue, realValue,
-      duplicateValue: Math.max(0, totalValue - realValue),
+      total, open, approved, lost, invoiced, totalValue,
+      duplicateValue: Math.max(0, rawTotalValue - totalValue),
       duplicateCount, prospectingCount: prospectingRows.length, prospectingValue,
       openValue, approvedValue, lostValue, invoicedValue,
     };
@@ -365,7 +361,13 @@ export default function Quotes() {
   const total = data?.total ?? 0;
   const byReferenceDateDescending = (a: any, b: any) => new Date(getQuoteReferenceDate(b)).getTime() - new Date(getQuoteReferenceDate(a)).getTime();
   const visibleRows = rows.filter(matchesClientFilters).sort(byReferenceDateDescending);
-  const exportRows = (filteredAllData?.rows ?? []).filter(matchesClientFilters).sort(byReferenceDateDescending);
+  const exportRowsBeforeDuplicateSelection = (filteredAllData?.rows ?? []).filter(matchesClientFilters).sort(byReferenceDateDescending);
+  // A visualização da lista permanece completa para auditoria, mas o relatório
+  // padrão representa a carteira comercial sem duplicidade. Ao pedir
+  // explicitamente "Somente duplicados", o usuário recebe esses registros.
+  const exportRows = duplicateFilter === "duplicates"
+    ? exportRowsBeforeDuplicateSelection
+    : selectQuotesWithoutDuplicates(exportRowsBeforeDuplicateSelection, isManuallyDuplicate);
   const displayRows = clientFilterActive
     ? visibleRows.slice(page * limit, (page + 1) * limit)
     : visibleRows;
@@ -378,7 +380,7 @@ export default function Quotes() {
       status !== "all" ? `Status: ${STATUS_LABELS[status]?.label ?? status}` : "",
       sellerName ? `Vendedor: ${sellerName}` : "",
       assistantName ? `Assistente: ${assistantName}` : "",
-      duplicateFilter === "duplicates" ? "Somente duplicados" : duplicateFilter === "unique" ? "Sem duplicados" : "",
+      duplicateFilter === "duplicates" ? "Somente duplicados" : duplicateFilter === "unique" ? "Sem duplicados" : "Duplicados excluídos por padrão",
       prospectingFilter === "prospecting" ? "Prospecções LD" : prospectingFilter === "commercial" ? "Somente comercial" : "",
       ldOriginFilter === "ld_only" ? "Origem: solicitações LD" : "",
       ldResponseFilter === "awaiting_pdf" ? "LD: pendente de resposta" : ldResponseFilter === "sent_pdf" ? "LD: PDF enviado" : "",
@@ -481,7 +483,6 @@ export default function Quotes() {
             { id: "approved", label: "Aprovados (incl. faturados)", quantity: stats.approved, amount: formatBRL(stats.approvedValue), color: "text-green-600", icon: <CheckCircle className="w-4 h-4 text-green-500" /> },
             { id: "lost", label: "Perdidos", quantity: stats.lost, amount: formatBRL(stats.lostValue), color: "text-red-600", icon: <TrendingDown className="w-4 h-4 text-red-500" /> },
             { id: "invoiced", label: "Faturados", quantity: stats.invoiced, amount: formatBRL(stats.invoicedValue), color: "text-purple-600", icon: <Receipt className="w-4 h-4 text-purple-500" /> },
-            { id: "valueWithoutDuplicates", label: "Valor sem duplicados", value: formatBRL(stats.realValue), color: "text-emerald-600", icon: <CheckCircle className="w-4 h-4 text-emerald-500" /> },
             { id: "ldProspecting", label: "Prospecções LD", quantity: stats.prospectingCount, amount: formatBRL(stats.prospectingValue), color: "text-indigo-600", icon: <Users className="w-4 h-4 text-indigo-500" /> },
             { id: "duplicateValue", label: "Valor dos Duplicados", value: formatBRL(stats.duplicateValue), color: "text-orange-600", icon: <Copy className="w-4 h-4 text-orange-500" /> },
             ...(user.role === "admin" ? [{
