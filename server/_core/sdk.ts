@@ -327,10 +327,10 @@ class SDKServer {
     // ─── Verificação de domínio em sessões existentes ────────────────────────
     // Garante que mesmo usuários com cookie válido sejam bloqueados se o
     // e-mail não pertencer ao domínio permitido.
-    const { isEmailAllowed, isAdminEmail } = await import("../db");
+    const { isEmailAllowed, isAdminEmail, isEmailAccessRevoked } = await import("../db");
     // Usuários criados com senha (openId pwd_*) já foram autorizados pelo admin — não bloquear por domínio
     const isPasswordUser = user.openId.startsWith("pwd_");
-    if (!isPasswordUser && !isEmailAllowed(user.email)) {
+    if (isEmailAccessRevoked(user.email) || (!isPasswordUser && !isEmailAllowed(user.email))) {
       throw ForbiddenError("Access denied: email domain not allowed");
     }
 

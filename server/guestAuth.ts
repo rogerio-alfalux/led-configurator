@@ -37,6 +37,11 @@ router.post("/api/guest/login", async (req, res) => {
       return res.status(401).json({ error: "E-mail ou senha incorretos." });
     }
 
+    const { isEmailAccessRevoked } = await import("./db");
+    if (isEmailAccessRevoked(user.email)) {
+      return res.status(401).json({ error: "E-mail ou senha incorretos." });
+    }
+
     // Verificar senha
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
