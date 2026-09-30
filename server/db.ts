@@ -45,6 +45,38 @@ export const nowUtcStr = () => toUtcSqlTimestamp();
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
+/**
+ * A persistência de uma revisão substitui integralmente as linhas do rascunho.
+ * Duas requisições simultâneas para o mesmo orçamento não podem executar esse
+ * ciclo em paralelo: ambas poderiam ler a mesma versão e intercalar os INSERTs
+ * após o DELETE, duplicando todos os itens. A fila é deliberadamente por
+ * orçamento — revisões de orçamentos distintos continuam independentes.
+ */
+const quoteRevisionWriteQueues = new Map<number, Promise<void>>();
+
+export async function serializeQuoteRevisionWrite<T>(
+  quoteId: number,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const previous = quoteRevisionWriteQueues.get(quoteId) ?? Promise.resolve();
+  let releaseCurrent!: () => void;
+  const current = new Promise<void>((resolve) => {
+    releaseCurrent = resolve;
+  });
+  const queued = previous.catch(() => undefined).then(() => current);
+  quoteRevisionWriteQueues.set(quoteId, queued);
+
+  await previous.catch(() => undefined);
+  try {
+    return await operation();
+  } finally {
+    releaseCurrent();
+    if (quoteRevisionWriteQueues.get(quoteId) === queued) {
+      quoteRevisionWriteQueues.delete(quoteId);
+    }
+  }
+}
+
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
@@ -785,6 +817,14 @@ export async function createQuote(input: SaveQuoteInput): Promise<{ quoteId: num
 
 /** Adiciona uma nova revisão a um orçamento existente */
 export async function addQuoteRevision(
+  quoteId: number,
+  input: SaveQuoteInput,
+  bumpVersion = true
+): Promise<{ versionId: number; version: number }> {
+  return serializeQuoteRevisionWrite(quoteId, () => addQuoteRevisionUnlocked(quoteId, input, bumpVersion));
+}
+
+async function addQuoteRevisionUnlocked(
   quoteId: number,
   input: SaveQuoteInput,
   bumpVersion = true

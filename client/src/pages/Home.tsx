@@ -2901,7 +2901,6 @@ export default function Home() {
     const v = params.get("appendToQuote");
     return v ? parseInt(v, 10) : null;
   }, []);
-  const [pendingQuoteItems, setPendingQuoteItems] = useState<CartItemData[]>([]);
   // Acessórios pendentes a serem vinculados ao próximo item enviado ao carrinho
   const [pendingAccessories, setPendingAccessories] = useState<LinkedAccessory[]>([]);
   // Campo "item em planta" global — sincronizado com o carrinho
@@ -2912,6 +2911,9 @@ export default function Home() {
   const [globalPavimento, setGlobalPavimento] = useState("");
   // Ambiente global — aplicado a todos os itens adicionados ao carrinho
   const [globalAmbiente, setGlobalAmbiente] = useState("");
+  // A atualização de estado da mutation não é síncrona. Esta trava evita que
+  // dois cliques no mesmo gesto enviem o mesmo item duas vezes ao orçamento.
+  const appendToQuoteInFlightRef = useRef(false);
   const appendItemsMutation = trpc.quotes.appendItems.useMutation({
     onSuccess: (data) => {
       toast.success(`Item adicionado ao orçamento ${data.quoteNumber}!`);
@@ -2919,6 +2921,9 @@ export default function Home() {
     },
     onError: (err) => {
       toast.error(`Erro ao adicionar itens: ${err.message}`);
+    },
+    onSettled: () => {
+      appendToQuoteInFlightRef.current = false;
     },
   });
 
@@ -2956,6 +2961,16 @@ export default function Home() {
   // Função central: adiciona ao orçamento ou ao carrinho dependendo do modo
   // Categorias que já têm cor predefinida — não precisam do modal de cor
   const CATEGORIES_WITH_PRESET_COLOR = ["Acessórios", "Revenda", "Customizados", "Não Orçamos"];
+
+  const appendSingleItemToQuote = useCallback((item: CartItemData, versionNotes: string) => {
+    if (!appendToQuoteId || appendToQuoteInFlightRef.current) return;
+    appendToQuoteInFlightRef.current = true;
+    appendItemsMutation.mutate({
+      quoteId: appendToQuoteId,
+      newItems: [{ itemNumber: 1, itemData: JSON.stringify(item) }],
+      versionNotes,
+    });
+  }, [appendItemsMutation, appendToQuoteId]);
 
   // Função auxiliar: envia item diretamente ao carrinho/orçamento sem abrir modal de cor
   const dispatchItemDirect = useCallback((item: CartItemData, cor: CorPeca = "A Definir") => {
@@ -3002,11 +3017,7 @@ export default function Home() {
       setGlobalItemEmPlanta("");
       setGlobalQty(1);
     } else if (appendToQuoteId) {
-      appendItemsMutation.mutate({
-        quoteId: appendToQuoteId,
-        newItems: [{ itemNumber: 1, itemData: JSON.stringify(itemWithAcc) }],
-        versionNotes: `+1 item adicionado via configurador`,
-      });
+      appendSingleItemToQuote(itemWithAcc, "+1 item adicionado via configurador");
       setGlobalItemEmPlanta("");
       setGlobalQty(1);
     } else {
@@ -3014,7 +3025,7 @@ export default function Home() {
       setGlobalItemEmPlanta("");
       setGlobalQty(1);
     }
-  }, [globalQty, globalItemEmPlanta, globalPavimento, globalAmbiente, pendingAccessories, setPendingAccessories, appendToQuoteId, appendItemsMutation, replaceInQuoteId, replaceIndex, replaceItemMutation, addItem]);
+  }, [globalQty, globalItemEmPlanta, globalPavimento, globalAmbiente, pendingAccessories, setPendingAccessories, appendToQuoteId, appendSingleItemToQuote, replaceInQuoteId, replaceIndex, replaceItemMutation, addItem]);
 
   // Sempre abre o modal de cor antes de enviar (seja ao carrinho ou ao orçamento),
   // EXCETO para categorias que já têm cor predefinida (Acessórios, Revenda)
@@ -3034,17 +3045,6 @@ export default function Home() {
     setColorModalOpen(true);
   }, [dispatchItemDirect, pendingAccessories, setPendingAccessories]);
 
-  const handleConfirmAddToQuote = useCallback(() => {
-    if (!appendToQuoteId || pendingQuoteItems.length === 0) return;
-    appendItemsMutation.mutate({
-      quoteId: appendToQuoteId,
-      newItems: pendingQuoteItems.map((it, idx) => ({
-        itemNumber: idx + 1,
-        itemData: JSON.stringify(it),
-      })),
-      versionNotes: `+${pendingQuoteItems.length} item(s) adicionado(s) via configurador`,
-    });
-  }, [appendToQuoteId, pendingQuoteItems, appendItemsMutation]);
   const utils = trpc.useUtils();
   // Mapa código EQ → descrição (nome do driver) da API de componentes
   // Substitui a antiga dependência do Google Sheets
@@ -14506,12 +14506,9 @@ export default function Home() {
               setGlobalItemEmPlanta("");
               setGlobalQty(1);
             } else if (appendToQuoteId) {
-              // Modo append: envia diretamente ao orçamento após selecionar cor
-              appendItemsMutation.mutate({
-                quoteId: appendToQuoteId,
-                newItems: [{ itemNumber: 1, itemData: JSON.stringify(itemWithAcc) }],
-                versionNotes: `+1 item adicionado via configurador`,
-              });
+              // Modo append: envia diretamente ao orçamento após selecionar cor.
+              // A trava síncrona também cobre cliques repetidos antes do re-render.
+              appendSingleItemToQuote(itemWithAcc, "+1 item adicionado via configurador");
               setGlobalItemEmPlanta("");
               setGlobalQty(1);
             } else {
